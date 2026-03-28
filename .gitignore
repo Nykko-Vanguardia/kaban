@@ -1,0 +1,5 @@
+/target
+*.swp
+*.swo
+.nvim/
+.DS_Store
