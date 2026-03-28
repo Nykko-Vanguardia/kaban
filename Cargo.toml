@@ -1,0 +1,12 @@
+[package]
+name = "ledger"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [
+    "crates/ledger-lexer",
+]
+
+[dependencies]
+ledger-lexer = { path = "crates/ledger-lexer" }
