@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 pub enum Token<'a> {
     //lits
     IntLiteral(i64),
@@ -112,6 +114,12 @@ pub enum Token<'a> {
     Unsafe, //Might not need this 
 
     EOF,
+    Invalid{
+        error: LexError,
+        line: usize,
+        col: usize,
+        cause: &'a str,
+    },
 }
 
 //TODO add line and column of error
@@ -119,8 +127,8 @@ pub enum Token<'a> {
 pub enum LexError {
     #[error("Float literal must have a digit after the decimal point")]
     InvalidFloat,
-    #[error("Unexpected character: '{0}'")]
-    UnexpectedCharacter(char),
+    #[error("Unexpected character")]
+    UnexpectedCharacter,
 }
 
 pub struct Lexer<'a> {
@@ -135,19 +143,18 @@ impl<'a> Lexer<'a> {
         Lexer { source: input.as_bytes(), current: 0, line: 1, col: 1 }
     }
 
-    pub fn consume_next_token(&mut self) -> Result<Token<'a>, LexError> {
+    pub fn consume_next_token(&mut self) -> Token<'a> {
         while  Self::is_whitespace(self.source[self.current]){
             self.advance_current(); 
         }
         let current = self.peek_current();
         
-        let token = match current {
+        match current {
             b'\0' => Token::EOF,
-            b'0'..=b'9' => self.handle_numbers()?,
+            b'0'..=b'9' => self.handle_numbers(),
+            x if Self::is_non_underscore_symbol(x) => self.handle_symbol(),
             _ => self.handle_keywords()
-        };
-
-        Ok(token)
+        }
     }
 
     fn handle_keywords(&mut self) -> Token<'a> {
@@ -155,7 +162,7 @@ impl<'a> Lexer<'a> {
     }
 
     //TODO: Could just parse string of numbers to float itself
-    fn handle_numbers(&mut self) -> Result<Token<'a>, LexError> {
+    fn handle_numbers(&mut self) -> Token<'a> {
         let mut number: i64 = 0;
         while Self::is_number(self.peek_current()) {
             let next_digit = (self.peek_current() - b'0') as i64;
@@ -167,13 +174,13 @@ impl<'a> Lexer<'a> {
             return self.handle_float(number);
         }
 
-        Ok(Token::IntLiteral(number))
+        Token::IntLiteral(number)
     }
 
-    fn handle_float(&mut self, left_of_decimal: i64) -> Result<Token<'a>, LexError> {
+    fn handle_float(&mut self, left_of_decimal: i64) -> Token<'a> {
         self.advance_current();
         if !Self::is_number(self.peek_current()) {
-            return Err(LexError::InvalidFloat)
+            return Token::Invalid { error: LexError::InvalidFloat, line: 1, col: 1, cause: "todo" }
         };
 
         let mut right_of_decimal = 0.0;
@@ -186,7 +193,19 @@ impl<'a> Lexer<'a> {
         };
 
         let float = left_of_decimal as f64 + right_of_decimal;
-        Ok(Token::FloatLiteral(float))
+        Token::FloatLiteral(float)
+    }
+
+    fn handle_symbol(&mut self) -> Token<'a> {
+        let current = self.peek_current();
+        match current {
+            b'=' => match self.peek_next() {
+                b'=' => Token::EqualEqual,
+                b'>' => Token::FatArrow,
+                _ => Token::Equals,
+            },
+            _ => Token::Invalid { error: LexError::UnexpectedCharacter, line: 0,  col: 0, cause: "todo" }
+        }
     }
 
     fn advance_current(&mut self) {
@@ -219,6 +238,14 @@ impl<'a> Lexer<'a> {
 
     fn is_number(char_in_bytes: u8) -> bool {
         matches!(char_in_bytes, b'0'..=b'9')
+    }
+
+    fn is_symbol(char_in_bytes: u8) -> bool {
+        char_in_bytes.is_ascii() && (!char_in_bytes.is_ascii_alphanumeric())
+    }
+
+    fn is_non_underscore_symbol(char_in_bytes: u8) -> bool {
+        Self::is_symbol(char_in_bytes) && char_in_bytes != b'_'
     }
 
     fn get_char_size(byte: u8) -> usize {
