@@ -6,7 +6,9 @@ pub enum Token<'a> {
     StringObjLit(&'a str),  // for ``, automatically sugars to String.new()
     InterpolatedStringObjLit(&'a str),  // for f`` automaticallu sugars to String.format()
     BoolLit(bool),
-    CharacterLit(char),
+    Char8Lit(u8),
+    Char16Lit(&'a [u8]),
+    Char32Lit(&'a [u8]),
 
     //keywords
     Const,
@@ -102,7 +104,9 @@ pub enum Token<'a> {
     U32, 
     U64,
     USize,
-    Char,
+    Char8,
+    Char16,
+    Char32,
     Bool,
     Void,
     Undefined,
@@ -138,6 +142,8 @@ pub enum LexError {
     IncompleteString,
     #[error("Invalid Unicode")]
     InvalidUnicode,
+    #[error("Char Literals must contain one character")]
+    InvalidCharLiteral,
 }
 
 pub struct Lexer<'a> {
@@ -177,6 +183,7 @@ impl<'a> Lexer<'a> {
             b'`' => self.handle_string(b'`',Token::StringObjLit),
             b'f' if self.peek_next() == b'`' => 
                 self.handle_string(b'`',Token::InterpolatedStringObjLit),
+            b'\'' => self.handle_char_lit(),
             b'/' if self.is_doc_comment() => self.handle_doc_comment(),
             _ => self.handle_letters()
         }
@@ -252,6 +259,11 @@ impl<'a> Lexer<'a> {
         let starting_char_index = self.current;
         while self.peek_current() != terminator {
             if self.peek_current() == b'\0' { return self.get_invalid(LexError::IncompleteString) };
+            if self.peek_current() == b'\\' {
+                self.advance_current();
+                self.advance_current();
+                continue;
+            }
 
             self.advance_current();
         };
@@ -262,6 +274,37 @@ impl<'a> Lexer<'a> {
         match str::from_utf8(char_slice) {
             Ok(s) => token_constructor(s),
             Err(_) => self.get_invalid(LexError::InvalidUnicode),
+        }
+    }
+
+    fn handle_char_lit(&mut self) -> Token<'a> {
+        self.advance_current();
+
+        let char = self.peek_current();
+        let char_starting_index = self.current;
+
+        let char = if char == b'\\' {
+            self.advance_current();
+            let escape_char = self.peek_current();
+            match escape_char {
+                b'n' => b'\n',
+                b'r' => b'\r',
+                b't' => b'\t',
+                b'\\' => b'\\',
+                b'\'' => b'\'',
+                _ => escape_char,
+            }
+        } else { char };
+
+        self.advance_current();
+        let end_index = self.current;
+        if self.peek_current() != b'\'' { return self.get_invalid(LexError::InvalidCharLiteral)};
+        self.advance_current();
+
+        match Self::get_char_size(char) {
+            1 => Token::Char8Lit(char),
+            2 => Token::Char16Lit(&self.source[char_starting_index..end_index]),
+            _ => Token::Char32Lit(&self.source[char_starting_index..end_index])
         }
     }
 
