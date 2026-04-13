@@ -117,6 +117,7 @@ pub enum Token<'a> {
     Await, // maybe future async support??
     Unsafe, //Might not need this 
 
+    DocComment(&'a str),
     EOF,
     Invalid{
         error: LexError,
@@ -165,19 +166,18 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn consume_next_token(&mut self) -> Token<'a> {
-        while  Self::is_whitespace(self.source[self.current]){
-            self.advance_current(); 
-        }
+        self.skip_whitespace_and_comments();
         let current = self.peek_current();
         
         match current {
             b'\0' => Token::EOF,
             b'0'..=b'9' => self.handle_numbers(),
-            x if Self::is_non_underscore_symbol(x) => self.handle_symbol(),
+            c if Self::is_non_underscore_symbol(c) => self.handle_symbol(),
             b'"' => self.handle_string(b'"', Token::StringLit),
             b'`' => self.handle_string(b'`',Token::StringObjLit),
             b'f' if self.peek_next() == b'`' => 
                 self.handle_string(b'`',Token::InterpolatedStringObjLit),
+            b'/' if self.is_doc_comment() => self.handle_doc_comment(),
             _ => self.handle_letters()
         }
     }
@@ -265,6 +265,24 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn handle_doc_comment(&mut self) -> Token<'a> {
+        for _ in 0..3 { self.advance_current(); }
+        let start_comment_index = self.current;
+
+        while !(self.peek_current() == b'*' && self.peek_next() == b'/') 
+          && self.peek_current() != b'\0' {
+            self.advance_current();
+        }
+        let last_comment_index = self.current;
+        self.advance_current();
+        self.advance_current();
+        let comment = match  str::from_utf8(&self.source[start_comment_index..last_comment_index]) {
+            Ok(s) => s,
+            Err(_) => return self.get_invalid(LexError::InvalidUnicode),
+        };
+        Token::DocComment(comment)
+    }
+
     fn advance_current(&mut self) {
         let current_byte = self.peek_current();
         if current_byte == b'\0' {
@@ -279,6 +297,30 @@ impl<'a> Lexer<'a> {
         }
 
         self.current += Lexer::get_char_size(current_byte);
+    }
+
+    fn skip_whitespace_and_comments(&mut self) {
+        loop {
+            match self.peek_current() {
+                c if c.is_ascii_whitespace() => self.advance_current(),
+                b'/' if self.peek_next() == b'/' => {
+                    while self.peek_current() != b'\n' && self.peek_current() != b'\0'{
+                        self.advance_current();
+                    }
+                }
+                b'/' if self.peek_next() == b'*' =>  {
+                    if self.is_doc_comment() { break };
+                    self.advance_current();
+                    self.advance_current();
+
+                    while !(self.peek_current() == b'*' && self.peek_next() == b'/') 
+                        && self.peek_current() != b'\0' {self.advance_current();}
+                    self.advance_current();
+                    self.advance_current();
+                }
+                _ => break,
+            }
+        }
     }
 
     fn peek_current(&self) -> u8 {
@@ -297,12 +339,12 @@ impl<'a> Lexer<'a> {
         self.source[self.current + till as usize]
     }
 
-    fn is_whitespace(char_in_bytes: u8) -> bool {
-        char_in_bytes == b'\n' || 
-            char_in_bytes == b'\t' || 
-            char_in_bytes == b'\r' ||
-            char_in_bytes == b' '
-    }
+    // fn is_whitespace(char_in_bytes: u8) -> bool {
+    //     char_in_bytes == b'\n' || 
+    //         char_in_bytes == b'\t' || 
+    //         char_in_bytes == b'\r' ||
+    //         char_in_bytes == b' '
+    // }
 
     fn is_number(char_in_bytes: u8) -> bool {
         matches!(char_in_bytes, b'0'..=b'9')
@@ -319,6 +361,13 @@ impl<'a> Lexer<'a> {
     fn is_keyword_or_identifier_char(char_in_bytes: u8) -> bool {
         let is_unicode = char_in_bytes > 128;
         char_in_bytes.is_ascii_alphanumeric() || char_in_bytes == b'_' || is_unicode
+    }
+
+    fn is_doc_comment(&self) -> bool {
+        self.peek_current() == b'/' &&
+            self.peek_next() == b'*' &&
+            self.peek_till(2) == b'*' &&
+            self.peek_till(3) != b'/'
     }
 
     fn get_char_size(byte: u8) -> usize {
