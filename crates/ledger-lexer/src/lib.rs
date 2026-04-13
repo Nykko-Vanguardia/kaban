@@ -1,18 +1,18 @@
-use std::io::Cursor;
-
 pub enum Token<'a> {
     //lits
-    IntLiteral(i64),
-    FloatLiteral(f64),
-    StringLiteral(String),
-    InterpolatedString(String),  // for ``
-    BoolLiteral(bool),
-    CharacterLiteral(char),
+    IntLit(i64),
+    FloatLit(f64),
+    StringLit(&'a str),
+    StringObjLit(&'a str),  // for ``, automatically sugars to String.new()
+    InterpolatedStringObjLit(&'a str),  // for f`` automaticallu sugars to String.format()
+    BoolLit(bool),
+    CharacterLit(char),
 
     //keywords
     Const,
     Let,
     Alloc,
+    Buffer,
     Stack,
     Free,
     Struct,
@@ -29,6 +29,7 @@ pub enum Token<'a> {
     In,
     Break,
     Continue,
+    Pass,
     While,
     Return,
     Func,
@@ -61,13 +62,15 @@ pub enum Token<'a> {
     Ampersand, // & for borrows
     AmpersandMut, //&mut
     Pipe, // | for union types
-    FatArrow, // =>
+    FatArrow, // => Im still not sure between these two
+    SkinnyArrow, // -> Im still not sure between these two
     Plus,
     Minus,
     PlusPlus, //++
     MinusMinus, //--
     Slash,
     DotDot, // ..
+    DotDotDot, // ...
     DotDotEquals, // ..=
     PlusEquals, // += 
     MinusEquals, // -=
@@ -102,7 +105,8 @@ pub enum Token<'a> {
     Char,
     Bool,
     Void,
-    Null,
+    Undefined,
+    Garbage,
 
     //Reserved
     Autofree, // debating if i should add this, autofree is only for class variables, will autofree
@@ -129,6 +133,10 @@ pub enum LexError {
     InvalidFloat,
     #[error("Unexpected character")]
     UnexpectedCharacter,
+    #[error("Incomplete String")]
+    IncompleteString,
+    #[error("Invalid Unicode")]
+    InvalidUnicode,
 }
 
 pub struct Lexer<'a> {
@@ -143,6 +151,19 @@ impl<'a> Lexer<'a> {
         Lexer { source: input.as_bytes(), current: 0, line: 1, col: 1 }
     }
 
+    pub fn tokenize(&mut self) -> Vec<Token<'a>> {
+        let mut tokens: Vec<Token> = Vec::new();
+
+        loop {
+            let token = self.consume_next_token();
+            let is_eof = matches!(token, Token::EOF);
+            tokens.push(token);
+            if is_eof { break; }
+        }
+
+        tokens
+    }
+
     pub fn consume_next_token(&mut self) -> Token<'a> {
         while  Self::is_whitespace(self.source[self.current]){
             self.advance_current(); 
@@ -153,11 +174,15 @@ impl<'a> Lexer<'a> {
             b'\0' => Token::EOF,
             b'0'..=b'9' => self.handle_numbers(),
             x if Self::is_non_underscore_symbol(x) => self.handle_symbol(),
-            _ => self.handle_keywords()
+            b'"' => self.handle_string(b'"', Token::StringLit),
+            b'`' => self.handle_string(b'`',Token::StringObjLit),
+            b'f' if self.peek_next() == b'`' => 
+                self.handle_string(b'`',Token::InterpolatedStringObjLit),
+            _ => self.handle_letters()
         }
     }
 
-    fn handle_keywords(&mut self) -> Token<'a> {
+    fn handle_letters(&mut self) -> Token<'a> {
         Token::Identifier("wazzup")
     }
 
@@ -174,13 +199,13 @@ impl<'a> Lexer<'a> {
             return self.handle_float(number);
         }
 
-        Token::IntLiteral(number)
+        Token::IntLit(number)
     }
 
     fn handle_float(&mut self, left_of_decimal: i64) -> Token<'a> {
         self.advance_current();
         if !Self::is_number(self.peek_current()) {
-            return Token::Invalid { error: LexError::InvalidFloat, line: 1, col: 1, cause: "todo" }
+            return self.get_invalid(LexError::InvalidFloat)
         };
 
         let mut right_of_decimal = 0.0;
@@ -193,7 +218,7 @@ impl<'a> Lexer<'a> {
         };
 
         let float = left_of_decimal as f64 + right_of_decimal;
-        Token::FloatLiteral(float)
+        Token::FloatLit(float)
     }
 
     fn handle_symbol(&mut self) -> Token<'a> {
@@ -204,12 +229,38 @@ impl<'a> Lexer<'a> {
                 b'>' => Token::FatArrow,
                 _ => Token::Equals,
             },
-            _ => Token::Invalid { error: LexError::UnexpectedCharacter, line: 0,  col: 0, cause: "todo" }
+            _ => self.handle_letters(),
+        }
+    }
+
+    fn handle_string(&mut self, terminator: u8, token_constructor: fn(&'a str) -> Token<'a>) -> Token<'a> {
+        if self.peek_current() == b'f' {self.advance_current();};
+        self.advance_current();
+        let starting_char_index = self.current;
+        while self.peek_current() != terminator {
+            if self.peek_current() == b'\0' { return self.get_invalid(LexError::IncompleteString) };
+
+            self.advance_current();
+        };
+
+        let end_quotes_index = self.current;
+        self.advance_current(); //consume end quotes
+        let char_slice = &self.source[starting_char_index..end_quotes_index];
+        match str::from_utf8(char_slice) {
+            Ok(s) => token_constructor(s),
+            Err(_) => self.get_invalid(LexError::InvalidUnicode),
         }
     }
 
     fn advance_current(&mut self) {
         let current_byte = self.peek_current();
+        if current_byte == b'\n' {
+            self.line += 1;
+            self.col = 1;
+        } else {
+            self.col += 1;
+        }
+
         self.current += Lexer::get_char_size(current_byte);
     }
 
@@ -260,5 +311,9 @@ impl<'a> Lexer<'a> {
         } else {
             0 
         }
+    }
+
+    fn get_invalid(&self, lex_error: LexError) -> Token<'a> {
+        Token::Invalid { error: lex_error, line: self.line, col: self.col, cause: "todo" }
     }
 }
