@@ -1,7 +1,7 @@
 pub enum Token<'a> {
     //lits
-    IntLit(i64),
-    FloatLit(f64),
+    IntLit(&'a str),
+    FloatLit(&'a str),
     StringLit(&'a str),
     StringObjLit(&'a str),  // for ``, automatically sugars to String.new()
     InterpolatedStringObjLit(&'a str),  // for f`` automaticallu sugars to String.format()
@@ -206,39 +206,75 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    //TODO: Could just parse string of numbers to float itself
     fn handle_numbers(&mut self) -> Token<'a> {
-        let mut number: i64 = 0;
-        while Self::is_number(self.peek_current()) {
-            let next_digit = (self.peek_current() - b'0') as i64;
-            number = number * 10 + next_digit; 
-            self.advance_current();
+        let start = self.current;
+    
+        if self.peek_current() == b'0' {
+            match self.peek_next() {
+                b'b' | b'B' => return self.handle_bin(start),
+                b'x' | b'X' => return self.handle_hex(start),
+                b'o' | b'O' => return self.handle_oct(start),
+            _ => {}
+            };
         };
 
-        if self.peek_current() == b'.' {
-            return self.handle_float(number);
+        while self.peek_current().is_ascii_digit() { self.advance_current(); };
+
+        let mut float_flag = self.peek_current() == b'.' && self.peek_next().is_ascii_digit();
+        if float_flag {
+            self.advance_current();
+            while self.peek_current().is_ascii_digit() { self.advance_current();}
         }
 
-        Token::IntLit(number)
+        if self.peek_current() == b'e' || self.peek_current() == b'E' {
+            let has_sign = self.peek_next() == b'+' || self.peek_next() == b'-';
+            let next_digit = if has_sign { self.peek_till(2) } else { self.peek_next() };
+
+            if next_digit.is_ascii_digit() {
+                float_flag = true;
+                self.advance_current(); //consume e
+                if has_sign { self.advance_current(); } //consume sign
+                while self.peek_current().is_ascii_digit() {
+                    self.advance_current();
+                }
+            }
+        }
+
+        let end = self.current;
+        let num = str::from_utf8(&self.source[start..end]).unwrap();
+        if !float_flag {Token::IntLit(num)} else {Token::FloatLit(num)}
     }
 
-    fn handle_float(&mut self, left_of_decimal: i64) -> Token<'a> {
+    fn handle_hex(&mut self, start: usize) -> Token<'a> {
         self.advance_current();
-        if !Self::is_number(self.peek_current()) {
-            return self.get_invalid(LexError::InvalidFloat)
-        };
-
-        let mut right_of_decimal = 0.0;
-        let mut place = 10.0; //this is currently at the tenths place of the decimal, aka 0.X
-        while Self::is_number(self.peek_current()) {
-            let next_digit: f64 = (self.peek_current() - b'0') as f64 / place;
-            right_of_decimal = right_of_decimal + next_digit;
-            place = place * 10.0;
+        self.advance_current();
+        while self.peek_current().is_ascii_hexdigit() {
             self.advance_current();
-        };
+        }
+        let end = self.current;
+        Token::IntLit(str::from_utf8(&self.source[start..end]).unwrap())
+    }
 
-        let float = left_of_decimal as f64 + right_of_decimal;
-        Token::FloatLit(float)
+    fn handle_bin(&mut self, start: usize) -> Token<'a> {
+        self.advance_current();
+        self.advance_current();
+        while self.peek_current() == b'0' || self.peek_current() == b'1' {
+            self.advance_current();
+        }
+
+        let end = self.current;
+        Token::IntLit(str::from_utf8(&self.source[start..end]).unwrap())
+    }
+
+    fn handle_oct(&mut self, start: usize) -> Token<'a> {
+        self.advance_current();
+        self.advance_current();
+        while matches!(self.peek_current(), b'0'..=b'7'){
+            self.advance_current();
+        }
+
+        let end = self.current;
+        Token::IntLit(str::from_utf8(&self.source[start..end]).unwrap())
     }
 
     fn handle_symbol(&mut self) -> Token<'a> {
@@ -380,17 +416,6 @@ impl<'a> Lexer<'a> {
         };
 
         self.source[self.current + till as usize]
-    }
-
-    // fn is_whitespace(char_in_bytes: u8) -> bool {
-    //     char_in_bytes == b'\n' || 
-    //         char_in_bytes == b'\t' || 
-    //         char_in_bytes == b'\r' ||
-    //         char_in_bytes == b' '
-    // }
-
-    fn is_number(char_in_bytes: u8) -> bool {
-        matches!(char_in_bytes, b'0'..=b'9')
     }
 
     fn is_symbol(char_in_bytes: u8) -> bool {
