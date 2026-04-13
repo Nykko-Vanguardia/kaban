@@ -183,7 +183,20 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_letters(&mut self) -> Token<'a> {
-        Token::Identifier("wazzup")
+        let starting_index = self.current;
+        while Self::is_keyword_or_identifier_char(self.peek_current()) {
+            self.advance_current();
+        };
+        let ending_index = self.current;
+        let keyword_or_identifier = match str::from_utf8(&self.source[starting_index..ending_index]) {
+            Ok(s) => s,
+            Err(_) => return Self::get_invalid(&self, LexError::InvalidUnicode),
+        };
+
+        match keyword_or_identifier {
+            "let" => Token::Let,
+            _ => Token::Identifier(keyword_or_identifier),
+        }
     }
 
     //TODO: Could just parse string of numbers to float itself
@@ -254,6 +267,10 @@ impl<'a> Lexer<'a> {
 
     fn advance_current(&mut self) {
         let current_byte = self.peek_current();
+        if current_byte == b'\0' {
+            return;
+        }
+
         if current_byte == b'\n' {
             self.line += 1;
             self.col = 1;
@@ -272,8 +289,8 @@ impl<'a> Lexer<'a> {
         self.peek_till(1)
     }
 
-    fn peek_till(&self, till: u8) -> u8 {
-        if self.current >= self.source.len() {
+    fn peek_till(&self, till: usize) -> u8 {
+        if self.current + till >= self.source.len() {
             return b'\0';
         };
 
@@ -297,6 +314,11 @@ impl<'a> Lexer<'a> {
 
     fn is_non_underscore_symbol(char_in_bytes: u8) -> bool {
         Self::is_symbol(char_in_bytes) && char_in_bytes != b'_'
+    }
+
+    fn is_keyword_or_identifier_char(char_in_bytes: u8) -> bool {
+        let is_unicode = char_in_bytes > 128;
+        char_in_bytes.is_ascii_alphanumeric() || char_in_bytes == b'_' || is_unicode
     }
 
     fn get_char_size(byte: u8) -> usize {
