@@ -10,3 +10,6 @@ members = [
 
 [dependencies]
 ledger-lexer = { path = "crates/ledger-lexer" }
+
+[workspace.dependencies]
+thiserror = "2.0.18"
