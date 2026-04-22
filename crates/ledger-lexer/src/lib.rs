@@ -11,19 +11,31 @@ pub enum Token<'a> {
     Char32Lit(&'a [u8]),
 
     //keywords
-    Const,
     Let,
+    Mut,
+    Const,
     Alloc,
-    Buffer,
-    Stack,
+    Kalloc,
+    Realloc,
     Free,
     Struct,
     Interface,
-    Implements,   
-    Obj,
-    Error,
-    Public,
-    Private,
+    Impl,
+    Class,
+    Pub,
+    Constructor,
+    Destructor,
+    Disposer,
+    Dispose,
+    New,
+    Destruct,
+    Self_,
+    Shape,
+    Namespace,
+    Result,
+    Ok,
+    Err,
+    Exit,
     If,
     Else,
     Match,
@@ -36,14 +48,21 @@ pub enum Token<'a> {
     Return,
     Func,
     Union,
+    Enum,
+    Is,
+    To,
     Import,
     Type,
-    Is,
     As,
-    Band, // band
-    Bor, // bor
-    Bxor, // bxor
-    Bnot, // bnot
+    Band,
+    Bor,
+    Bxor,
+    Bnot,
+    Comptime,
+    Write,
+    Hash,
+    Unsafe,
+    ASM,
 
     //identifiers
     Identifier(&'a str),
@@ -79,6 +98,10 @@ pub enum Token<'a> {
     StarEquals, // *=
     SlashEquals, // /=
     Bang, // !
+    BangDot,
+    Question,
+    QuestionQuestion,
+    QuestionQuestionDot,
     Less,
     Greater,
     LessEqual,
@@ -92,7 +115,6 @@ pub enum Token<'a> {
     GreaterGreater, // >> bit wise
 
     //types
-    StringType,
     I8,
     I16,
     I32,
@@ -115,12 +137,16 @@ pub enum Token<'a> {
     //Reserved
     Autofree, // debating if i should add this, autofree is only for class variables, will autofree
               // upon calling destructor()
-    Singleton, // im debating if i should add this, singletons are just obj but are constructed
-               // immediately with only one instance existing 
-    Async, // maybe future async support??
-    Await, // maybe future async support??
-    Unsafe, //Might not need this 
+    Async,
+    Await,
+    Heap, //Might replace alloc
+    Raw,
+    LeftArrow, //Maybe ill use this
+    Where,
+    Defer,
+    Nil,
 
+    //Special
     DocComment(&'a str),
     EOF,
     Invalid{
@@ -202,19 +228,236 @@ impl<'a> Lexer<'a> {
 
         match keyword_or_identifier {
             "let" => Token::Let,
+            "mut" => Token::Mut,
+            "const" => Token::Const,
+            "alloc" => Token::Alloc,
+            "kalloc" => Token::Kalloc, //might not need this
+            "realloc" => Token::Realloc,
+            "free" => Token::Free,
+            "struct" => Token::Struct,
+            "interface" => Token::Interface,
+            "impl" => Token::Impl,
+            "class" => Token::Class,
+            "pub" => Token::Pub,
+            "constructor" => Token::Constructor,
+            "destructor" => Token::Destructor,
+            "new" => Token::New,
+            "destruct" => Token::Destruct,
+            "disposer" => Token::Disposer,
+            "dispose" => Token::Dispose,
+            "self" => Token::Self_,
+            // "shape" => Token::Shape, //This should be an identifier, we use it in impl blocks
+            // based on context. But shape is a keyword, only in impl blcoks
+            "namespace" => Token::Namespace,
+            "result" => Token::Result,
+            "ok" => Token::Ok,
+            "err" => Token::Err,
+            "exit" => Token::Exit,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "match" => Token::Match,
+            "for" => Token::For,
+            "in" => Token::In,
+            "break" => Token::Break,
+            "continue" => Token::Continue,
+            "pass" => Token::Pass,
+            "while" => Token::While,
+            "return" => Token::Return,
+            "func" => Token::Func,
+            "union" => Token::Union,
+            "enum" => Token::Enum,
+            "is" => Token::Is,
+            "to" => Token::To,
+            "import" => Token::Import,
+            "type" => Token::Type,
+            "as" => Token::As,
+            "band" => Token::Band,
+            "bor" => Token::Bor,
+            "bxor" => Token::Bxor,
+            "bnot" => Token::Bnot,
+            "comptime" => Token::Comptime,
+            "write" => Token::Write,
+            "unsafe" => Token::Unsafe,
+            //Types
+            "i8" => Token::I8,
+            "i16" => Token::I16,
+            "i32" => Token::I32,
+            "i64" => Token::I64,
+            "f32" => Token::F32,
+            "f64" => Token::F64,
+            "u8" => Token::U8, 
+            "u16" => Token::U16, 
+            "u32" => Token::U32, 
+            "u64" => Token::U64,
+            "usize" => Token::USize,
+            "char8" => Token::Char8,
+            "char16" => Token::Char16,
+            "char32" => Token::Char32,
+            "bool" => Token::Bool,
+            "void" => Token::Void,
+            "undefined" => Token::Undefined,
+            "garbage" => Token::Garbage,
+            "asm" => Token::ASM,
+            //Reserved
+            "autofree" => Token::Autofree,
+            "async" => Token::Async,
+            "await" => Token::Await,
+            "heap" => Token::Heap, //Might replace alloc
+            "raw" => Token::Raw,
+            "where" => Token::Where,
+            "defer" => Token::Defer,
+            "nil" => Token::Nil,
             _ => Token::Identifier(keyword_or_identifier),
+        }
+    }
+
+    fn handle_symbol(&mut self) -> Token<'a> {
+        let current = self.peek_current();
+        match current {
+            b'=' => {
+                if self.match_and_consume("==") {
+                    Token::EqualEqual
+                } else if self.match_and_consume("=>") {
+                    Token::FatArrow
+                } else {
+                    self.advance_current();
+                    Token::Equals
+                }
+            },
+            b'!' => {
+                if self.match_and_consume("!=") {
+                    Token::BangEqual
+                } else if self.match_and_consume("!.") {
+                    Token::BangDot
+                } else {
+                    self.advance_current();
+                    Token::Bang
+                }
+            },
+            b'?' => {
+                if self.match_and_consume("??.") {
+                    Token::QuestionQuestionDot
+                } else if self.match_and_consume("??") {
+                    Token::QuestionQuestion
+                } else {
+                    self.advance_current();
+                    Token::Question
+                }
+            },
+            b'<' => {
+                if self.match_and_consume("<<") {
+                    Token::LessLess
+                } else if self.match_and_consume("<=") {
+                    Token::LessEqual
+                } else if self.match_and_consume("<-") {
+                    Token::LeftArrow
+                } else {
+                    self.advance_current();
+                    Token::Less
+                }
+            },
+            b'>' => {
+                if self.match_and_consume(">>") {
+                    Token::GreaterGreater
+                } else if self.match_and_consume(">=") {
+                    Token::GreaterEqual
+                } else {
+                    self.advance_current();
+                    Token::Greater
+                }
+            },
+            b'&' => {
+                if self.match_and_consume("&&") {
+                    Token::And
+                } else if self.match_and_consume("&mut") {
+                    Token::AmpersandMut
+                } else {
+                    self.advance_current();
+                    Token::Ampersand
+                }
+            },
+            b'|' => {
+                if self.match_and_consume("||") {
+                    Token::Or
+                } else {
+                    self.advance_current();
+                    Token::Pipe
+                }
+            },
+            b'+' => {
+                if self.match_and_consume("++") {
+                    Token::PlusPlus
+                } else if self.match_and_consume("+=") {
+                    Token::PlusEquals
+                } else {
+                    self.advance_current();
+                    Token::Plus
+                }
+            },
+            b'-' => {
+                if self.match_and_consume("--") {
+                    Token::MinusMinus
+                } else if self.match_and_consume("-=") {
+                    Token::MinusEquals
+                } else if self.match_and_consume("->") {
+                    Token::SkinnyArrow
+                } else {
+                    self.advance_current();
+                    Token::Minus
+                }
+            },
+            b'*' => {
+                if self.match_and_consume("*=") {
+                    Token::StarEquals
+                } else {
+                    self.advance_current();
+                    Token::Star
+                }
+            },
+            b'/' => {
+                if self.match_and_consume("/=") {
+                    Token::SlashEquals
+                } else {
+                    self.advance_current();
+                    Token::Slash
+                }
+            },
+            b'.' => {
+                if self.match_and_consume("...") {
+                    Token::DotDotDot
+                } else if self.match_and_consume("..=") {
+                    Token::DotDotEquals
+                } else if self.match_and_consume("..") {
+                    Token::DotDot
+                } else {
+                    self.advance_current();
+                    Token::Dot
+                }
+            },
+            b';' => { self.advance_current(); Token::Semicolon },
+            b':' => { self.advance_current(); Token::Colon },
+            b',' => { self.advance_current(); Token::Comma },
+            b'{' => { self.advance_current(); Token::LeftBrace },
+            b'}' => { self.advance_current(); Token::RightBrace },
+            b'(' => { self.advance_current(); Token::LeftParen },
+            b')' => { self.advance_current(); Token::RightParen },
+            b'[' => { self.advance_current(); Token::LeftBracket },
+            b']' => { self.advance_current(); Token::RightBracket },
+            b'^' => { self.advance_current(); Token::Caret },
+            b'#' => { self.advance_current(); Token::Hash },
+            _ => self.get_invalid(LexError::UnexpectedCharacter),
         }
     }
 
     fn handle_numbers(&mut self) -> Token<'a> {
         let start = self.current;
-    
+
         if self.peek_current() == b'0' {
             match self.peek_next() {
                 b'b' | b'B' => return self.handle_bin(start),
                 b'x' | b'X' => return self.handle_hex(start),
                 b'o' | b'O' => return self.handle_oct(start),
-            _ => {}
+                _ => {}
             };
         };
 
@@ -277,18 +520,6 @@ impl<'a> Lexer<'a> {
         Token::IntLit(str::from_utf8(&self.source[start..end]).unwrap())
     }
 
-    fn handle_symbol(&mut self) -> Token<'a> {
-        let current = self.peek_current();
-        match current {
-            b'=' => match self.peek_next() {
-                b'=' => Token::EqualEqual,
-                b'>' => Token::FatArrow,
-                _ => Token::Equals,
-            },
-            _ => self.handle_letters(),
-        }
-    }
-
     fn handle_string(&mut self, terminator: u8, token_constructor: fn(&'a str) -> Token<'a>) -> Token<'a> {
         if self.peek_current() == b'f' {self.advance_current();};
         self.advance_current();
@@ -349,9 +580,9 @@ impl<'a> Lexer<'a> {
         let start_comment_index = self.current;
 
         while !(self.peek_current() == b'*' && self.peek_next() == b'/') 
-          && self.peek_current() != b'\0' {
-            self.advance_current();
-        }
+            && self.peek_current() != b'\0' {
+                self.advance_current();
+            }
         let last_comment_index = self.current;
         self.advance_current();
         self.advance_current();
@@ -415,7 +646,27 @@ impl<'a> Lexer<'a> {
             return b'\0';
         };
 
-        self.source[self.current + till as usize]
+        self.source[self.current + till]
+    }
+
+    fn matches_current(&self, pattern: &str) -> bool {
+        let bytes = pattern.as_bytes();
+        let end = self.current + bytes.len();
+        if end > self.source.len() {
+            return false;
+        }
+
+        &self.source[self.current..end] == bytes
+    }
+
+    fn match_and_consume(&mut self, pattern: &str) -> bool {        
+        if !self.matches_current(pattern) { return false; };
+
+        for _ in 0..pattern.as_bytes().len() {
+            self.advance_current();
+        };
+
+        true
     }
 
     fn is_symbol(char_in_bytes: u8) -> bool {
