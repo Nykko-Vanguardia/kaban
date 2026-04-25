@@ -21,6 +21,7 @@ name = "ledger-parser"
 version = "0.1.0"
 dependencies = [
  "ledger-lexer",
+ "thiserror",
 ]
 
 [[package]]

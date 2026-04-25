@@ -1,0 +1,351 @@
+use ledger_lexer::{Lexer, Token};
+use crate::{ast::{BinaryOperator, Expression, Statement, Type, UnaryOperator}, errors::ParseError};
+
+pub struct Parser<'a> {
+    tokens: &'a [Token<'a>],
+    current: usize,
+    errors: Vec<ParseError>,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a [Token<'a>]) -> Self {
+        Parser {
+            tokens,
+            current: 0,
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn parse_tokens(&mut self) -> Expression<'a> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            match self.parse_next_statement() {
+                Some(statement) => statements.push(statement),
+                None => continue,
+            }
+        };
+
+        Expression::Block { statements: statements, value: None }
+    }
+
+    fn parse_next_statement(&mut self) -> Option<Statement<'a>> {
+        let current_token = self.peek_current();
+
+        match current_token {
+            Token::Let => self.handle_let_statements(),
+            _ => Some(self.handle_expression_statements())
+        }
+    }
+
+    fn parse_expression(&mut self) -> Option<Expression<'a>> {
+        let mut left_side = self.parse_atom()?;
+        let possible_operator = self.peek_current();
+
+        loop {
+            match possible_operator {
+                _ => break,
+            };
+        }
+
+        Some(left_side)
+    }
+
+    fn parse_atom(&mut self) -> Option<Expression<'a>> {
+        let current_token = self.peek_current();
+        let atom = match current_token {
+            Token::IntLit(s) => Expression::IntLit(s),
+            Token::FloatLit(s) => Expression::FloatLit(s),
+            Token::Identifier(s) => Expression::Identifier(s),
+            Token::BoolLit(b) => Expression::BoolLit(*b),
+            Token::StringLit(s) => {
+                let mut items = Vec::new();
+                let bytes = s.as_bytes();
+                let mut i: usize = 0;
+                while i < bytes.len() {
+                    let char = bytes[i];
+                    match Lexer::get_char_size(char) {
+                        1 => {
+                            items.push(Expression::Char8Lit(char));
+                            i += 1;
+                        },
+                        2 => {
+                            items.push(Expression::Char16Lit(&bytes[i..i+2]));
+                            i += 2;
+                        },
+                        3 => {
+                            items.push(Expression::Char32Lit(&bytes[i..i+3]));
+                            i += 3;
+                        },
+                        _ => { 
+                            items.push(Expression::Char32Lit(&bytes[i..i+4]));
+                            i += 4;
+                        },
+                    }
+                }
+                Expression::ArrayLit(items)
+            },
+            Token::LeftBracket => {
+                let mut items = Vec::new();
+                while !self.is_at_end() && self.check_bool(&Token::RightBracket) {
+                    let item = self.parse_expression()?;
+                    items.push(item);
+                    if !self.if_matches_then_consume_bool(&Token::Comma) {break;};
+                }
+
+                self.must_consume(&Token::RightBracket, ParseError::MissingRightBracket);
+                Expression::ArrayLit(items)
+            }
+            //TODO
+            Token::StringObjLit(s) => return None,
+            Token::InterpolatedStringObjLit(s) => return None,
+            Token::LeftParen => {
+                let expression = self.parse_expression()?;
+                self.must_consume(&Token::RightParen, ParseError::MissingRightParen);
+                expression
+            },
+            Token::Undefined => Expression::Undefined,
+            Token::Garbage => Expression::Garbage,
+            Token::Self_ => Expression::Self_,
+            t if Self::try_to_unary_operator(t, true).is_some() => {
+                self.parse_unary_expression(true)?
+            }
+            _ => {
+                self.error_recovery(ParseError::Expected("Expression".to_string()));
+                return None;
+            },
+        };
+
+        Some(atom)
+    }
+
+    fn handle_let_statements(&mut self) -> Option<Statement<'a>> {
+        self.advance();
+        let mutable = self.if_matches_then_consume_bool(&Token::Mut);
+        let name = self.consume_identifier()?;
+        let let_type = if self.if_matches_then_consume_bool(&Token::Colon) {
+            self.handle_type_decl()
+        } else { 
+            None 
+        };
+        self.must_consume(&Token::Equals, ParseError::Expected("=".to_string()))?;
+        let assignment = self.parse_expression()?;
+        self.must_consume(&Token::Semicolon, ParseError::MissingSemicolon);
+        Some(Statement::Let { 
+            mutable, 
+            name, 
+            let_type, 
+            assignment,
+        })
+    }
+
+    fn handle_expression_statements(&self) -> Statement<'a> {
+        Statement::ExpressionStatement(Expression::IntLit("10"))
+    }
+
+    //TODO: Handle other types
+    fn handle_type_decl(&mut self) -> Option<Type<'a>> {
+        let type_ = match self.peek_current() {
+            Token::I8 => Type::I8,
+            Token::I16 => Type::I16,
+            Token::I32 => Type::I32,
+            Token::I64 => Type::I64,
+            Token::F32 => Type::F32,
+            Token::F64 => Type::F64,
+            Token::U8 => Type::U8, 
+            Token::U16 => Type::U16, 
+            Token::U32 => Type::U32, 
+            Token::U64 => Type::U64,
+            Token::USize => Type::USize,
+            Token::Char8 => Type::Char8,
+            Token::Char16 => Type::Char16,
+            Token::Char32 => Type::Char32,
+            Token::Bool => Type::Bool,
+            Token::Void => Type::Void,
+            Token::Undefined => Type::Undefined,
+            Token::Garbage => Type::Garbage,
+            Token::Identifier(name) => Type::Named(name),
+            _ => {
+                self.error_recovery(ParseError::MissingTypeDeclaration);
+                return None;
+            },
+        };
+
+        self.advance();
+        //modifiers
+        let type_ = match self.peek_current() {
+            Token::Star => Type::Pointer(Box::new(type_)),
+            Token::Ampersand => Type::Borrow(Box::new(type_)),
+            Token::AmpersandMut => Type::MutBorrow(Box::new(type_)),
+            Token::Question => Type::Optional(Box::new(type_)),
+            Token::Bang => Type::OptionalGarbage(Box::new(type_)),
+            _ => return Some(type_),
+        };
+        self.advance();
+        Some(type_)
+    }
+
+    fn handle_binary_expression(&mut self) -> Option<Expression<'a>> {
+        let left_side = self.advance();
+        let this_operator = self.advance();
+        let right_side = self.advance();
+        let possible_operator = Self::try_to_binary_operator(self.peek_current());
+        // if let Some(next_operator) = possible_operator {
+        //     if next_operator.precedence() >= this_operator {
+        //     }
+        // } else {
+        // }
+        todo!("Handle binary expression")
+    }
+
+    fn parse_unary_expression(&mut self, prefix: bool) -> Option<Expression<'a>> {
+        todo!("Handle unary expression")
+    }
+}
+
+//helper
+impl<'a> Parser<'a> {
+    fn peek_current(&self) -> &'a Token<'a> {
+        self.peek_offset(0)
+    }
+
+    fn peek_next(&self) -> &'a Token<'a> {
+        self.peek_offset(1)
+    }
+
+    fn peek_offset(&self, offset: usize) -> &'a Token<'a> {
+        &self.tokens[self.current + offset]
+    }
+
+    fn advance(&mut self) -> &'a Token<'a> {
+        if !self.is_at_end() {
+            self.current += 1;
+        }
+
+        &self.tokens[self.current - 1]
+    }
+
+    fn is_at_end(&self) -> bool {
+        matches!(self.tokens[self.current], Token::EOF)
+    }
+
+    fn check(&mut self, token: &Token<'a>) -> Option<&'a Token<'a>> {
+        let current = self.peek_current();
+        if current != token {
+            None
+        } else {
+            Some(current)
+        }
+    }
+
+    fn check_bool(&mut self, token: &Token<'a>) -> bool {
+        self.check(token).is_some()
+    }
+
+    /**
+     * Returns token if found, does error recovery and logs error if not
+     */
+    fn must_check(&mut self, token: &Token<'a>, error: ParseError) -> Option<&'a Token<'a>> {
+        match self.check(token) {
+            Some(found_token) => Some(found_token),
+            None => {
+                self.error_recovery(error);
+                None
+            }
+        }
+    }
+
+    fn must_consume(&mut self, token: &Token<'a>, error: ParseError) -> Option<&'a Token<'a>> {
+        match self.must_check(token, error) {
+            Some(_) => Some(self.advance()),
+            None => None
+        }
+    }
+
+    /**
+     * If token matches expected, this advances, stays in place otherwise
+     */
+    fn if_matches_then_consume(&mut self, token: &Token<'a>) -> Option<&'a Token<'a>> {
+        if let Some(found_token) = self.check(token) {
+            self.advance();
+            Some(found_token)
+        } else {
+            None
+        }
+    }
+
+    fn if_matches_then_consume_bool(&mut self, token: &Token<'a>) -> bool {
+        self.if_matches_then_consume(token).is_some()
+    }
+
+    fn consume_identifier(&mut self) -> Option<&'a str>{
+        match self.peek_current() {
+            Token::Identifier(name) => Some(name), 
+            _ => {self.error_recovery(ParseError::Expected("Identifier".to_string())); None}
+        }
+    }
+
+    fn error_recovery(&mut self, error: ParseError) {
+        self.errors.push(error);
+        while !Self::is_recovery_point(self.peek_current()) && !self.is_at_end() {
+            self.advance();
+        }
+    }
+
+    fn is_recovery_point(token: &Token<'a>) -> bool {
+        token == &Token::Semicolon ||
+            token == &Token::RightBrace ||
+            token == &Token::Pub ||
+            token == &Token::Func ||
+            token == &Token::EOF
+    }
+
+    fn try_to_binary_operator(token: &Token<'a>) -> Option<BinaryOperator> {
+        let operator = match token {
+            Token::Plus => BinaryOperator::Add,
+            Token::Minus => BinaryOperator::Subtract,
+            Token::Star => BinaryOperator::Multiply,
+            Token::Slash => BinaryOperator::Divide,
+            Token::Percent => BinaryOperator::Modulo,
+            Token::And => BinaryOperator::LogicalAnd,
+            Token::Or => BinaryOperator::LogicalOr,
+            Token::Less => BinaryOperator::LessThan,
+            Token::Greater => BinaryOperator::GreaterThan,
+            Token::BangEqual => BinaryOperator::NotEqualTo,
+            Token::EqualEqual => BinaryOperator::EqualTo,
+            Token::LessEqual => BinaryOperator::LessThanEqualTo,
+            Token::GreaterEqual => BinaryOperator::GreaterThanEqualTo,
+            Token::LessLess => BinaryOperator::LeftShift,
+            Token::GreaterGreater => BinaryOperator::RightShift,
+            Token::GreaterGreaterGreater => BinaryOperator::UnsignedRightShift,
+            Token::Band => BinaryOperator::BitwiseAnd,
+            Token::Bor => BinaryOperator::BitwiseOr,
+            Token::Bxor => BinaryOperator::BitwiseXor,
+            Token::QuestionQuestion => BinaryOperator::UndefinedCoalescing,
+            _ => return None,
+        };
+        Some(operator)
+    }
+
+    fn try_to_unary_operator(token: &Token<'a>, pre_fix: bool) -> Option<UnaryOperator> {
+        let operator = match token {
+            Token::PlusPlus => {
+                if pre_fix {
+                    UnaryOperator::PreIncrement
+                } else {
+                    UnaryOperator::PostIncrement
+                }
+            },
+            Token::MinusMinus => {
+                if pre_fix {
+                    UnaryOperator::PreDecrement
+                } else {
+                    UnaryOperator::PostDecrement
+                }
+            },
+            Token::Bang if pre_fix => UnaryOperator::Not,
+            Token::Bnot if pre_fix=> UnaryOperator::BitwiseNot,
+            _ => return None,
+        };
+        Some(operator)
+    }
+}

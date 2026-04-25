@@ -188,6 +188,8 @@ impl<'a> Lexer<'a> {
             b'>' => {
                 if self.match_and_consume(">>") {
                     Token::GreaterGreater
+                } else if self.match_and_consume(">>>") {
+                    Token::GreaterGreaterGreater
                 } else if self.match_and_consume(">=") {
                     Token::GreaterEqual
                 } else {
@@ -274,6 +276,7 @@ impl<'a> Lexer<'a> {
             b']' => { self.advance_current(); Token::RightBracket },
             b'^' => { self.advance_current(); Token::Caret },
             b'#' => { self.advance_current(); Token::Hash },
+            b'%' => { self.advance_current(); Token::Percent },
             _ => self.get_invalid(LexError::UnexpectedCharacter),
         }
     }
@@ -518,7 +521,7 @@ impl<'a> Lexer<'a> {
             self.peek_till(3) != b'/'
     }
 
-    fn get_char_size(byte: u8) -> usize {
+    pub fn get_char_size(byte: u8) -> usize {
         if byte < 128 {
             1
         } else if byte & 0b1110_0000 == 0b1100_0000 {

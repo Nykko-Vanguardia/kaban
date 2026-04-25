@@ -90,6 +90,7 @@ pub enum Token<'a> {
     SkinnyArrow, // -> Im still not sure between these two
     Plus,
     Minus,
+    Percent,
     PlusPlus, //++
     MinusMinus, //--
     Slash,
@@ -116,7 +117,7 @@ pub enum Token<'a> {
     Dot, // . for field access
     LessLess, // << bitwise
     GreaterGreater, // >> bit wise
-
+    GreaterGreaterGreater,
     //types
     I8,
     I16,
