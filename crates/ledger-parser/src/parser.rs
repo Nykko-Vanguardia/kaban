@@ -1,5 +1,5 @@
 use ledger_lexer::{Lexer, Token};
-use crate::{ast::{BinaryOperator, Expression, Statement, Type, UnaryOperator}, errors::ParseError};
+use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{self, Arithmetic, BitwiseBinary, Comparison, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
@@ -106,8 +106,8 @@ impl<'a> Parser<'a> {
             Token::Undefined => Expression::Undefined,
             Token::Garbage => Expression::Garbage,
             Token::Self_ => Expression::Self_,
-            t if Self::try_to_unary_operator(t, true).is_some() => {
-                self.parse_unary_expression(true)?
+            t if self.try_consume_prefix_unary_operator().is_some() => {
+                self.parse_prefix_unary_expression()?
             }
             _ => {
                 self.error_recovery(ParseError::Expected("Expression".to_string()));
@@ -184,20 +184,7 @@ impl<'a> Parser<'a> {
         Some(type_)
     }
 
-    fn handle_binary_expression(&mut self) -> Option<Expression<'a>> {
-        let left_side = self.advance();
-        let this_operator = self.advance();
-        let right_side = self.advance();
-        let possible_operator = Self::try_to_binary_operator(self.peek_current());
-        // if let Some(next_operator) = possible_operator {
-        //     if next_operator.precedence() >= this_operator {
-        //     }
-        // } else {
-        // }
-        todo!("Handle binary expression")
-    }
-
-    fn parse_unary_expression(&mut self, prefix: bool) -> Option<Expression<'a>> {
+    fn parse_prefix_unary_expression(&mut self) -> Option<Expression<'a>> {
         todo!("Handle unary expression")
     }
 }
@@ -299,53 +286,55 @@ impl<'a> Parser<'a> {
             token == &Token::EOF
     }
 
-    fn try_to_binary_operator(token: &Token<'a>) -> Option<BinaryOperator> {
-        let operator = match token {
-            Token::Plus => BinaryOperator::Add,
-            Token::Minus => BinaryOperator::Subtract,
-            Token::Star => BinaryOperator::Multiply,
-            Token::Slash => BinaryOperator::Divide,
-            Token::Percent => BinaryOperator::Modulo,
-            Token::And => BinaryOperator::LogicalAnd,
-            Token::Or => BinaryOperator::LogicalOr,
-            Token::Less => BinaryOperator::LessThan,
-            Token::Greater => BinaryOperator::GreaterThan,
-            Token::BangEqual => BinaryOperator::NotEqualTo,
-            Token::EqualEqual => BinaryOperator::EqualTo,
-            Token::LessEqual => BinaryOperator::LessThanEqualTo,
-            Token::GreaterEqual => BinaryOperator::GreaterThanEqualTo,
-            Token::LessLess => BinaryOperator::LeftShift,
-            Token::GreaterGreater => BinaryOperator::RightShift,
-            Token::GreaterGreaterGreater => BinaryOperator::UnsignedRightShift,
-            Token::Band => BinaryOperator::BitwiseAnd,
-            Token::Bor => BinaryOperator::BitwiseOr,
-            Token::Bxor => BinaryOperator::BitwiseXor,
-            Token::QuestionQuestion => BinaryOperator::UndefinedCoalescing,
+    fn try_consume_infix_or_postfix_operator(&mut self) -> Option<Operator> {
+        let current_token = self.peek_current();
+        let operator = match current_token {
+            Token::Plus => Operator::Arithmetic(Arithmetic::Add),
+            Token::Minus => Operator::Arithmetic(Arithmetic::Subtract),
+            Token::Star => Operator::Arithmetic(Arithmetic::Multiply),
+            Token::Slash => Operator::Arithmetic(Arithmetic::Divide),
+            Token::Percent => Operator::Arithmetic(Arithmetic::Modulo),
+            Token::EqualEqual => Operator::Comparison(Comparison::Equal),
+            Token::BangEqual => Operator::Comparison(Comparison::NotEqual),
+            Token::Less => Operator::Comparison(Comparison::Less),
+            Token::Greater => Operator::Comparison(Comparison::Greater),
+            Token::LessEqual => Operator::Comparison(Comparison::LessEqual),
+            Token::GreaterEqual => Operator::Comparison(Comparison::GreaterEqual),
+            Token::And => Operator::Logical(Logical::And),
+            Token::Or => Operator::Logical(Logical::Or),
+            Token::Band => Operator::BitwiseBinary(BitwiseBinary::And),
+            Token::Bor => Operator::BitwiseBinary(BitwiseBinary::Or),
+            Token::Bxor => Operator::BitwiseBinary(BitwiseBinary::Xor),
+            Token::LessLess => Operator::BitwiseBinary(BitwiseBinary::LeftShift),
+            Token::GreaterGreater => Operator::BitwiseBinary(BitwiseBinary::RightShift),
+            Token:: GreaterGreaterGreater => Operator::BitwiseBinary(BitwiseBinary::UnsignedRightShift),
+            Token::Caret => Operator::PostfixUnary(PostfixUnary::Deref),
+            Token::Bang => Operator::PostfixUnary(PostfixUnary::Bang),
+            Token::Question => Operator::PostfixUnary(PostfixUnary::Question),
+            Token::LeftBrace => Operator::MemberAccess(MemberAccess::Index),
+            Token::Dot => Operator::MemberAccess(MemberAccess::Dot),
+            Token::BangDot => Operator::MemberAccess(MemberAccess::ExclamationDot),
+            Token::QuestionDot => Operator::MemberAccess(MemberAccess::QuestionDot),
+            Token::QuestionQuestionDot => Operator::MemberAccess(MemberAccess::QuestionQuestionDot),
+            Token::QuestionQuestion => Operator::Special(Special::UndefinedCoalescing),
+            Token::As => Operator::Special(Special::As),
+            Token::LeftParen => Operator::FuncCall,
             _ => return None,
         };
+        self.advance();
         Some(operator)
     }
 
-    fn try_to_unary_operator(token: &Token<'a>, pre_fix: bool) -> Option<UnaryOperator> {
-        let operator = match token {
-            Token::PlusPlus => {
-                if pre_fix {
-                    UnaryOperator::PreIncrement
-                } else {
-                    UnaryOperator::PostIncrement
-                }
-            },
-            Token::MinusMinus => {
-                if pre_fix {
-                    UnaryOperator::PreDecrement
-                } else {
-                    UnaryOperator::PostDecrement
-                }
-            },
-            Token::Bang if pre_fix => UnaryOperator::Not,
-            Token::Bnot if pre_fix=> UnaryOperator::BitwiseNot,
+    pub fn try_consume_prefix_unary_operator(&mut self) -> Option<Operator> {
+        let current_token = self.peek_current();
+        let operator = match current_token {
+            Token::Minus => Operator::PrefixUnary(PrefixUnary::Negative),
+            Token::Bang => Operator::PrefixUnary(PrefixUnary::Not),
+            Token::Bnot => Operator::PrefixUnary(PrefixUnary::BNot),
             _ => return None,
         };
+        self.advance();
         Some(operator)
     }
+
 }

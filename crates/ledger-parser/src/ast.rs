@@ -1,3 +1,5 @@
+use crate::operator;
+
 pub enum Statement<'a> {
     Let {
         mutable: bool,
@@ -49,25 +51,50 @@ pub enum Expression<'a> {
         subject: Box<Expression<'a>>,
         arms: Vec<MatchArm<'a>>,
     },
+    ArithmeticOperation {
+        left: Box<Expression<'a>>,
+        right: Box<Expression<'a>>,
+        operator: operator::Arithmetic,
+    },
+    ComparisonOperation {
+        left: Box<Expression<'a>>,
+        right: Box<Expression<'a>>,
+        operator: operator::Comparison,
+    },
+    LogicalOperation {
+        left: Box<Expression<'a>>,
+        right: Box<Expression<'a>>,
+        operator: operator::Logical,
+    },
     BinaryOperation {
         left: Box<Expression<'a>>,
         right: Box<Expression<'a>>,
-        operator: BinaryOperator,
+        operator: operator::BitwiseBinary,
     },
-    UnaryOperator {
+    MemberAccess {
+        parent: Box<Expression<'a>>,
+        child: Box<Expression<'a>>,
+        operator: operator::MemberAccess,
+    },
+    UndefinedCoalescing {
+        possibly_undefined: Box<Expression<'a>>,
+        default: Box<Expression<'a>>,
+    },
+    TypeCasting {
+        value: Box<Expression<'a>>,
+        type_: Type<'a>,
+    },
+    PrefixUnaryOperator {
         operand: Box<Expression<'a>>,
-        operator: UnaryOperator,
+        operator: operator::PrefixUnary,
+    },
+    PostfixUnaryOperator {
+        operand: Box<Expression<'a>>,
+        operator: operator::PostfixUnary,
     }
 }
 
 impl<'a> Expression<'a> {
-    pub fn new_binary_expression(
-        left: Expression<'a>, 
-        right: Expression<'a>, 
-        operator: BinaryOperator
-    ) -> Expression<'a> {
-        Self::BinaryOperation { left: Box::new(left), right: Box::new(right), operator }
-    }
 }
 
 pub enum Type<'a> {
@@ -118,63 +145,4 @@ pub struct Param<'a> {
 pub struct MatchArm<'a> {
     match_to: Box<Expression<'a>>,
     body_block: Box<Expression<'a>>,
-}
-
-pub enum UnaryOperator {
-    PostIncrement,
-    PreIncrement,
-    PostDecrement,
-    PreDecrement,
-    Not,
-    BitwiseNot,
-}
-
-pub enum BinaryOperator {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    Power, //Not sure if I want to implement this,
-
-    LogicalAnd,
-    LogicalOr,
-    LessThan,
-    GreaterThan,
-    NotEqualTo,
-    EqualTo,
-    LessThanEqualTo,
-    GreaterThanEqualTo,
-
-    LeftShift,
-    RightShift,
-    UnsignedRightShift,
-    BitwiseAnd,
-    BitwiseOr,
-    BitwiseXor,
-
-    UndefinedCoalescing,
-}
-
-impl BinaryOperator {
-    pub fn precedence(&self) -> u8 {
-        match self {
-            BinaryOperator::UndefinedCoalescing => 0,
-            BinaryOperator::LogicalOr => 1,
-            BinaryOperator::LogicalAnd => 2,
-            BinaryOperator::BitwiseOr => 3,
-            BinaryOperator::BitwiseXor => 4,
-            BinaryOperator::BitwiseAnd => 5,
-            BinaryOperator::EqualTo | BinaryOperator::NotEqualTo => 5,
-            BinaryOperator::LessThan |
-                BinaryOperator::GreaterThan |
-                BinaryOperator::LessThanEqualTo |
-                BinaryOperator::GreaterThanEqualTo => 7,
-
-            BinaryOperator::LeftShift | BinaryOperator::RightShift | BinaryOperator::UnsignedRightShift => 8,
-            BinaryOperator::Add | BinaryOperator::Subtract => 9,
-            BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => 10,
-            BinaryOperator::Power => 11,
-        }
-    }
 }

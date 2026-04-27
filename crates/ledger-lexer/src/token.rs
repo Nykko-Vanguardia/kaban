@@ -104,6 +104,7 @@ pub enum Token<'a> {
     Bang, // !
     BangDot,
     Question,
+    QuestionDot,
     QuestionQuestion,
     QuestionQuestionDot,
     Less,

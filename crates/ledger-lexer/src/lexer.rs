@@ -164,7 +164,9 @@ impl<'a> Lexer<'a> {
                 }
             },
             b'?' => {
-                if self.match_and_consume("??.") {
+                if self.match_and_consume("?.") {
+                    Token::QuestionDot
+                } else if self.match_and_consume("??.") {
                     Token::QuestionQuestionDot
                 } else if self.match_and_consume("??") {
                     Token::QuestionQuestion
