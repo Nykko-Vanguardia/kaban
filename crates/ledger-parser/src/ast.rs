@@ -95,6 +95,13 @@ pub enum Expression<'a> {
 }
 
 impl<'a> Expression<'a> {
+    pub fn to_box(self) -> Box<Expression<'a>> {
+        Box::new(self)
+    }
+
+    pub fn to_some(self) -> Option<Expression<'a>> {
+        Some(self)
+    }
 }
 
 pub enum Type<'a> {

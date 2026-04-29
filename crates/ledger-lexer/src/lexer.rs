@@ -59,10 +59,10 @@ impl<'a> Lexer<'a> {
             "let" => Token::Let,
             "mut" => Token::Mut,
             "const" => Token::Const,
-            "alloc" => Token::Alloc,
-            "kalloc" => Token::Kalloc, //might not need this
-            "realloc" => Token::Realloc,
-            "free" => Token::Free,
+            // "alloc" => Token::Alloc,
+            // "kalloc" => Token::Kalloc, //might not need this
+            // "realloc" => Token::Realloc,
+            // "free" => Token::Free,
             "struct" => Token::Struct,
             "interface" => Token::Interface,
             "impl" => Token::Impl,

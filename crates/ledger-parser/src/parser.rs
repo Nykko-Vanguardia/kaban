@@ -1,5 +1,5 @@
 use ledger_lexer::{Lexer, Token};
-use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{self, Arithmetic, BitwiseBinary, Comparison, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
+use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{self, Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Option<Expression<'a>> {
-        let mut left_side = self.parse_atom()?;
+        let mut left_side = self.parse_atom_or_prefix_unary()?;
         let possible_operator = self.peek_current();
 
         loop {
@@ -50,8 +50,10 @@ impl<'a> Parser<'a> {
         Some(left_side)
     }
 
-    fn parse_atom(&mut self) -> Option<Expression<'a>> {
+    fn parse_atom_or_prefix_unary(&mut self) -> Option<Expression<'a>> {
         let current_token = self.peek_current();
+        if let Some(prefix_unary) = self.try_consume_prefix_unary_operator() {
+        };
         let atom = match current_token {
             Token::IntLit(s) => Expression::IntLit(s),
             Token::FloatLit(s) => Expression::FloatLit(s),
@@ -106,9 +108,6 @@ impl<'a> Parser<'a> {
             Token::Undefined => Expression::Undefined,
             Token::Garbage => Expression::Garbage,
             Token::Self_ => Expression::Self_,
-            t if self.try_consume_prefix_unary_operator().is_some() => {
-                self.parse_prefix_unary_expression()?
-            }
             _ => {
                 self.error_recovery(ParseError::Expected("Expression".to_string()));
                 return None;
@@ -118,6 +117,20 @@ impl<'a> Parser<'a> {
         Some(atom)
     }
 
+    fn parse_right_side_expression(&mut self, precedence_level: u8) -> Option<Expression<'a>> {
+        todo!("parse right hand side")
+    }
+
+    fn parse_prefix_unary_expression(&mut self, prefix_unary: PrefixUnary) -> Option<Expression<'a>> {
+        let precedence = prefix_unary.precedence();
+        let operand = self.parse_right_side_expression(precedence)?.to_box();
+        match prefix_unary {
+            _ => Expression::PrefixUnaryOperator { 
+                operand,
+                operator: prefix_unary,
+            }.to_some(),
+        }
+    }
     fn handle_let_statements(&mut self) -> Option<Statement<'a>> {
         self.advance();
         let mutable = self.if_matches_then_consume_bool(&Token::Mut);
@@ -184,9 +197,6 @@ impl<'a> Parser<'a> {
         Some(type_)
     }
 
-    fn parse_prefix_unary_expression(&mut self) -> Option<Expression<'a>> {
-        todo!("Handle unary expression")
-    }
 }
 
 //helper
@@ -325,12 +335,14 @@ impl<'a> Parser<'a> {
         Some(operator)
     }
 
-    pub fn try_consume_prefix_unary_operator(&mut self) -> Option<Operator> {
+    pub fn try_consume_prefix_unary_operator(&mut self) -> Option<PrefixUnary> {
         let current_token = self.peek_current();
         let operator = match current_token {
-            Token::Minus => Operator::PrefixUnary(PrefixUnary::Negative),
-            Token::Bang => Operator::PrefixUnary(PrefixUnary::Not),
-            Token::Bnot => Operator::PrefixUnary(PrefixUnary::BNot),
+            Token::Minus => PrefixUnary::Negative,
+            Token::Bang => PrefixUnary::Not,
+            Token::Bnot => PrefixUnary::BNot,
+            Token::New => PrefixUnary::New,
+            Token::Destruct => PrefixUnary::Destruct,
             _ => return None,
         };
         self.advance();
