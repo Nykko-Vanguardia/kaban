@@ -1,15 +1,15 @@
 [package]
-name = "ledger"
+name = "kaban"
 version = "0.1.0"
 edition = "2024"
 
 [workspace]
 members = [
-    "crates/ledger-lexer",
+    "crates/kaban-lexer",
 ]
 
 [dependencies]
-ledger-lexer = { path = "crates/ledger-lexer" }
+kaban-lexer = { path = "crates/kaban-lexer" }
 
 [workspace.dependencies]
 thiserror = "2.0.18"
