@@ -1,8 +1,8 @@
 [package]
-name = "ledger-parser"
+name = "kaban-parser"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ledger-lexer = {path = "../ledger-lexer"}
+kaban-lexer = {path = "../kaban-lexer"}
 thiserror = {workspace = true}

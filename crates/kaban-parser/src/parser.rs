@@ -1,4 +1,4 @@
-use ledger_lexer::{Lexer, Token};
+use kaban_lexer::{Lexer, Token};
 use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Index, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {

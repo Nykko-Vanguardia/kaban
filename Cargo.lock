@@ -3,24 +3,25 @@
 version = 4
 
 [[package]]
-name = "ledger"
+name = "kaban"
 version = "0.1.0"
 dependencies = [
- "ledger-lexer",
+ "kaban-lexer",
+ "kaban-parser",
 ]
 
 [[package]]
-name = "ledger-lexer"
+name = "kaban-lexer"
 version = "0.1.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
-name = "ledger-parser"
+name = "kaban-parser"
 version = "0.1.0"
 dependencies = [
- "ledger-lexer",
+ "kaban-lexer",
  "thiserror",
 ]
 
