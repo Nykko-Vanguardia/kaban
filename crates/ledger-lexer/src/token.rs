@@ -80,6 +80,7 @@ pub enum Token<'a> {
     LeftParen,
     RightParen,
     LeftBracket, // [
+    LeftBracketBang, // [!
     RightBracket,
     Star, // * for heap pointers
     Caret, // ^ for deref

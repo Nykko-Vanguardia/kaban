@@ -274,7 +274,12 @@ impl<'a> Lexer<'a> {
             b'}' => { self.advance_current(); Token::RightBrace },
             b'(' => { self.advance_current(); Token::LeftParen },
             b')' => { self.advance_current(); Token::RightParen },
-            b'[' => { self.advance_current(); Token::LeftBracket },
+            b'[' => if self.match_and_consume("[!") {
+                Token::LeftBracketBang
+            } else {
+                self.advance_current();
+                Token::LeftBracketBang
+            }
             b']' => { self.advance_current(); Token::RightBracket },
             b'^' => { self.advance_current(); Token::Caret },
             b'#' => { self.advance_current(); Token::Hash },

@@ -76,6 +76,11 @@ pub enum Expression<'a> {
         child: Box<Expression<'a>>,
         operator: operator::MemberAccess,
     },
+    IndexOperation {
+        parent: Box<Expression<'a>>,
+        index: Box<Expression<'a>>,
+        operator: operator::Index,
+    },
     UndefinedCoalescing {
         possibly_undefined: Box<Expression<'a>>,
         default: Box<Expression<'a>>,
@@ -84,11 +89,11 @@ pub enum Expression<'a> {
         value: Box<Expression<'a>>,
         type_: Type<'a>,
     },
-    PrefixUnaryOperator {
+    PrefixUnaryOperation {
         operand: Box<Expression<'a>>,
         operator: operator::PrefixUnary,
     },
-    PostfixUnaryOperator {
+    PostfixUnaryOperation {
         operand: Box<Expression<'a>>,
         operator: operator::PostfixUnary,
     }

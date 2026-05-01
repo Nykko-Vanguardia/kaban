@@ -6,6 +6,7 @@ pub enum Operator {
     PrefixUnary(PrefixUnary),
     PostfixUnary(PostfixUnary),
     MemberAccess(MemberAccess),
+    Index(Index),
     Special(Special),
     FuncCall,
 }
@@ -20,9 +21,17 @@ impl HasPrecedence for Operator {
             Operator::PrefixUnary(op) => op.precedence(),
             Operator::PostfixUnary(op) => op.precedence(),
             Operator::MemberAccess(op) => op.precedence(),
+            Operator::Index(op) => op.precedence(),
             Operator::Special(op) => op.precedence(),
-            Operator::FuncCall => 12,
+            Operator::FuncCall => 13,
         }
+    }
+
+}
+
+impl Operator {
+    pub fn is_postfix(&self) -> bool {
+        matches!(self, Operator::PostfixUnary(_) | Operator::FuncCall | Operator::Index(_))
     }
 }
 
@@ -37,11 +46,11 @@ pub enum Arithmetic {
 impl HasPrecedence for Arithmetic {
     fn precedence(&self) -> u8 {
         match self {
-            Arithmetic::Add => 9,
-            Arithmetic::Subtract => 9,
-            Arithmetic::Multiply => 10,
-            Arithmetic::Divide => 10,
-            Arithmetic::Modulo => 10,
+            Arithmetic::Add => 10,
+            Arithmetic::Subtract => 10,
+            Arithmetic::Multiply => 11,
+            Arithmetic::Divide => 11,
+            Arithmetic::Modulo => 11,
         }
     }
 }
@@ -58,12 +67,12 @@ pub enum Comparison {
 impl HasPrecedence for Comparison {
     fn precedence(&self) -> u8 {
         match self {
-            Comparison::Equal => 6,
-            Comparison::NotEqual => 6,
-            Comparison::Less => 7,
-            Comparison::Greater => 7,
-            Comparison::LessEqual => 7,
-            Comparison::GreaterEqual => 7,
+            Comparison::Equal => 7,
+            Comparison::NotEqual => 7,
+            Comparison::Less => 8,
+            Comparison::Greater => 8,
+            Comparison::LessEqual => 8,
+            Comparison::GreaterEqual => 8,
         }
     }
 }
@@ -76,8 +85,8 @@ pub enum Logical {
 impl HasPrecedence for Logical {
     fn precedence(&self) -> u8 {
         match self {
-            Logical::And => 2,
-            Logical::Or => 1,
+            Logical::And => 3,
+            Logical::Or => 2,
         }
     }
 }
@@ -95,12 +104,12 @@ pub enum BitwiseBinary {
 impl HasPrecedence for BitwiseBinary {
     fn precedence(&self) -> u8 {
         match self {
-            BitwiseBinary::And => 4,
-            BitwiseBinary::Or => 3,
-            BitwiseBinary::Xor => 5,
-            BitwiseBinary::LeftShift => 8,
-            BitwiseBinary::RightShift => 8,
-            BitwiseBinary::UnsignedRightShift => 8,
+            BitwiseBinary::And => 5,
+            BitwiseBinary::Or => 4,
+            BitwiseBinary::Xor => 6,
+            BitwiseBinary::LeftShift => 9,
+            BitwiseBinary::RightShift => 9,
+            BitwiseBinary::UnsignedRightShift => 9,
         }
     }
 }
@@ -116,11 +125,11 @@ pub enum PrefixUnary {
 impl HasPrecedence for PrefixUnary {
     fn precedence(&self) -> u8 {
         match self {
-            PrefixUnary::Negative => 11,
-            PrefixUnary::Not => 11,
-            PrefixUnary::BNot => 11,
-            PrefixUnary::New => 11,
-            PrefixUnary::Destruct => 11,
+            PrefixUnary::Negative => 12,
+            PrefixUnary::Not => 12,
+            PrefixUnary::BNot => 12,
+            PrefixUnary::New => 12,
+            PrefixUnary::Destruct => 12,
         }
     }
 }
@@ -134,15 +143,14 @@ pub enum PostfixUnary  {
 impl HasPrecedence for PostfixUnary {
     fn precedence(&self) -> u8 {
         match self {
-            PostfixUnary::Deref => 12,
-            PostfixUnary::Bang => 12,
-            PostfixUnary::Question => 12,
+            PostfixUnary::Deref => 13,
+            PostfixUnary::Bang => 13,
+            PostfixUnary::Question => 13,
         }
     }
 }
 
 pub enum MemberAccess {
-    Index,
     Dot,
     ExclamationDot,
     QuestionDot,
@@ -152,11 +160,24 @@ pub enum MemberAccess {
 impl HasPrecedence for MemberAccess {
     fn precedence(&self) -> u8 {
         match self {
-            MemberAccess::Index => 12,
-            MemberAccess::Dot => 12,
-            MemberAccess::ExclamationDot => 12,
-            MemberAccess::QuestionDot => 12,
-            MemberAccess::QuestionQuestionDot => 12,
+            MemberAccess::Dot => 13,
+            MemberAccess::ExclamationDot => 13,
+            MemberAccess::QuestionDot => 13,
+            MemberAccess::QuestionQuestionDot => 13,
+        }
+    }
+}
+
+pub enum Index {
+    SafeIndex,
+    UncheckIndex,
+}
+
+impl HasPrecedence for Index {
+    fn precedence(&self) -> u8 {
+        match self {
+            Index::SafeIndex => 13,
+            Index::UncheckIndex => 13,
         }
     }
 }
@@ -169,8 +190,8 @@ pub enum Special {
 impl HasPrecedence for Special {
     fn precedence(&self) -> u8 {
         match self {
-            Special::UndefinedCoalescing => 0,
-            Special::As => 12,
+            Special::UndefinedCoalescing => 1,
+            Special::As => 13,
         }
     }
 }

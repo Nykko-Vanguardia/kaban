@@ -1,5 +1,5 @@
 use ledger_lexer::{Lexer, Token};
-use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{self, Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
+use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Index, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
@@ -33,32 +33,62 @@ impl<'a> Parser<'a> {
 
         match current_token {
             Token::Let => self.handle_let_statements(),
-            _ => Some(self.handle_expression_statements())
+            _ => Some(Statement::ExpressionStatement(self.parse_expression()?))
         }
     }
 
     fn parse_expression(&mut self) -> Option<Expression<'a>> {
-        let mut left_side = self.parse_atom_or_prefix_unary()?;
-        let possible_operator = self.peek_current();
+        self.continue_parsing_expression(0)
+    }
 
-        loop {
-            match possible_operator {
-                _ => break,
+    fn continue_parsing_expression(&mut self, left_precedence_level: u8) -> Option<Expression<'a>> {
+        let mut left_side  = self.consume_atom_or_prefix_unary()?;
+
+        while let Some(new_operator) = self.peek_infix_or_postfix_operator() {
+            if left_precedence_level >= new_operator.precedence() {
+                break;
             };
-        }
+
+            let new_operator = self.try_consume_infix_or_postfix_operator()?;
+
+            if new_operator.is_postfix() {
+                todo!("func calls and such");
+            };
+
+            let left = left_side.to_box();
+            let right = self.continue_parsing_expression(new_operator.precedence())?.to_box();
+            left_side = match new_operator {
+                Operator::Arithmetic(operator) => Expression::ArithmeticOperation {left, right, operator},
+                Operator::Comparison(operator) => Expression::ComparisonOperation { left, right, operator },
+                Operator::Logical(operator) => Expression::LogicalOperation {left, right, operator},
+                Operator::BitwiseBinary(operator) => Expression::BinaryOperation { left, right, operator },
+                Operator::MemberAccess(operator) => Expression::MemberAccess {parent: left, child: right, operator},
+                Operator::Special(operator) => match operator {
+                    Special::UndefinedCoalescing => Expression::UndefinedCoalescing { possibly_undefined: left, default: right },
+                    // Special::As => Some(Expression::TypeCasting { value: left, type_: right })
+                    Special::As => todo!(),
+                },
+                Operator::PrefixUnary(_) => unreachable!(),
+                Operator::PostfixUnary(_) => unreachable!(),
+                Operator::Index(_) => unreachable!(),
+                Operator::FuncCall => unreachable!(),
+            };
+        };
 
         Some(left_side)
     }
 
-    fn parse_atom_or_prefix_unary(&mut self) -> Option<Expression<'a>> {
-        let current_token = self.peek_current();
+    fn consume_atom_or_prefix_unary(&mut self) -> Option<Expression<'a>> {
         if let Some(prefix_unary) = self.try_consume_prefix_unary_operator() {
+            return self.parse_prefix_unary_expression(prefix_unary);
         };
+
+        let current_token = self.peek_current();
         let atom = match current_token {
-            Token::IntLit(s) => Expression::IntLit(s),
-            Token::FloatLit(s) => Expression::FloatLit(s),
-            Token::Identifier(s) => Expression::Identifier(s),
-            Token::BoolLit(b) => Expression::BoolLit(*b),
+            Token::IntLit(s) => { self.advance(); Expression::IntLit(s) },
+            Token::FloatLit(s) => { self.advance(); Expression::FloatLit(s) },
+            Token::Identifier(s) => { self.advance(); Expression::Identifier(s) },
+            Token::BoolLit(b) => { self.advance(); Expression::BoolLit(*b) },
             Token::StringLit(s) => {
                 let mut items = Vec::new();
                 let bytes = s.as_bytes();
@@ -84,9 +114,11 @@ impl<'a> Parser<'a> {
                         },
                     }
                 }
+                self.advance();
                 Expression::ArrayLit(items)
             },
             Token::LeftBracket => {
+                self.advance();
                 let mut items = Vec::new();
                 while !self.is_at_end() && self.check_bool(&Token::RightBracket) {
                     let item = self.parse_expression()?;
@@ -97,17 +129,17 @@ impl<'a> Parser<'a> {
                 self.must_consume(&Token::RightBracket, ParseError::MissingRightBracket);
                 Expression::ArrayLit(items)
             }
-            //TODO
-            Token::StringObjLit(s) => return None,
-            Token::InterpolatedStringObjLit(s) => return None,
+            Token::StringObjLit(_) => todo!(),
+            Token::InterpolatedStringObjLit(_) => todo!(),
             Token::LeftParen => {
+                self.advance();
                 let expression = self.parse_expression()?;
                 self.must_consume(&Token::RightParen, ParseError::MissingRightParen);
                 expression
             },
-            Token::Undefined => Expression::Undefined,
-            Token::Garbage => Expression::Garbage,
-            Token::Self_ => Expression::Self_,
+            Token::Undefined => { self.advance(); Expression::Undefined },
+            Token::Garbage => { self.advance(); Expression::Garbage },
+            Token::Self_ => { self.advance(); Expression::Self_ },
             _ => {
                 self.error_recovery(ParseError::Expected("Expression".to_string()));
                 return None;
@@ -117,16 +149,12 @@ impl<'a> Parser<'a> {
         Some(atom)
     }
 
-    fn parse_right_side_expression(&mut self, precedence_level: u8) -> Option<Expression<'a>> {
-        todo!("parse right hand side")
-    }
-
     fn parse_prefix_unary_expression(&mut self, prefix_unary: PrefixUnary) -> Option<Expression<'a>> {
-        let precedence = prefix_unary.precedence();
-        let operand = self.parse_right_side_expression(precedence)?.to_box();
         match prefix_unary {
-            _ => Expression::PrefixUnaryOperator { 
-                operand,
+            PrefixUnary::New => todo!(),
+            PrefixUnary::Destruct => todo!(),
+            _ => Expression::PrefixUnaryOperation { 
+                operand: self.continue_parsing_expression(prefix_unary.precedence())?.to_box(),
                 operator: prefix_unary,
             }.to_some(),
         }
@@ -149,10 +177,6 @@ impl<'a> Parser<'a> {
             let_type, 
             assignment,
         })
-    }
-
-    fn handle_expression_statements(&self) -> Statement<'a> {
-        Statement::ExpressionStatement(Expression::IntLit("10"))
     }
 
     //TODO: Handle other types
@@ -205,9 +229,9 @@ impl<'a> Parser<'a> {
         self.peek_offset(0)
     }
 
-    fn peek_next(&self) -> &'a Token<'a> {
-        self.peek_offset(1)
-    }
+    // fn peek_next(&self) -> &'a Token<'a> {
+    //     self.peek_offset(1)
+    // }
 
     fn peek_offset(&self, offset: usize) -> &'a Token<'a> {
         &self.tokens[self.current + offset]
@@ -296,7 +320,7 @@ impl<'a> Parser<'a> {
             token == &Token::EOF
     }
 
-    fn try_consume_infix_or_postfix_operator(&mut self) -> Option<Operator> {
+    fn peek_infix_or_postfix_operator(&mut self) -> Option<Operator> {
         let current_token = self.peek_current();
         let operator = match current_token {
             Token::Plus => Operator::Arithmetic(Arithmetic::Add),
@@ -321,18 +345,24 @@ impl<'a> Parser<'a> {
             Token::Caret => Operator::PostfixUnary(PostfixUnary::Deref),
             Token::Bang => Operator::PostfixUnary(PostfixUnary::Bang),
             Token::Question => Operator::PostfixUnary(PostfixUnary::Question),
-            Token::LeftBrace => Operator::MemberAccess(MemberAccess::Index),
             Token::Dot => Operator::MemberAccess(MemberAccess::Dot),
             Token::BangDot => Operator::MemberAccess(MemberAccess::ExclamationDot),
             Token::QuestionDot => Operator::MemberAccess(MemberAccess::QuestionDot),
             Token::QuestionQuestionDot => Operator::MemberAccess(MemberAccess::QuestionQuestionDot),
+            Token::LeftBracket => Operator::Index(Index::SafeIndex),
+            Token::LeftBracketBang => Operator::Index(Index::UncheckIndex),
             Token::QuestionQuestion => Operator::Special(Special::UndefinedCoalescing),
             Token::As => Operator::Special(Special::As),
             Token::LeftParen => Operator::FuncCall,
             _ => return None,
         };
-        self.advance();
         Some(operator)
+    }
+
+    fn try_consume_infix_or_postfix_operator(&mut self) -> Option<Operator> {
+        let operator = self.peek_infix_or_postfix_operator();
+        self.advance();
+        operator
     }
 
     pub fn try_consume_prefix_unary_operator(&mut self) -> Option<PrefixUnary> {
@@ -349,4 +379,38 @@ impl<'a> Parser<'a> {
         Some(operator)
     }
 
+    // DEAD CODE:
+    // fn parse_right_side_expression(
+    //     &mut self, 
+    //     left_side: Expression<'a>, 
+    //     left_operator: Operator, 
+    // ) -> Option<Expression<'a>> {
+    //     let right_side = self.consume_atom_or_prefix_unary()?;
+    //     let right_side = if let Some(right_operator) = self.peek_infix_or_postfix_operator() 
+    //         && right_operator.precedence() > left_operator.precedence() {
+    //             let right_operator = self.try_consume_infix_or_postfix_operator()?;
+    //             self.parse_right_side_expression(right_side, right_operator)?
+    //     } else {
+    //         right_side
+    //     };
+    //
+    //     let right = right_side.to_box();
+    //     let left = left_side.to_box();
+    //     match left_operator {
+    //         Operator::Arithmetic(operator) => Some(Expression::ArithmeticOperation {left, right, operator}),
+    //         Operator::Comparison(operator) => Some(Expression::ComparisonOperation { left, right, operator }),
+    //         Operator::Logical(operator) => Some(Expression::LogicalOperation {left, right, operator}),
+    //         Operator::BitwiseBinary(operator) => Some(Expression::BinaryOperation { left, right, operator }),
+    //         Operator::PrefixUnary(operator) => todo!(),
+    //         Operator::PostfixUnary(operator) => todo!(),
+    //         Operator::MemberAccess(operator) => Some(Expression::MemberAccess {parent: left, child: right, operator}),
+    //         Operator::Special(operator) => match operator {
+    //             Special::UndefinedCoalescing => Some(Expression::UndefinedCoalescing { possibly_undefined: left, default: right }),
+    //             // Special::As => Some(Expression::TypeCasting { value: left, type_: right })
+    //             Special::As => todo!(),
+    //         }
+    //         Operator::FuncCall => todo!(),
+    //         Operator::Index(operator) => todo!()
+    //     }
+    // }
 }
