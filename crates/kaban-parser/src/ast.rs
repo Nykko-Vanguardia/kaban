@@ -1,5 +1,6 @@
 use crate::operator;
 
+#[derive(Debug)]
 pub enum Statement<'a> {
     Let {
         mutable: bool,
@@ -25,6 +26,7 @@ pub enum Statement<'a> {
     ExpressionStatement(Expression<'a>),
 }
 
+#[derive(Debug)]
 pub enum Expression<'a> {
     IntLit(&'a str),
     FloatLit(&'a str),
@@ -79,7 +81,7 @@ pub enum Expression<'a> {
     IndexOperation {
         parent: Box<Expression<'a>>,
         index: Box<Expression<'a>>,
-        operator: operator::Index,
+        safe: bool,
     },
     UndefinedCoalescing {
         possibly_undefined: Box<Expression<'a>>,
@@ -96,6 +98,16 @@ pub enum Expression<'a> {
     PostfixUnaryOperation {
         operand: Box<Expression<'a>>,
         operator: operator::PostfixUnary,
+    },
+    FunctionCall {
+        callee: Box<Expression<'a>>,
+        args: Vec<Expression<'a>>,
+    },
+    MethodCall {
+        parent: Box<Expression<'a>>,
+        method_name: &'a str,
+        args: Vec<Expression<'a>>,
+        mutable_self: bool,
     }
 }
 
@@ -109,6 +121,7 @@ impl<'a> Expression<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum Type<'a> {
     //primitives
     I8,
@@ -148,12 +161,14 @@ pub enum Type<'a> {
     Union(Vec<Type<'a>>), // union(i32, f64)
 }
 
+#[derive(Debug)]
 pub struct Param<'a> {
     name: &'a str,
     type_: Type<'a>,
     mutable: bool,
 }
 
+#[derive(Debug)]
 pub struct MatchArm<'a> {
     match_to: Box<Expression<'a>>,
     body_block: Box<Expression<'a>>,

@@ -1,10 +1,10 @@
 use kaban_lexer::{Lexer, Token};
-use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Index, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
+use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
     current: usize,
-    errors: Vec<ParseError>,
+    pub errors: Vec<ParseError>,
 }
 
 impl<'a> Parser<'a> {
@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
         Expression::Block { statements: statements, value: None }
     }
 
-    fn parse_next_statement(&mut self) -> Option<Statement<'a>> {
+    pub fn parse_next_statement(&mut self) -> Option<Statement<'a>> {
         let current_token = self.peek_current();
 
         match current_token {
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expression(&mut self) -> Option<Expression<'a>> {
+    pub fn parse_expression(&mut self) -> Option<Expression<'a>> {
         self.continue_parsing_expression(0)
     }
 
@@ -52,7 +52,8 @@ impl<'a> Parser<'a> {
             let new_operator = self.try_consume_infix_or_postfix_operator()?;
 
             if new_operator.is_postfix() {
-                todo!("func calls and such");
+                left_side = self.parse_postfix_expression(left_side, new_operator)?;
+                continue;
             };
 
             let left = left_side.to_box();
@@ -62,7 +63,7 @@ impl<'a> Parser<'a> {
                 Operator::Comparison(operator) => Expression::ComparisonOperation { left, right, operator },
                 Operator::Logical(operator) => Expression::LogicalOperation {left, right, operator},
                 Operator::BitwiseBinary(operator) => Expression::BinaryOperation { left, right, operator },
-                Operator::MemberAccess(operator) => Expression::MemberAccess {parent: left, child: right, operator},
+                Operator::MemberAccess(operator) => self.parse_member_access_or_method(left, right, operator)?,
                 Operator::Special(operator) => match operator {
                     Special::UndefinedCoalescing => Expression::UndefinedCoalescing { possibly_undefined: left, default: right },
                     // Special::As => Some(Expression::TypeCasting { value: left, type_: right })
@@ -70,7 +71,7 @@ impl<'a> Parser<'a> {
                 },
                 Operator::PrefixUnary(_) => unreachable!(),
                 Operator::PostfixUnary(_) => unreachable!(),
-                Operator::Index(_) => unreachable!(),
+                Operator::Index => unreachable!(),
                 Operator::FuncCall => unreachable!(),
             };
         };
@@ -159,6 +160,24 @@ impl<'a> Parser<'a> {
             }.to_some(),
         }
     }
+
+    fn parse_postfix_expression(&mut self, operand: Expression<'a>, operator: Operator)-> Option<Expression<'a>> {
+        match  operator {
+            Operator::PostfixUnary(operator) => Expression::PostfixUnaryOperation { operand: operand.to_box(), operator }.to_some(),
+            Operator::FuncCall => {
+                let args = self.parse_comma_seperated_expressions(Token::RightParen);
+                self.must_consume(&Token::RightParen, ParseError::Expected(")".to_string()))?;
+                Expression::FunctionCall { callee: operand.to_box(), args }.to_some()
+            },
+            Operator::Index => {
+                let index = self.parse_expression()?.to_box();
+                let safe = !self.if_matches_then_consume_bool(&Token::Bang);
+                self.must_consume(&Token::RightBracket, ParseError::Expected("]".to_string()))?;
+                Expression::IndexOperation { parent: operand.to_box(), index, safe }.to_some()
+            }
+            _ => unreachable!(),
+        }
+    }
     fn handle_let_statements(&mut self) -> Option<Statement<'a>> {
         self.advance();
         let mutable = self.if_matches_then_consume_bool(&Token::Mut);
@@ -219,6 +238,35 @@ impl<'a> Parser<'a> {
         };
         self.advance();
         Some(type_)
+    }
+
+    fn parse_member_access_or_method(&mut self, parent: Box<Expression<'a>>, child: Box<Expression<'a>>, operator: MemberAccess) -> Option<Expression<'a>> {
+        let parent = parent.to_box();
+        let method_name = match *child {
+            Expression::Identifier(s) => s,
+            _ => {
+                self.error_recovery(ParseError::InvalidMethodName);
+                return None;
+            }
+        };
+
+        match operator {
+            MemberAccess::Dot | MemberAccess::Colon => {
+                if self.if_matches_then_consume_bool(&Token::LeftParen) {
+                    let args  = self.parse_comma_seperated_expressions(Token::RightParen);
+                    self.must_consume(&Token::RightParen, ParseError::MissingRightParen)?;
+                    Expression::MethodCall {
+                        parent,
+                        method_name,
+                        args,
+                        mutable_self: operator == MemberAccess::Colon,
+                    }.to_some()
+                } else {
+                    Expression::MemberAccess { parent, child, operator }.to_some()
+                }
+            }
+            _ => Expression::MemberAccess { parent, child, operator }.to_some()
+        }
     }
 
 }
@@ -348,9 +396,9 @@ impl<'a> Parser<'a> {
             Token::Dot => Operator::MemberAccess(MemberAccess::Dot),
             Token::BangDot => Operator::MemberAccess(MemberAccess::ExclamationDot),
             Token::QuestionDot => Operator::MemberAccess(MemberAccess::QuestionDot),
+            Token::Colon => Operator::MemberAccess(MemberAccess::Colon),
             Token::QuestionQuestionDot => Operator::MemberAccess(MemberAccess::QuestionQuestionDot),
-            Token::LeftBracket => Operator::Index(Index::SafeIndex),
-            Token::LeftBracketBang => Operator::Index(Index::UncheckIndex),
+            Token::LeftBracket => Operator::Index,
             Token::QuestionQuestion => Operator::Special(Special::UndefinedCoalescing),
             Token::As => Operator::Special(Special::As),
             Token::LeftParen => Operator::FuncCall,
@@ -377,6 +425,19 @@ impl<'a> Parser<'a> {
         };
         self.advance();
         Some(operator)
+    }
+
+    pub fn parse_comma_seperated_expressions(&mut self, closing_delimiter: Token<'a>) -> Vec<Expression<'a>> {
+        let mut expressions = Vec::new();
+        while !self.is_at_end() && !self.check_bool(&closing_delimiter){
+            if let Some(expression) = self.parse_expression() {
+                expressions.push(expression);
+            };
+
+            if !self.if_matches_then_consume_bool(&Token::Comma) {break;};
+        }
+
+        expressions
     }
 
     // DEAD CODE:
