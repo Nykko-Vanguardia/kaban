@@ -151,7 +151,7 @@ pub enum Type<'a> {
     OptionalGarbage(Box<Type<'a>>), //T!
 
     //arrays
-    FixedArray(Box<Type<'a>>, usize), // T[N]
+    FixedArray{ type_: Box<Type<'a>>, size: Box<Expression<'a>> }, // T[N]
     DynArray(Box<Type<'a>>), // T[]
 
     //user defined
@@ -159,6 +159,16 @@ pub enum Type<'a> {
 
     //compound
     Union(Vec<Type<'a>>), // union(i32, f64)
+}
+
+impl<'a> Type<'a> {
+    pub fn to_box(self) -> Box<Type<'a>> {
+        Box::new(self)
+    }
+
+    pub fn to_some(self) -> Option<Type<'a>> {
+        Some(self)
+    }
 }
 
 #[derive(Debug)]

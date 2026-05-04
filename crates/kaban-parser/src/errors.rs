@@ -12,6 +12,6 @@ pub enum ParseError {
     MissingRightParen,
     #[error("Method name expected")]
     InvalidMethodName,
-    // #[error("Expected expression! Got {0} instead!")]
-    // ExpectedExpression(String), 
+    #[error("Missing parenthesis")]
+    MissingLeftParen,
 }

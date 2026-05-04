@@ -1,5 +1,5 @@
 use kaban_lexer::{Lexer, Token};
-use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
+use crate::{ast::{Expression, Statement, Type}, errors::ParseError, operator::{self, Arithmetic, BitwiseBinary, Comparison, HasPrecedence, Logical, MemberAccess, Operator, PostfixUnary, PrefixUnary, Special}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token<'a>],
@@ -57,6 +57,11 @@ impl<'a> Parser<'a> {
             };
 
             let left = left_side.to_box();
+            if matches!(new_operator, Operator::Special(Special::As)) {
+                left_side = Expression::TypeCasting { value: left, type_: self.parse_type_decleration()? };
+                continue;
+            }
+
             let right = self.continue_parsing_expression(new_operator.precedence())?.to_box();
             left_side = match new_operator {
                 Operator::Arithmetic(operator) => Expression::ArithmeticOperation {left, right, operator},
@@ -66,8 +71,7 @@ impl<'a> Parser<'a> {
                 Operator::MemberAccess(operator) => self.parse_member_access_or_method(left, right, operator)?,
                 Operator::Special(operator) => match operator {
                     Special::UndefinedCoalescing => Expression::UndefinedCoalescing { possibly_undefined: left, default: right },
-                    // Special::As => Some(Expression::TypeCasting { value: left, type_: right })
-                    Special::As => todo!(),
+                    Special::As => unreachable!(),
                 },
                 Operator::PrefixUnary(_) => unreachable!(),
                 Operator::PostfixUnary(_) => unreachable!(),
@@ -127,7 +131,7 @@ impl<'a> Parser<'a> {
                     if !self.if_matches_then_consume_bool(&Token::Comma) {break;};
                 }
 
-                self.must_consume(&Token::RightBracket, ParseError::MissingRightBracket);
+                self.must_consume(&Token::RightBracket, ParseError::MissingRightBracket)?;
                 Expression::ArrayLit(items)
             }
             Token::StringObjLit(_) => todo!(),
@@ -135,7 +139,7 @@ impl<'a> Parser<'a> {
             Token::LeftParen => {
                 self.advance();
                 let expression = self.parse_expression()?;
-                self.must_consume(&Token::RightParen, ParseError::MissingRightParen);
+                self.must_consume(&Token::RightParen, ParseError::MissingRightParen)?;
                 expression
             },
             Token::Undefined => { self.advance(); Expression::Undefined },
@@ -183,13 +187,13 @@ impl<'a> Parser<'a> {
         let mutable = self.if_matches_then_consume_bool(&Token::Mut);
         let name = self.consume_identifier()?;
         let let_type = if self.if_matches_then_consume_bool(&Token::Colon) {
-            self.handle_type_decl()
+            self.parse_type_decleration()
         } else { 
             None 
         };
         self.must_consume(&Token::Equals, ParseError::Expected("=".to_string()))?;
         let assignment = self.parse_expression()?;
-        self.must_consume(&Token::Semicolon, ParseError::MissingSemicolon);
+        self.must_consume(&Token::Semicolon, ParseError::MissingSemicolon)?;
         Some(Statement::Let { 
             mutable, 
             name, 
@@ -198,45 +202,66 @@ impl<'a> Parser<'a> {
         })
     }
 
-    //TODO: Handle other types
-    fn handle_type_decl(&mut self) -> Option<Type<'a>> {
-        let type_ = match self.peek_current() {
-            Token::I8 => Type::I8,
-            Token::I16 => Type::I16,
-            Token::I32 => Type::I32,
-            Token::I64 => Type::I64,
-            Token::F32 => Type::F32,
-            Token::F64 => Type::F64,
-            Token::U8 => Type::U8, 
-            Token::U16 => Type::U16, 
-            Token::U32 => Type::U32, 
-            Token::U64 => Type::U64,
-            Token::USize => Type::USize,
-            Token::Char8 => Type::Char8,
-            Token::Char16 => Type::Char16,
-            Token::Char32 => Type::Char32,
-            Token::Bool => Type::Bool,
-            Token::Void => Type::Void,
-            Token::Undefined => Type::Undefined,
-            Token::Garbage => Type::Garbage,
-            Token::Identifier(name) => Type::Named(name),
+    fn parse_type_decleration(&mut self) -> Option<Type<'a>> {
+        let mut type_ = match self.peek_current() {
+            Token::I8 => { self.advance(); Type::I8 },
+            Token::I16 => { self.advance(); Type::I16 },
+            Token::I32 => { self.advance(); Type::I32 },
+            Token::I64 => { self.advance(); Type::I64 },
+            Token::F32 => { self.advance(); Type::F32 },
+            Token::F64 => { self.advance(); Type::F64 },
+            Token::U8 => { self.advance(); Type::U8 },
+            Token::U16 => { self.advance(); Type::U16 }, 
+            Token::U32 => { self.advance(); Type::U32 }, 
+            Token::U64 => { self.advance(); Type::U64 },
+            Token::USize => { self.advance(); Type::USize },
+            Token::Char8 => { self.advance(); Type::Char8 },
+            Token::Char16 => { self.advance(); Type::Char16 },
+            Token::Char32 => { self.advance(); Type::Char32 },
+            Token::Bool => { self.advance(); Type::Bool },
+            Token::Void => { self.advance(); Type::Void },
+            Token::Undefined => { self.advance(); Type::Undefined },
+            Token::Garbage => { self.advance(); Type::Garbage },
+            Token::Identifier(name) => { self.advance(); Type::Named(name) },
+            Token::Union => {
+                self.advance();
+                self.must_consume(&Token::LeftParen, ParseError::MissingLeftParen)?;
+                let mut types = Vec::new();
+                while !self.is_at_end() && !self.if_matches_then_consume_bool(&Token::RightParen) {
+                    types.push(self.parse_type_decleration()?);
+                    if !self.if_matches_then_consume_bool(&Token::Comma) { break; }
+                }
+                self.must_consume(&Token::RightParen, ParseError::MissingRightParen)?;
+                Type::Union(types)
+            }
             _ => {
                 self.error_recovery(ParseError::MissingTypeDeclaration);
                 return None;
             },
         };
 
-        self.advance();
-        //modifiers
-        let type_ = match self.peek_current() {
-            Token::Star => Type::Pointer(Box::new(type_)),
-            Token::Ampersand => Type::Borrow(Box::new(type_)),
-            Token::AmpersandMut => Type::MutBorrow(Box::new(type_)),
-            Token::Question => Type::Optional(Box::new(type_)),
-            Token::Bang => Type::OptionalGarbage(Box::new(type_)),
-            _ => return Some(type_),
-        };
-        self.advance();
+        loop {
+            type_ = match  self.peek_current() {
+                Token::Star => { self.advance(); Type::Pointer(type_.to_box()) },
+                Token::Ampersand => { self.advance(); Type::Borrow(type_.to_box()) },
+                Token::AmpersandMut => { self.advance(); Type::MutBorrow(type_.to_box()) },
+                Token::Question => { self.advance(); Type::Optional(type_.to_box()) },
+                Token::Bang => { self.advance(); Type::OptionalGarbage(type_.to_box()) },
+                Token::LeftBracket => {
+                    self.advance();
+                    if matches!(self.peek_current(), Token::RightBracket) {
+                        self.advance();
+                        Type::DynArray(type_.to_box())
+                    } else {
+                        let size = self.parse_expression()?.to_box();
+                        self.must_consume(&Token::RightBracket, ParseError::MissingRightBracket)?;
+                        Type::FixedArray { type_: type_.to_box(), size }
+                    }
+                }
+                _ => break,
+            }
+        }
+
         Some(type_)
     }
 
