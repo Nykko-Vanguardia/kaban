@@ -137,9 +137,9 @@ pub enum Type<'a> {
     USize,
     Bool,
     Void,
-    Char8,
-    Char16,
-    Char32,
+    C8,
+    C16,
+    C32,
     Undefined,
     Garbage,
 

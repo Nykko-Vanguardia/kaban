@@ -5,6 +5,7 @@ edition = "2024"
 
 [workspace]
 members = [
+    "crates/kaban-core",
     "crates/kaban-lexer",
     "crates/kaban-parser",
 ]
