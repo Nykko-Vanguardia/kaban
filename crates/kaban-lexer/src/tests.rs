@@ -17,6 +17,7 @@ fn test_basic_lexing() {
         Token::new(TokenKind::EOF, 15, 15),
     ];
     assert_eq!(tokens, expected);
+    println!("{:#?}", tokens);
 }
 
 #[test]
