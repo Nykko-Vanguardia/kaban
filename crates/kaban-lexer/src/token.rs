@@ -1,17 +1,30 @@
-use crate::LexError;
+use kaban_core::{SourceIndex, SourceSpan};
 
-#[derive(Debug, PartialEq)]
-pub enum Token<'a> {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: SourceSpan,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, start: SourceIndex, end: SourceIndex) -> Token {
+        Token {kind, span: SourceSpan {start, end}}
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TokenKind {
     //lits
-    IntLit(&'a str),
-    FloatLit(&'a str),
-    StringLit(&'a str),
-    StringObjLit(&'a str),  // for ``, automatically sugars to String.new()
-    InterpolatedStringObjLit(&'a str),  // for f`` automaticallu sugars to String.format()
-    BoolLit(bool),
-    Char8Lit(u8),
-    Char16Lit(&'a [u8]),
-    Char32Lit(&'a [u8]),
+    IntLit,
+    FloatLit,
+    StringLit,
+    StringObjLit,  // for ``, automatically sugars to String.new()
+    InterpolatedStringObjLit,  // for f`` automaticallu sugars to String.format()
+    BoolLit,
+    Char8Lit,
+    Char16Lit,
+    Char32Lit,
 
     //keywords
     Let,
@@ -68,7 +81,7 @@ pub enum Token<'a> {
     ASM,
 
     //identifiers
-    Identifier(&'a str),
+    Identifier,
 
     //symbols
     Semicolon,
@@ -152,12 +165,7 @@ pub enum Token<'a> {
     Nil,
 
     //Special
-    DocComment(&'a str),
+    DocComment,
     EOF,
-    Invalid{
-        error: LexError,
-        line: usize,
-        col: usize,
-        cause: &'a str,
-    },
+    Invalid
 }

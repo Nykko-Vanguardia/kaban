@@ -1,15 +1,17 @@
 use kaban_lexer::Lexer;
-use kaban_lexer::Token;
 use crate::Parser;
 
 #[test]
 fn parse_list() {
-    let input = "x, y, 10,);";
+    let input = "[10 + 1,] + [10, 2,];";
 
-    let tokens = Lexer::new(input).tokenize(); 
+    let mut lexer = Lexer::new(input);
+    let tokens = lexer.tokenize(); 
     let mut ast = Parser::new(&tokens);
-    let expression = ast.parse_comma_seperated_expressions(Token::RightParen);
+    let expression = ast.parse_expression();
     println!("{:#?}", expression);
+    println!("{:#?}", ast.errors);
+    println!("{:#?}", lexer.errors);
 }
 
 #[test]
@@ -54,7 +56,7 @@ fn parse_type_casting() {
 
 #[test]
 fn parse_type_casting_union() {
-    let input = "x as union(i32*, Person[], f64, union(i32&mut, f64&, char8 &mut))";
+    let input = "x as union(i32*, Person[], f64, union(i32&mut, f64&, c8 &mut))";
 
     let tokens = Lexer::new(input).tokenize(); 
     let mut ast = Parser::new(&tokens);

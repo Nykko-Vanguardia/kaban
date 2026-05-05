@@ -1,128 +1,130 @@
+use kaban_core::SourceSpan;
 use crate::operator;
 
 #[derive(Debug)]
-pub enum Statement<'a> {
+pub enum Statement {
     Let {
         mutable: bool,
-        name: &'a str,
-        let_type: Option<Type<'a>>,
-        assignment: Expression<'a>,
+        name: SourceSpan,
+        let_type: Option<Type>,
+        assignment: Expression,
     },
 
     FuncDecl {
         public: bool,
         comptime: bool,
-        params: Vec<Param<'a>>,
-        name: &'a str,
-        return_type: Type<'a>,
-        body_block: Expression<'a>,
+        params: Vec<Param>,
+        name: SourceSpan,
+        return_type: Type,
+        body_block: Expression,
     },
 
-    Return(Expression<'a>),
-    Pass(Expression<'a>),
+    Return(Expression),
+    Pass(Expression),
     Break,
     Continue,
 
-    ExpressionStatement(Expression<'a>),
+    ExpressionStatement(Expression),
 }
 
 #[derive(Debug)]
-pub enum Expression<'a> {
-    IntLit(&'a str),
-    FloatLit(&'a str),
-    Identifier(&'a str),
-    ArrayLit(Vec<Expression<'a>>),
-    BoolLit(bool),
-    Char8Lit(u8),
-    Char16Lit(&'a [u8]),
-    Char32Lit(&'a [u8]),
+pub enum Expression {
+    IntLit(SourceSpan),
+    FloatLit(SourceSpan),
+    Identifier(SourceSpan),
+    ArrayLit(Vec<Expression>),
+    BoolLit(SourceSpan),
+    Char8Lit(SourceSpan),
+    Char16Lit(SourceSpan),
+    Char32Lit(SourceSpan),
+    StringLit(SourceSpan),
     Undefined,
     Garbage,
     Self_,
 
     Block {
-        statements: Vec<Statement<'a>>,
-        value: Option<Box<Expression<'a>>>
+        statements: Vec<Statement>,
+        value: Option<Box<Expression>>
     },
     If {
-        condition: Box<Expression<'a>>,
-        then_block: Box<Expression<'a>>,
-        else_block: Option<Box<Expression<'a>>>,
+        condition: Box<Expression>,
+        then_block: Box<Expression>,
+        else_block: Option<Box<Expression>>,
     },
     Match {
-        subject: Box<Expression<'a>>,
-        arms: Vec<MatchArm<'a>>,
+        subject: Box<Expression>,
+        arms: Vec<MatchArm>,
     },
     ArithmeticOperation {
-        left: Box<Expression<'a>>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression>,
+        right: Box<Expression>,
         operator: operator::Arithmetic,
     },
     ComparisonOperation {
-        left: Box<Expression<'a>>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression>,
+        right: Box<Expression>,
         operator: operator::Comparison,
     },
     LogicalOperation {
-        left: Box<Expression<'a>>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression>,
+        right: Box<Expression>,
         operator: operator::Logical,
     },
     BinaryOperation {
-        left: Box<Expression<'a>>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression>,
+        right: Box<Expression>,
         operator: operator::BitwiseBinary,
     },
     MemberAccess {
-        parent: Box<Expression<'a>>,
-        child: Box<Expression<'a>>,
+        parent: Box<Expression>,
+        child: Box<Expression>,
         operator: operator::MemberAccess,
     },
     IndexOperation {
-        parent: Box<Expression<'a>>,
-        index: Box<Expression<'a>>,
+        parent: Box<Expression>,
+        index: Box<Expression>,
         safe: bool,
     },
     UndefinedCoalescing {
-        possibly_undefined: Box<Expression<'a>>,
-        default: Box<Expression<'a>>,
+        possibly_undefined: Box<Expression>,
+        default: Box<Expression>,
     },
     TypeCasting {
-        value: Box<Expression<'a>>,
-        type_: Type<'a>,
+        value: Box<Expression>,
+        type_: Type,
     },
     PrefixUnaryOperation {
-        operand: Box<Expression<'a>>,
+        operand: Box<Expression>,
         operator: operator::PrefixUnary,
     },
     PostfixUnaryOperation {
-        operand: Box<Expression<'a>>,
+        operand: Box<Expression>,
         operator: operator::PostfixUnary,
     },
     FunctionCall {
-        callee: Box<Expression<'a>>,
-        args: Vec<Expression<'a>>,
+        callee: Box<Expression>,
+        args: Vec<Expression>,
     },
     MethodCall {
-        parent: Box<Expression<'a>>,
-        method_name: &'a str,
-        args: Vec<Expression<'a>>,
+        parent: Box<Expression>,
+        method_name: SourceSpan,
+        args: Vec<Expression>,
         mutable_self: bool,
     }
 }
 
-impl<'a> Expression<'a> {
-    pub fn to_box(self) -> Box<Expression<'a>> {
+impl Expression {
+    pub fn to_box(self) -> Box<Expression> {
         Box::new(self)
     }
 
-    pub fn to_some(self) -> Option<Expression<'a>> {
+    pub fn to_some(self) -> Option<Expression> {
         Some(self)
     }
 }
 
 #[derive(Debug)]
-pub enum Type<'a> {
+pub enum Type {
     //primitives
     I8,
     I16,
@@ -144,42 +146,42 @@ pub enum Type<'a> {
     Garbage,
 
     //modifiers — recursive
-    Pointer(Box<Type<'a>>), //T*
-    Borrow(Box<Type<'a>>), //T&
-    MutBorrow(Box<Type<'a>>), //T &mut
-    Optional(Box<Type<'a>>), //T?
-    OptionalGarbage(Box<Type<'a>>), //T!
+    Pointer(Box<Type>), //T*
+    Borrow(Box<Type>), //T&
+    MutBorrow(Box<Type>), //T &mut
+    Optional(Box<Type>), //T?
+    OptionalGarbage(Box<Type>), //T!
 
     //arrays
-    FixedArray{ type_: Box<Type<'a>>, size: Box<Expression<'a>> }, // T[N]
-    DynArray(Box<Type<'a>>), // T[]
+    FixedArray{ type_: Box<Type>, size: Box<Expression> }, // T[N]
+    DynArray(Box<Type>), // T[]
 
     //user defined
-    Named(&'a str), // Person, MyStruct etc
+    Named(SourceSpan), // Person, MyStruct etc
 
     //compound
-    Union(Vec<Type<'a>>), // union(i32, f64)
+    Union(Vec<Type>), // union(i32, f64)
 }
 
-impl<'a> Type<'a> {
-    pub fn to_box(self) -> Box<Type<'a>> {
+impl Type {
+    pub fn to_box(self) -> Box<Type> {
         Box::new(self)
     }
 
-    pub fn to_some(self) -> Option<Type<'a>> {
+    pub fn to_some(self) -> Option<Type> {
         Some(self)
     }
 }
 
 #[derive(Debug)]
-pub struct Param<'a> {
-    name: &'a str,
-    type_: Type<'a>,
+pub struct Param {
+    name: SourceSpan,
+    type_: Type,
     mutable: bool,
 }
 
 #[derive(Debug)]
-pub struct MatchArm<'a> {
-    match_to: Box<Expression<'a>>,
-    body_block: Box<Expression<'a>>,
+pub struct MatchArm {
+    match_to: Box<Expression>,
+    body_block: Box<Expression>,
 }
