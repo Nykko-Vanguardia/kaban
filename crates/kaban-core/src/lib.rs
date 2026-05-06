@@ -7,6 +7,13 @@ impl ToUsize for SourceIndex {
     }
 }
 
+impl ToSourceIndex for usize {
+    #[inline(always)]
+    fn source_index(self) -> SourceIndex {
+        self as SourceIndex
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// Represents a byte range in the source text.
 /// 
@@ -27,4 +34,19 @@ pub struct SourceSpan {
 
 pub trait ToUsize {
     fn usize(self) -> usize;
+}
+
+pub trait ToSourceIndex {
+    fn source_index(self) -> SourceIndex;
+}
+
+impl ToSourceIndex for bool {
+    #[inline(always)]
+    fn source_index(self) -> SourceIndex {
+        if self == true {
+            1
+        } else {
+            0
+        }
+    }
 }

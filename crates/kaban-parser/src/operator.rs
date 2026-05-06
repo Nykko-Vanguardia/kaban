@@ -1,198 +1,135 @@
-#[derive(Debug)]
-pub enum Operator {
-    Arithmetic(Arithmetic),
-    Comparison(Comparison),
-    Logical(Logical),
-    BitwiseBinary(BitwiseBinary),
-    PrefixUnary(PrefixUnary),
-    PostfixUnary(PostfixUnary),
-    MemberAccess(MemberAccess),
-    Special(Special),
-    FuncCall,
-    Index,
-}
+use crate::ast::NodeTag;
 
-impl HasPrecedence for Operator {
-    fn precedence(&self) -> u8 {
+impl NodeTag {
+    pub fn precedence(&self) -> u8 {
         match self {
-            Operator::Arithmetic(op) => op.precedence(),
-            Operator::Comparison(op) => op.precedence(),
-            Operator::Logical(op) => op.precedence(),
-            Operator::BitwiseBinary(op) => op.precedence(),
-            Operator::PrefixUnary(op) => op.precedence(),
-            Operator::PostfixUnary(op) => op.precedence(),
-            Operator::MemberAccess(op) => op.precedence(),
-            Operator::Special(op) => op.precedence(),
-            Operator::FuncCall => 13,
-            Operator::Index => 13,
+            //Arithmetic
+            NodeTag::Add => 10,
+            NodeTag::Subtract => 10,
+            NodeTag::Multiply => 11,
+            NodeTag::Divide => 11,
+            NodeTag::Modulo => 11,
+
+            //Comparison
+            NodeTag::Equal => 7,
+            NodeTag::NotEqual => 7,
+            NodeTag::Less => 8,
+            NodeTag::Greater => 8,
+            NodeTag::LessEqual => 8,
+            NodeTag::GreaterEqual => 8,
+
+            //Logical
+            NodeTag::And => 3,
+            NodeTag::Or => 2,
+
+            //BitwiseBinary
+            NodeTag::BAnd => 5,
+            NodeTag::BOr => 4,
+            NodeTag::XOr => 6,
+            NodeTag::LeftShift => 9,
+            NodeTag::RightShift => 9,
+            NodeTag::UnsignedRightShift => 9,
+
+            //PrefixUnary
+            NodeTag::Negative => 12,
+            NodeTag::Not => 12,
+            NodeTag::BNot => 12,
+            NodeTag::New => 12,
+            NodeTag::Destruct => 12,
+
+            //PostfixUnary
+            NodeTag::Deref => 13,
+            NodeTag::Bang => 13,
+            NodeTag::Question => 13,
+            NodeTag::FuncCall => 13,
+            NodeTag::Index => 13,
+
+            //MemberAccess
+            NodeTag::Dot => 13,
+            NodeTag::ExclamationDot => 13,
+            NodeTag::QuestionDot => 13,
+            NodeTag::QuestionQuestionDot => 13,
+            NodeTag::Colon => 13,
+
+            //Special
+            NodeTag::UndefinedCoalescing => 1,
+            NodeTag::As => 13,
+            _ => {
+                debug_assert!(self.is_operator(), 
+                    "Tried to get a precedence of a non error node tag: {:?}", self);
+                0
+            }        
         }
     }
 
-}
+    pub fn is_operator(&self) -> bool {
+        matches!(self, 
+            //Arithmetic
+            NodeTag::Add |
+            NodeTag::Subtract |
+            NodeTag::Multiply |
+            NodeTag::Divide |
+            NodeTag::Modulo |
+            NodeTag::Equal |
+            NodeTag::NotEqual |
+            NodeTag::Less |
+            NodeTag::Greater |
+            NodeTag::LessEqual |
+            NodeTag::GreaterEqual |
+            NodeTag::And |
+            NodeTag::Or |
+            NodeTag::BAnd |
+            NodeTag::BOr |
+            NodeTag::XOr |
+            NodeTag::LeftShift |
+            NodeTag::RightShift |
+            NodeTag::UnsignedRightShift |
+            NodeTag::Negative |
+            NodeTag::Not |
+            NodeTag::BNot |
+            NodeTag::New |
+            NodeTag::Destruct |
+            NodeTag::Deref |
+            NodeTag::Bang |
+            NodeTag::Question |
+            NodeTag::FuncCall |
+            NodeTag::Index |
+            NodeTag::Dot |
+            NodeTag::ExclamationDot |
+            NodeTag::QuestionDot |
+            NodeTag::QuestionQuestionDot |
+            NodeTag::Colon |
+            NodeTag::UndefinedCoalescing |
+            NodeTag::As
+        )
+    }
 
-impl Operator {
     pub fn is_postfix(&self) -> bool {
-        matches!(self, Operator::PostfixUnary(_) | Operator::FuncCall | Operator::Index)
+        matches!(self, 
+            NodeTag::Deref |
+            NodeTag::Bang |
+            NodeTag::Question |
+            NodeTag::FuncCall |
+            NodeTag::Index)
     }
-}
 
-#[derive(Debug)]
-pub enum Arithmetic {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-}
+    pub fn is_prefix(&self) -> bool {
+        matches!(self,
+            NodeTag::Negative |
+            NodeTag::Not |
+            NodeTag::BNot |
+            NodeTag::New |
+            NodeTag::Destruct)
+    }
 
-impl HasPrecedence for Arithmetic {
-    fn precedence(&self) -> u8 {
+    pub fn is_member_access(&self) -> bool {
         match self {
-            Arithmetic::Add => 10,
-            Arithmetic::Subtract => 10,
-            Arithmetic::Multiply => 11,
-            Arithmetic::Divide => 11,
-            Arithmetic::Modulo => 11,
+            NodeTag::Dot => true,
+            NodeTag::ExclamationDot => true,
+            NodeTag::QuestionDot => true,
+            NodeTag::QuestionQuestionDot => true,
+            NodeTag::Colon => true,
+            _ => false,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum Comparison {
-    Equal,
-    NotEqual,
-    Less,
-    Greater,
-    LessEqual,
-    GreaterEqual,
-}
-
-impl HasPrecedence for Comparison {
-    fn precedence(&self) -> u8 {
-        match self {
-            Comparison::Equal => 7,
-            Comparison::NotEqual => 7,
-            Comparison::Less => 8,
-            Comparison::Greater => 8,
-            Comparison::LessEqual => 8,
-            Comparison::GreaterEqual => 8,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Logical {
-    And,
-    Or,
-}
-
-impl HasPrecedence for Logical {
-    fn precedence(&self) -> u8 {
-        match self {
-            Logical::And => 3,
-            Logical::Or => 2,
-        }
-    }
-}
-
-/**NOTE: BNOT is in PrefixUnary*/
-#[derive(Debug)]
-pub enum BitwiseBinary {
-    And,
-    Or,
-    Xor,
-    LeftShift,
-    RightShift,
-    UnsignedRightShift,
-}
-
-impl HasPrecedence for BitwiseBinary {
-    fn precedence(&self) -> u8 {
-        match self {
-            BitwiseBinary::And => 5,
-            BitwiseBinary::Or => 4,
-            BitwiseBinary::Xor => 6,
-            BitwiseBinary::LeftShift => 9,
-            BitwiseBinary::RightShift => 9,
-            BitwiseBinary::UnsignedRightShift => 9,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum PrefixUnary {
-    Negative,
-    Not,
-    BNot,
-    New,
-    Destruct,
-}
-
-impl HasPrecedence for PrefixUnary {
-    fn precedence(&self) -> u8 {
-        match self {
-            PrefixUnary::Negative => 12,
-            PrefixUnary::Not => 12,
-            PrefixUnary::BNot => 12,
-            PrefixUnary::New => 12,
-            PrefixUnary::Destruct => 12,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum PostfixUnary  {
-    Deref,
-    Bang,
-    Question,
-}
-
-impl HasPrecedence for PostfixUnary {
-    fn precedence(&self) -> u8 {
-        match self {
-            PostfixUnary::Deref => 13,
-            PostfixUnary::Bang => 13,
-            PostfixUnary::Question => 13,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum MemberAccess {
-    Dot,
-    ExclamationDot,
-    QuestionDot,
-    QuestionQuestionDot,
-    Colon,
-}
-
-impl HasPrecedence for MemberAccess {
-    fn precedence(&self) -> u8 {
-        match self {
-            MemberAccess::Dot => 13,
-            MemberAccess::ExclamationDot => 13,
-            MemberAccess::QuestionDot => 13,
-            MemberAccess::QuestionQuestionDot => 13,
-            MemberAccess::Colon => 13,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Special {
-    UndefinedCoalescing,
-    As,
-}
-
-impl HasPrecedence for Special {
-    fn precedence(&self) -> u8 {
-        match self {
-            Special::UndefinedCoalescing => 1,
-            Special::As => 13,
-        }
-    }
-}
-
-pub trait HasPrecedence {
-    fn precedence(&self) -> u8;
 }

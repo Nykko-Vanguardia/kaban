@@ -8,20 +8,23 @@ fn parse_list() {
     let mut lexer = Lexer::new(input);
     let tokens = lexer.tokenize(); 
     let mut ast = Parser::new(&tokens);
-    let expression = ast.parse_expression();
-    println!("{:#?}", expression);
-    println!("{:#?}", ast.errors);
-    println!("{:#?}", lexer.errors);
+    ast.parse_expression();
+    println!("{}", ast.node_tags.len());
+    println!("Node Tags: {:#?}", ast.node_tags);
+    println!("{:#?}", ast.node_data);
+    println!("{:#?}", ast.extra);
+    // println!("{:#?}", ast.errors);
 }
 
 #[test]
 fn parse_method() {
     let input = "x:foo(x, y,)";
-
     let tokens = Lexer::new(input).tokenize(); 
     let mut ast = Parser::new(&tokens);
-    let expression = ast.parse_expression();
-    println!("{:#?}", expression);
+    ast.parse_expression();
+    // println!("{:#?}", ast.node_tags);
+    // println!("{:#?}", ast.node_data);
+    // println!("{:#?}", ast.extra);
 }
 
 #[test]
