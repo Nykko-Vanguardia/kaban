@@ -1,3 +1,4 @@
+pub mod source;
 pub type SourceIndex = u32;
 
 impl ToUsize for SourceIndex {

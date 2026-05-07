@@ -1,5 +1,6 @@
 use kaban_core::{SourceIndex};
 
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct TokenIndex(pub SourceIndex);
 #[derive(Debug)]

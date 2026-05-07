@@ -1,10 +1,12 @@
+use kaban_core::source::IsSource;
+
 use crate::Token;
 use crate::Lexer;
 use crate::token::TokenKind;
 
 #[test]
 fn test_basic_lexing() {
-    let input = "let x = 5 + 10;";
+    let input = "let x = 5 + 10;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
@@ -22,7 +24,7 @@ fn test_basic_lexing() {
 
 #[test]
 fn test_complex_expression() {
-    let input = "let answer = (50 * 123) / 2;";
+    let input = "let answer = (50 * 123) / 2;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
@@ -43,7 +45,7 @@ fn test_complex_expression() {
 
 #[test]
 fn test_whitespace_insensitivity() {
-    let input = "let    x\n    = \n   100   ;";
+    let input = "let    x\n    = \n   100   ;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
@@ -59,7 +61,7 @@ fn test_whitespace_insensitivity() {
 #[test]
 fn test_comments() {
     let input = "//The path of the righteous man is\n            /*\n              beset on all sides by the inequities of the selfish and the tyranny of evil men\n             */\n            let: i32;\n            ";
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input.to_source()).tokenize();
     // find positions of let, colon, i32, semicolon, eof
     let let_pos = input.find("let").unwrap() as u32;
     let colon_pos = input.find(':').unwrap() as u32;
@@ -77,7 +79,7 @@ fn test_comments() {
 
 #[test]
 fn test_strings() {
-    let input = r#"let x = "let";"#;
+    let input = r#"let x = "let";"#.to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
@@ -92,7 +94,7 @@ fn test_strings() {
 
 #[test]
 fn test_doc_comment() {
-    let input = "/** * hello */";
+    let input = "/** * hello */".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
         Token::new(TokenKind::DocComment, 0, 14),

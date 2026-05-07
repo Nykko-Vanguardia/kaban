@@ -1,9 +1,10 @@
-use kaban_core::{SourceIndex, SourceSpan, ToSourceIndex};
+use kaban_core::{SourceIndex, SourceSpan, ToSourceIndex, ToUsize, source::Source};
 use kaban_lexer::{Token, token::TokenKind};
 use crate::{ast::{ExtraIndex, NodeData, NodeIndex, NodeTag, SourceIndexVec, TokenIndex}, errors::ParseError};
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
+    source: Source<'a>,
     current: usize,
     pub errors: Vec<ParseError>,
 
@@ -13,11 +14,12 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token]) -> Self {
+    pub fn new(tokens: &'a [Token], source: Source<'a>) -> Self {
         Parser {
             tokens,
             current: 0,
             errors: Vec::new(),
+            source,
             
             node_tags: Vec::new(),
             node_data: Vec::new(),
@@ -118,7 +120,10 @@ impl<'a> Parser<'a> {
             TokenKind::IntLit => self.push_node(NodeTag::IntLit, left.0, right),
             TokenKind::FloatLit => self.push_node(NodeTag::FloatLit, left.0, right),
             TokenKind::Identifier => self.push_node(NodeTag::Identifier, left.0, right),
-            TokenKind::BoolLit => self.push_node(NodeTag::BoolLit, left.0, right),
+            TokenKind::BoolLit => {
+                let bool: SourceIndex = if self.source.matches(current_token.span(), "true") { 1 } else { 0 };
+                self.push_node(NodeTag::BoolLit, bool, right)
+            },
             TokenKind::StringLit => self.push_node(NodeTag::StringLit, left.0, right),
             TokenKind::LeftBracket => {
                 advance_after_match = false;
@@ -547,18 +552,18 @@ struct TokenRef<'a> {
     kind: TokenKind,
 }
 
-// impl<'a> TokenRef<'a> {
-//     fn unwrap(&self) -> &'a Token {
-//         self.token
-//     }
-//
-//     // #[inline(always)]
-//     // fn kind(&self) -> TokenKind {
-//     //     self.token.kind
-//     // }
-//
-//     #[inline(always)]
-//     fn span(&self) -> SourceSpan {
-//         self.token.span
-//     }
-// }
+impl<'a> TokenRef<'a> {
+    // fn unwrap(&self) -> &'a Token {
+    //     self.token
+    // }
+
+    // #[inline(always)]
+    // fn kind(&self) -> TokenKind {
+    //     self.token.kind
+    // }
+
+    #[inline(always)]
+    fn span(&self) -> SourceSpan {
+        self.token.span
+    }
+}

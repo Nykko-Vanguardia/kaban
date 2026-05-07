@@ -1,12 +1,14 @@
 use kaban_core::SourceIndex;
+use kaban_core::ToSourceIndex;
 use kaban_core::ToUsize;
+use kaban_core::source::Source;
 
 use crate::Token;
 use crate::LexError;
 use crate::token::TokenKind;
 
 pub struct Lexer<'a> {
-    source: &'a [u8],
+    source: Source<'a>,
     current: SourceIndex,
     pub errors: Vec<LexError>,
     line: u32,
@@ -14,8 +16,8 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str,) -> Self {
-        Lexer { source: input.as_bytes(), errors: Vec::new(), current: 0, line: 1, col: 1 }
+    pub fn new(input: Source<'a>) -> Self {
+        Lexer { source: input, errors: Vec::new(), current: 0, line: 1, col: 1 }
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {
@@ -58,7 +60,7 @@ impl<'a> Lexer<'a> {
             self.advance_current();
         };
         let ending_index = self.current;
-        let keyword_or_identifier = &self.source[starting_index.usize() ..ending_index.usize()];
+        let keyword_or_identifier = self.source.get_start_end(starting_index, ending_index);
         match keyword_or_identifier {
             b"let" => TokenKind::Let,
             b"mut" => TokenKind::Mut,
@@ -130,6 +132,8 @@ impl<'a> Lexer<'a> {
             b"void" => TokenKind::Void,
             b"undefined" => TokenKind::Undefined,
             b"garbage" => TokenKind::Garbage,
+            b"true" => TokenKind::BoolLit,
+            b"false" => TokenKind::BoolLit,
             b"asm" => TokenKind::ASM,
             //Reserved
             b"autofree" => TokenKind::Autofree,
@@ -464,17 +468,17 @@ impl<'a> Lexer<'a> {
 
     #[inline(always)]
     pub fn peek_till(&self, offset: usize) -> u8 {
-        self.source.get(self.current.usize() + offset).copied().unwrap_or(b'\0')
+        self.source.char(self.current + offset.source_index())
     }
 
     fn matches_current(&self, pattern: &str) -> bool {
         let bytes = pattern.as_bytes();
-        let end = self.current.usize() + bytes.len();
+        let end = (self.current.usize() + bytes.len()).source_index();
         if end > self.source.len() {
             return false;
         }
 
-        &self.source[self.current.usize()..end] == bytes
+        self.source.get_start_end(self.current, end) == bytes
     }
 
     fn match_and_consume(&mut self, pattern: &str) -> bool {        
