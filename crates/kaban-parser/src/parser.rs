@@ -13,6 +13,15 @@ pub struct Parser<'a> {
     pub extra: Vec<SourceIndex>,
 }
 
+pub struct AST<'a> {
+    pub tokens: &'a [Token],
+    pub node_tags: Vec<NodeTag>,
+    pub node_data: Vec<NodeData>,
+    pub extra: Vec<SourceIndex>,
+    pub source: Source<'a>,
+    pub root: NodeIndex,
+}
+
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [Token], source: Source<'a>) -> Self {
         Parser {
@@ -27,16 +36,34 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_tokens(&mut self) -> NodeIndex {
-        let mut statements = Vec::new();
+    pub fn parse_program(&mut self) -> AST<'a> {
+        let mut top_level_statements  = Vec::new();
         while !self.is_at_end() {
-            match self.parse_next_statement() {
-                Some(statement) => statements.push(statement),
-                None => continue,
+            if let Some(statment) = self.parse_next_statement() {
+                top_level_statements.push(statment);
             }
         };
 
-        todo!();
+        let root = self.push_block(top_level_statements);
+        AST {
+            tokens: self.tokens,
+            node_tags: std::mem::take(&mut self.node_tags),
+            node_data: std::mem::take(&mut self.node_data),
+            extra: std::mem::take(&mut self.extra),
+            source: self.source,
+            root,
+        }
+    }
+    
+    pub fn reset(&mut self, tokens: &'a [Token], source: Source<'a>) {
+        //these should be clear via mem take but its better to be safe
+        self.node_tags.clear();
+        self.node_data.clear();
+        self.extra.clear();
+
+        self.tokens = tokens;
+        self.source = source;
+        self.current = 0;
     }
 
     pub fn parse_next_statement(&mut self) -> Option<NodeIndex> {
@@ -44,7 +71,11 @@ impl<'a> Parser<'a> {
 
         match current_token.kind {
             TokenKind::Let => self.handle_let_statements(),
-            _ => todo!("Expression Statement")
+            _ => { 
+                let expression = self.parse_expression(); 
+                self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon);
+                expression
+            },
         }
     }
 
@@ -307,6 +338,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn push_block(&mut self, statements: Vec<NodeIndex>) -> NodeIndex {
+        let block_size = statements.len().source_index();
+        let extra_ptr = self.push_extra(statements.source_index());
+        self.push_node(NodeTag::Block, block_size, extra_ptr.0)
+    }
+
 }
 
 //helper
@@ -563,7 +600,7 @@ impl<'a> TokenRef<'a> {
     // }
 
     #[inline(always)]
-    fn span(&self) -> SourceSpan {
+    pub fn span(&self) -> SourceSpan {
         self.token.span
     }
 }

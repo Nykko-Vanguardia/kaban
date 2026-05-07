@@ -1,3 +1,40 @@
+use kaban_core::{SourceIndex, ToUsize};
+use kaban_lexer::{Token};
+
+use crate::{ast::{DataIndex, NodeData, NodeIndex, NodeTag, TokenIndex}, parser::AST};
+
+impl<'a> AST<'a> {
+    #[inline(always)]
+    pub fn get_token(&self, index: TokenIndex) -> &'a Token {
+        &self.tokens[index.0.usize()]
+    }
+
+    #[inline(always)]
+    pub fn get_tag(&'a self, index: NodeIndex) -> NodeTag {
+        self.node_tags[index.0.usize()]
+    }
+
+    #[inline(always)]
+    pub fn get_data(&self, index: NodeIndex) -> NodeData {
+        self.node_data[index.0.usize()]
+    }
+
+
+    #[inline(always)]
+    pub fn get_left_right(&self, index: NodeIndex) -> (SourceIndex, SourceIndex) {
+        let data = self.get_data(index);
+        (data.left, data.right)
+    }
+
+    pub fn get_extra_span(&self, start: SourceIndex, end: SourceIndex) -> &[SourceIndex] {
+        &self.extra[start.usize()..end.usize()]
+    }
+
+    pub fn get_extra_from_count(&self, count: SourceIndex, start: SourceIndex) -> &[SourceIndex] {
+        &self.extra[start.usize()..(start + count).usize()]
+    }
+}
+
 // use kaban_core::SourceSpan;
 // use crate::ast::{NodeIndex, Type};
 // use crate::operator;

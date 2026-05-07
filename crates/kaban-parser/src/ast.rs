@@ -3,7 +3,7 @@ use kaban_core::{SourceIndex};
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct TokenIndex(pub SourceIndex);
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct NodeIndex(pub SourceIndex);
 #[repr(transparent)]
@@ -12,7 +12,7 @@ pub struct DataIndex(pub SourceIndex);
 pub struct ExtraIndex(pub SourceIndex);
 
 #[repr(u8)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum NodeTag {
     //ATOMS--------------------
 
@@ -199,6 +199,9 @@ pub enum NodeTag {
     EnumDecl,
 
     //STATEMENT LIKE EXPRESSIONS-------
+    /// # left: u32 = statements count
+    /// # right: ExtraIndex -> \[...statements\]
+    /// - extra\[right..right + N\] = NodeIndex\[N\] (statements)
     Block,
     If,
     Match,
@@ -263,7 +266,7 @@ pub enum NodeTag {
     Result,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NodeData {
     pub left: SourceIndex,
     pub right: SourceIndex,
