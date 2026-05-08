@@ -1,4 +1,4 @@
-use kaban_core::{SourceIndex, SourceSpan};
+use kaban_core::{UIndex, SourceSpan};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Token {
@@ -7,7 +7,7 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, start: SourceIndex, end: SourceIndex) -> Token {
+    pub fn new(kind: TokenKind, start: UIndex, end: UIndex) -> Token {
         Token {kind, span: SourceSpan {start, end}}
     }
 }

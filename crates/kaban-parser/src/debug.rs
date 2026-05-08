@@ -1,8 +1,8 @@
-use std::{fmt::{Debug, Result}, os::macos::raw::stat};
-use kaban_core::SourceIndex;
-use kaban_lexer::{Token, TokenPrinter, token::TokenKind};
+use std::{fmt::{Debug, Result}};
+use kaban_core::UIndex;
+use kaban_lexer::{TokenPrinter};
 
-use crate::{Parser, ast::{NodeIndex, NodeTag, TokenIndex}, parser::AST};
+use crate::{node::{NodeIndex, NodeTag, TokenIndex}, ast::AST};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -54,12 +54,12 @@ impl<'a> NodePrinter<'a> {
         children
     }
 
-    fn get_token(&self, index: SourceIndex) -> TokenPrinter<'a> {
+    fn get_token(&self, index: UIndex) -> TokenPrinter<'a> {
         let token = self.ast.get_token(TokenIndex(index));
-        token.to_debugger(self.ast.source)
+        token.to_debugger(self.ast.get_source())
     }
 
-    fn write_token(&self, f: &mut std::fmt::Formatter<'_>, index: SourceIndex) -> std::fmt::Result {
+    fn write_token(&self, f: &mut std::fmt::Formatter<'_>, index: UIndex) -> std::fmt::Result {
         write!(f, "{:?}", self.get_token(index))
     }
 }

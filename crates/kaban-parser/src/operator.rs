@@ -1,4 +1,4 @@
-use crate::ast::NodeTag;
+use crate::node::NodeTag;
 
 impl NodeTag {
     pub fn precedence(&self) -> u8 {

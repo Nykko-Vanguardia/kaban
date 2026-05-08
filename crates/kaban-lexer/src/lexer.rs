@@ -1,5 +1,5 @@
-use kaban_core::SourceIndex;
-use kaban_core::ToSourceIndex;
+use kaban_core::UIndex;
+use kaban_core::ToUIndex;
 use kaban_core::ToUsize;
 use kaban_core::source::Source;
 
@@ -9,8 +9,8 @@ use crate::token::TokenKind;
 
 pub struct Lexer<'a> {
     source: Source<'a>,
-    current: SourceIndex,
-    pub errors: Vec<LexError>,
+    current: UIndex,
+    errors: Vec<LexError>,
     line: u32,
     col: u32,
 }
@@ -468,12 +468,12 @@ impl<'a> Lexer<'a> {
 
     #[inline(always)]
     pub fn peek_till(&self, offset: usize) -> u8 {
-        self.source.char(self.current + offset.source_index())
+        self.source.char(self.current + offset.uindex())
     }
 
     fn matches_current(&self, pattern: &str) -> bool {
         let bytes = pattern.as_bytes();
-        let end = (self.current.usize() + bytes.len()).source_index();
+        let end = (self.current.usize() + bytes.len()).uindex();
         if end > self.source.len() {
             return false;
         }
@@ -511,7 +511,7 @@ impl<'a> Lexer<'a> {
             self.peek_till(3) != b'/'
     }
 
-    pub fn get_char_size(byte: u8) -> SourceIndex {
+    pub fn get_char_size(byte: u8) -> UIndex {
         if byte < 128 {
             1
         } else if byte & 0b1110_0000 == 0b1100_0000 {

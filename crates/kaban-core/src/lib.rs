@@ -1,17 +1,17 @@
 pub mod source;
-pub type SourceIndex = u32;
+pub type UIndex = u32;
 
-impl ToUsize for SourceIndex {
+impl ToUsize for UIndex {
     #[inline(always)]
     fn usize(self) -> usize {
         self as usize
     }
 }
 
-impl ToSourceIndex for usize {
+impl ToUIndex for usize {
     #[inline(always)]
-    fn source_index(self) -> SourceIndex {
-        self as SourceIndex
+    fn uindex(self) -> UIndex {
+        self as UIndex
     }
 }
 
@@ -29,21 +29,21 @@ impl ToSourceIndex for usize {
 /// // &source[0..2] == "if"
 /// ```
 pub struct SourceSpan {
-    pub start: SourceIndex,
-    pub end: SourceIndex,
+    pub start: UIndex,
+    pub end: UIndex,
 }
 
 pub trait ToUsize {
     fn usize(self) -> usize;
 }
 
-pub trait ToSourceIndex {
-    fn source_index(self) -> SourceIndex;
+pub trait ToUIndex {
+    fn uindex(self) -> UIndex;
 }
 
-impl ToSourceIndex for bool {
+impl ToUIndex for bool {
     #[inline(always)]
-    fn source_index(self) -> SourceIndex {
+    fn uindex(self) -> UIndex {
         if self == true {
             1
         } else {

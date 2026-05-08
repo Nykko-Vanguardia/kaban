@@ -1,0 +1,13 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: ast.to_debugger()
+---
+[
+    Add {
+        left: Add {
+            left: IntLit("1"),
+            right: IntLit("2"),
+        },
+        right: IntLit("3"),
+    },
+]

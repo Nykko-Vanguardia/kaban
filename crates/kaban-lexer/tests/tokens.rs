@@ -1,11 +1,11 @@
 use kaban_core::source::IsSource;
 
-use crate::Token;
-use crate::Lexer;
-use crate::token::TokenKind;
+use kaban_lexer::Token;
+use kaban_lexer::Lexer;
+use kaban_lexer::token::TokenKind;
 
 #[test]
-fn test_basic_lexing() {
+fn let_decleration_with_arithmetic() {
     let input = "let x = 5 + 10;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
@@ -23,7 +23,7 @@ fn test_basic_lexing() {
 }
 
 #[test]
-fn test_complex_expression() {
+fn complex_arithmetic_with_parentheses() {
     let input = "let answer = (50 * 123) / 2;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
@@ -44,7 +44,7 @@ fn test_complex_expression() {
 }
 
 #[test]
-fn test_whitespace_insensitivity() {
+fn whitespace_is_ignored_between_tokens() {
     let input = "let    x\n    = \n   100   ;".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
@@ -59,7 +59,7 @@ fn test_whitespace_insensitivity() {
 }
 
 #[test]
-fn test_comments() {
+fn line_and_block_comments_are_skipped() {
     let input = "//The path of the righteous man is\n            /*\n              beset on all sides by the inequities of the selfish and the tyranny of evil men\n             */\n            let: i32;\n            ";
     let tokens = Lexer::new(input.to_source()).tokenize();
     // find positions of let, colon, i32, semicolon, eof
@@ -78,7 +78,7 @@ fn test_comments() {
 }
 
 #[test]
-fn test_strings() {
+fn string_literal_including_quotes() {
     let input = r#"let x = "let";"#.to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![
@@ -93,7 +93,7 @@ fn test_strings() {
 }
 
 #[test]
-fn test_doc_comment() {
+fn doc_comment_is_single_token() {
     let input = "/** * hello */".to_source();
     let tokens = Lexer::new(input).tokenize();
     let expected = vec![

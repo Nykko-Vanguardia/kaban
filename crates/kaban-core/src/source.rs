@@ -1,4 +1,4 @@
-use crate::{SourceIndex, SourceSpan, ToSourceIndex, ToUsize};
+use crate::{UIndex, SourceSpan, ToUIndex, ToUsize};
 
 #[derive(Clone, Copy)]
 pub struct Source<'a> {
@@ -16,18 +16,18 @@ impl<'a> Source<'a> {
     }
 
     #[inline(always)]
-    pub fn get_start_end(&self, start: SourceIndex, end: SourceIndex) -> &'a[u8] {
+    pub fn get_start_end(&self, start: UIndex, end: UIndex) -> &'a[u8] {
         &self.source[start.usize()..end.usize()]
     }
 
     #[inline(always)]
-    pub fn char(&self, index: SourceIndex) -> u8 {
+    pub fn char(&self, index: UIndex) -> u8 {
         self.source.get(index.usize()).copied().unwrap_or(b'\0')
     }
 
     #[inline(always)]
-    pub fn len(&self) -> SourceIndex {
-        self.source.len().source_index()
+    pub fn len(&self) -> UIndex {
+        self.source.len().uindex()
     }
 
     #[inline(always)]
@@ -43,7 +43,7 @@ impl<'a> Source<'a> {
     }
 
     #[inline(always)]
-    pub fn as_str_start_end(&self, start: SourceIndex, end: SourceIndex) -> &str {
+    pub fn as_str_start_end(&self, start: UIndex, end: UIndex) -> &str {
         self.as_str(SourceSpan { start, end })
     }
 }

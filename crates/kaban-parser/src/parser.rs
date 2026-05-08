@@ -1,25 +1,16 @@
-use kaban_core::{SourceIndex, SourceSpan, ToSourceIndex, ToUsize, source::Source};
+use kaban_core::{UIndex, SourceSpan, ToUIndex, source::Source};
 use kaban_lexer::{Token, token::TokenKind};
-use crate::{ast::{ExtraIndex, NodeData, NodeIndex, NodeTag, SourceIndexVec, TokenIndex}, errors::ParseError};
+use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, TokenIndex, UIndexVec}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
     source: Source<'a>,
     current: usize,
-    pub errors: Vec<ParseError>,
+    errors: Vec<ParseError>,
 
-    pub node_tags: Vec<NodeTag>,
-    pub node_data: Vec<NodeData>,
-    pub extra: Vec<SourceIndex>,
-}
-
-pub struct AST<'a> {
-    pub tokens: &'a [Token],
-    pub node_tags: Vec<NodeTag>,
-    pub node_data: Vec<NodeData>,
-    pub extra: Vec<SourceIndex>,
-    pub source: Source<'a>,
-    pub root: NodeIndex,
+    node_tags: Vec<NodeTag>,
+    node_data: Vec<NodeData>,
+    extra: Vec<UIndex>,
 }
 
 impl<'a> Parser<'a> {
@@ -45,14 +36,14 @@ impl<'a> Parser<'a> {
         };
 
         let root = self.push_block(top_level_statements);
-        AST {
-            tokens: self.tokens,
-            node_tags: std::mem::take(&mut self.node_tags),
-            node_data: std::mem::take(&mut self.node_data),
-            extra: std::mem::take(&mut self.extra),
-            source: self.source,
+        AST::new(
+            self.tokens,
+            std::mem::take(&mut self.node_tags),
+            std::mem::take(&mut self.node_data),
+            std::mem::take(&mut self.extra),
+            self.source,
             root,
-        }
+        )
     }
     
     pub fn reset(&mut self, tokens: &'a [Token], source: Source<'a>) {
@@ -83,21 +74,21 @@ impl<'a> Parser<'a> {
         self.continue_parsing_expression(0)
     }
 
-    fn push_node(&mut self, tag: NodeTag, left: SourceIndex, right: SourceIndex) -> NodeIndex {
+    fn push_node(&mut self, tag: NodeTag, left: UIndex, right: UIndex) -> NodeIndex {
         let index = self.node_tags.len();
         self.node_tags.push(tag);
         self.node_data.push(NodeData { left, right });
-        NodeIndex(index as SourceIndex)
+        NodeIndex(index as UIndex)
     }
 
-    fn push_one_extra(&mut self, data: SourceIndex) -> ExtraIndex {
-        let starting_index = self.extra.len().source_index();
+    fn push_one_extra(&mut self, data: UIndex) -> ExtraIndex {
+        let starting_index = self.extra.len().uindex();
         self.extra.push(data);
         ExtraIndex(starting_index)
     }
 
-    fn push_extra(&mut self, data: &[SourceIndex]) -> ExtraIndex {
-        let starting_index = self.extra.len().source_index();
+    fn push_extra(&mut self, data: &[UIndex]) -> ExtraIndex {
+        let starting_index = self.extra.len().uindex();
         for element in data.iter().copied() {
             self.extra.push(element);
         };
@@ -152,7 +143,7 @@ impl<'a> Parser<'a> {
             TokenKind::FloatLit => self.push_node(NodeTag::FloatLit, left.0, right),
             TokenKind::Identifier => self.push_node(NodeTag::Identifier, left.0, right),
             TokenKind::BoolLit => {
-                let bool: SourceIndex = if self.source.matches(current_token.span(), "true") { 1 } else { 0 };
+                let bool: UIndex = if self.source.matches(current_token.span(), "true") { 1 } else { 0 };
                 self.push_node(NodeTag::BoolLit, bool, right)
             },
             TokenKind::StringLit => self.push_node(NodeTag::StringLit, left.0, right),
@@ -161,8 +152,8 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightBracket);
                 self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket);
-                let right = self.push_extra(args.source_index());
-                self.push_node(NodeTag::ArrayLit, args.len().source_index(), right.0)
+                let right = self.push_extra(args.uindex_slice());
+                self.push_node(NodeTag::ArrayLit, args.len().uindex(), right.0)
             }
             TokenKind::StringObjLit => todo!(),
             TokenKind::InterpolatedStringObjLit => todo!(),
@@ -177,7 +168,7 @@ impl<'a> Parser<'a> {
             TokenKind::Garbage => self.push_node(NodeTag::Garbage, left.0, right),
             TokenKind::Self_ => self.push_node(NodeTag::Self_, left.0, right),
             _ => {
-                self.error_recovery(ParseError::Expected("Expression".to_string()));
+                self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
             },
         };
@@ -204,16 +195,16 @@ impl<'a> Parser<'a> {
             NodeTag::Question => self.push_node(operator, operand.0, 0).some(),
             NodeTag::FuncCall => {
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightParen);
-                self.must_consume(TokenKind::RightParen, ParseError::Expected(")".to_string()))?;
-                let extra_index = self.push_one_extra(args.len().source_index());
-                self.push_extra(args.source_index());
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                let extra_index = self.push_one_extra(args.len().uindex());
+                self.push_extra(args.uindex_slice());
                 self.push_node(NodeTag::FuncCall, operand.0, extra_index.0).some()
             },
             NodeTag::Index => {
                 let index = self.parse_expression()?;
                 let safe = !self.if_matches_then_consume_bool(TokenKind::Bang);
-                self.must_consume(TokenKind::RightBracket, ParseError::Expected("]".to_string()))?;
-                let extra = self.push_one_extra(safe.source_index());
+                self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket)?;
+                let extra = self.push_one_extra(safe.uindex());
                 self.push_one_extra(index.0);
                 self.push_node(NodeTag::Index, operand.0, extra.0).some()
             }
@@ -275,8 +266,8 @@ impl<'a> Parser<'a> {
                     if !self.if_matches_then_consume_bool(TokenKind::Comma) { break; }
                 }
                 self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
-                let extra = self.push_extra(types.source_index());
-                self.push_node(NodeTag::Union, types.len().source_index(), extra.0)
+                let extra = self.push_extra(types.uindex_slice());
+                self.push_node(NodeTag::Union, types.len().uindex(), extra.0)
             }
             _ => {
                 self.error_recovery(ParseError::MissingTypeDeclaration);
@@ -326,9 +317,9 @@ impl<'a> Parser<'a> {
                     let args  = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                     self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
                     let mutable_self = operator == NodeTag::Colon;
-                    let extra = self.push_one_extra(mutable_self.source_index());
-                    self.push_one_extra(args.len().source_index());
-                    self.push_extra(args.source_index());
+                    let extra = self.push_one_extra(mutable_self.uindex());
+                    self.push_one_extra(args.len().uindex());
+                    self.push_extra(args.uindex_slice());
                     self.push_node(NodeTag::MethodCall, parent.0, extra.0).some()
                 } else {
                     self.push_node(operator, parent.0, child.0).some()
@@ -339,8 +330,8 @@ impl<'a> Parser<'a> {
     }
 
     fn push_block(&mut self, statements: Vec<NodeIndex>) -> NodeIndex {
-        let block_size = statements.len().source_index();
-        let extra_ptr = self.push_extra(statements.source_index());
+        let block_size = statements.len().uindex();
+        let extra_ptr = self.push_extra(statements.uindex_slice());
         self.push_node(NodeTag::Block, block_size, extra_ptr.0)
     }
 
@@ -359,7 +350,7 @@ impl<'a> Parser<'a> {
     fn peek_offset(&self, offset: usize) -> TokenRef<'a> {
         let index = self.current + offset;
         let token = &self.tokens[index];
-        TokenRef { token, index: TokenIndex(index as SourceIndex), kind: token.kind }
+        TokenRef { token, index: TokenIndex(index as UIndex), kind: token.kind }
     }
 
     fn advance(&mut self) -> TokenRef<'a> {
@@ -370,7 +361,7 @@ impl<'a> Parser<'a> {
         // &self.tokens[self.current - 1]
         let index = self.current - 1;
         let token = &self.tokens[index];
-        TokenRef { token, index: TokenIndex(index as SourceIndex), kind: token.kind }
+        TokenRef { token, index: TokenIndex(index as UIndex), kind: token.kind }
     }
 
     fn is_at_end(&self) -> bool {
@@ -425,13 +416,6 @@ impl<'a> Parser<'a> {
     fn if_matches_then_consume_bool(&mut self, token_kind: TokenKind) -> bool {
         self.if_matches_then_consume(token_kind).is_some()
     }
-
-    // fn consume_identifier(&mut self) -> Option<&'a str>{
-    //     match self.peek_current() {
-    //         Token::Identifier(name) => Some(name), 
-    //         _ => {self.error_recovery(ParseError::Expected("Identifier".to_string())); None}
-    //     }
-    // }
 
     fn error_recovery(&mut self, error: ParseError) {
         self.errors.push(error);

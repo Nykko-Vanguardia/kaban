@@ -2,9 +2,7 @@ mod ast;
 mod parser;
 mod errors;
 mod operator;
-mod views;
 mod debug;
-#[cfg(test)]
-mod tests;
+mod node;
 
 pub use parser::Parser;
