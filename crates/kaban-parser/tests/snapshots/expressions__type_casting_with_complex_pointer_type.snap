@@ -1,0 +1,26 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: x as i32*?[CONSTANT + 1]*;
+
+Block [
+    As {
+        left: Identifier("x"),
+        right: Pointer(
+            FixedArray {
+                type: Optional(
+                    Pointer(
+                        Type(
+                            "I32",
+                        ),
+                    ),
+                ),
+                size: Add {
+                    left: Identifier("CONSTANT"),
+                    right: IntLit("1"),
+                },
+            },
+        ),
+    },
+]

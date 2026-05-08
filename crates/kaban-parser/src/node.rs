@@ -130,9 +130,9 @@ pub enum NodeTag {
     /// # left: NodeIndex - Expression
     Deref,
     /// # left: NodeIndex - Expression
-    Bang,
+    PanicIfErr,
     /// # left: NodeIndex - Expression
-    Question,
+    BubbleIfErr,
     /// # left: NodeIndex = identifier (expression)
     /// # right: ExtraIndex -> \[arg_count, ...args\]
     /// - extra\[right\]: u32 = arg count
@@ -162,7 +162,7 @@ pub enum NodeTag {
     Colon,
     /// # left: NodeIndex = parent
     /// # right: ExtraIndex -> \[method_name_id, is_mutable, arg_count, ...args\]
-    /// - extra\[right\]: NodeIndex | u32::Max = name or anonymous constructor
+    /// - extra\[right\]: NodeIndex = name
     /// - extra\[right + 1\]: 0 | 1 = 1 if mutable (: operator) 0 if not (. operator)
     /// - extra\[right + 2\]: u32 = arg count (N)
     /// - extra\[right + 3 .. right + 3 + N\] = NodeId\[N\] (arguments)
@@ -263,6 +263,110 @@ pub enum NodeTag {
     Union, // union(i32, f64)
     //TODO:
     Result,
+}
+
+impl NodeTag {
+    /// Returns true if token is a leaf node just containing a token index
+    /// This means bool lit is not true here since it's left side contains 0 or 1
+    /// Self is also not included here since it doesnt contain anything
+    pub fn is_token_leaf(&self) -> bool {
+        matches!(self,
+            NodeTag::Identifier |
+            NodeTag::IntLit |
+            NodeTag::FloatLit |
+            NodeTag::Char8Lit |
+            NodeTag::Char16Lit |
+            NodeTag::Char32Lit |
+            NodeTag::StringLit
+        )
+    }
+
+    /// Returns true if token is a leaf node
+    /// Bool lits are detected here, to target pure token leafs, use is_token_leaf
+    pub fn is_leaf(&self) -> bool {
+        matches!(self,
+            NodeTag::Identifier |
+            NodeTag::IntLit |
+            NodeTag::FloatLit |
+            NodeTag::BoolLit |
+            NodeTag::Char8Lit |
+            NodeTag::Char16Lit |
+            NodeTag::Char32Lit |
+            NodeTag::StringLit |
+            NodeTag::Self_
+        )
+    }
+
+    pub fn is_type(&self) -> bool {
+        matches!(self,
+            NodeTag::I8 |
+            NodeTag::I16 |
+            NodeTag::I32 |
+            NodeTag::I64 |
+            NodeTag::F32 |
+            NodeTag::F64 |
+            NodeTag::U8 |
+            NodeTag::U16 |
+            NodeTag::U32 |
+            NodeTag::U64 |
+            NodeTag::USize |
+            NodeTag::Bool |
+            NodeTag::Void |
+            NodeTag::C8 |
+            NodeTag::C16 |
+            NodeTag::C32 |
+            NodeTag::Undefined |
+            NodeTag::Garbage |
+            NodeTag::Pointer |
+            NodeTag::Borrow |
+            NodeTag::MutBorrow |
+            NodeTag::Optional |
+            NodeTag::OptionalGarbage |
+            NodeTag::FixedArray |
+            NodeTag::DynArray |
+            NodeTag::Union |
+            NodeTag::Result
+        )
+    }
+
+    pub fn is_atomic_type(&self) -> bool {
+        matches!(self,
+            NodeTag::I8 |
+            NodeTag::I16 |
+            NodeTag::I32 |
+            NodeTag::I64 |
+            NodeTag::F32 |
+            NodeTag::F64 |
+            NodeTag::U8 |
+            NodeTag::U16 |
+            NodeTag::U32 |
+            NodeTag::U64 |
+            NodeTag::USize |
+            NodeTag::Bool |
+            NodeTag::Void |
+            NodeTag::C8 |
+            NodeTag::C16 |
+            NodeTag::C32 |
+            NodeTag::Undefined |
+            NodeTag::Garbage
+        )
+    }
+
+    pub fn is_simple_modifier_type(&self) -> bool {
+        matches!(self,
+            NodeTag::Pointer |
+            NodeTag::Borrow |
+            NodeTag::MutBorrow |
+            NodeTag::Optional |
+            NodeTag::OptionalGarbage |
+            NodeTag::DynArray
+            // NodeTag::FixedArray 
+            // NodeTag::Named |
+            // NodeTag::Union |
+            // NodeTag::Result
+        )
+    }
+
 }
 
 #[derive(Debug, Clone, Copy)]

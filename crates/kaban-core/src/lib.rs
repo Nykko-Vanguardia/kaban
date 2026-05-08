@@ -51,3 +51,19 @@ impl ToUIndex for bool {
         }
     }
 }
+
+impl ToBool for UIndex {
+    #[inline(always)]
+    fn bool(self) -> bool {
+        debug_assert!(self == 1 || self == 0, "tried to convert a non 0 or 1 uindex to a bool");
+        if self == 1 {
+            true
+        } else {
+            false
+        }
+    }
+}
+
+pub trait ToBool {
+    fn bool(self) -> bool;
+}

@@ -1,5 +1,5 @@
-use std::{fmt::{Debug, Result}};
-use kaban_core::UIndex;
+use std::fmt::{Debug, Result};
+use kaban_core::{ToBool, UIndex};
 use kaban_lexer::{TokenPrinter};
 
 use crate::{node::{NodeIndex, NodeTag, TokenIndex}, ast::AST};
@@ -15,31 +15,83 @@ impl<'a> Debug for NodePrinter<'a> {
         let (left, right) = self.ast.get_left_right(self.index);
 
         match tag {
-            NodeTag::IntLit => self.write_token(f, left),
-            NodeTag::Add => {
-                f.debug_struct("Add")
-                    .field("left", &self.child(NodeIndex(left)))
-                    .field("right", &self.child(NodeIndex(right)))
+            t if t.is_token_leaf() => self.write_token(f, left),
+            NodeTag::BoolLit => { write!(f, "{}", left.bool()) },
+            t if t.is_binary_expression() => {
+                f.debug_struct(format!("{:?}", t).as_str())
+                    .field("left", &self.child(left))
+                    .field("right", &self.child(right))
                     .finish()
-            }
-            NodeTag::Block => {
+            },
+            NodeTag::ArrayLit | NodeTag::Block | NodeTag::Union => {
                 let statements = self.ast.get_extra_from_count(left, right);
                 let statements = self.children(statements);
-
+                write!(f, "{:?} ", tag)?;
                 f.debug_list()
                     .entries(statements.iter())
                     .finish()
+            },
+            NodeTag::Index => {
+                let extra = self.ast.get_extra_from_count(2, right);
+                f.debug_struct("Index")
+                    .field("callee", &self.child(left))
+                    .field("index", &self.child(extra[1]))
+                    .field("is_safe", &extra[0].bool())
+                    .finish()
+            },
+            NodeTag::FuncCall => {
+                let arg_count = self.ast.get_one_extra(right);
+                let args = self.ast.get_extra_from_count(arg_count, right + 1);
+                f.debug_struct("FuncCall")
+                    .field("callee", &self.child(left))
+                    .field("args", &self.children(args))
+                    .finish()
             }
+            NodeTag::New | NodeTag::Destruct => todo!(),
+            t if t.is_postfix() || t.is_prefix() => {
+                f.debug_tuple(format!("{:?}", t).as_str())
+                    .field(&self.child(left))
+                    .finish()
+            }
+            NodeTag::FixedArray => {
+                f.debug_struct("FixedArray")
+                    .field("type", &self.child(left))
+                    .field("size", &self.child(right))
+                    .finish()
+
+            },
+            NodeTag::Named => {
+                f.debug_tuple("NamedType")
+                    .field(&self.get_token(left))
+                    .finish()
+            },
+            t if t.is_simple_modifier_type() => {
+                f.debug_tuple(format!("{:?}", t).as_str())
+                    .field(&self.child(left))
+                    .finish()
+            },
+            NodeTag::MethodCall => {
+                let method_name = self.ast.get_one_extra(right);
+                let is_mut_self = self.ast.get_one_extra(right + 1);
+                let arg_count = self.ast.get_one_extra(right + 2);
+                let args = self.ast.get_extra_from_count(arg_count, right+3);
+                f.debug_struct("MethodCall")
+                    .field("method name", &self.child(method_name))
+                    .field("is mutable", &is_mut_self.bool())
+                    .field("args", &self.children(args))
+                    .finish()
+            }
+            t if t.is_type() => f.debug_tuple("Type").field(&format!("{:?}", t).as_str()).finish(),
             _ => todo!()
         }
     }
 }
 
 impl<'a> NodePrinter<'a> {
-    fn child(&self, index: NodeIndex) -> Self {
+    fn child(&self, index: UIndex) -> Self {
         Self {
             ast: self.ast,
-            index,
+            index: NodeIndex(index),
         }
     }
 

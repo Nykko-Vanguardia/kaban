@@ -39,8 +39,8 @@ impl NodeTag {
 
             //PostfixUnary
             NodeTag::Deref => 13,
-            NodeTag::Bang => 13,
-            NodeTag::Question => 13,
+            NodeTag::PanicIfErr => 13,
+            NodeTag::BubbleIfErr => 13,
             NodeTag::FuncCall => 13,
             NodeTag::Index => 13,
 
@@ -90,8 +90,8 @@ impl NodeTag {
             NodeTag::New |
             NodeTag::Destruct |
             NodeTag::Deref |
-            NodeTag::Bang |
-            NodeTag::Question |
+            NodeTag::PanicIfErr |
+            NodeTag::BubbleIfErr |
             NodeTag::FuncCall |
             NodeTag::Index |
             NodeTag::Dot |
@@ -107,8 +107,8 @@ impl NodeTag {
     pub fn is_postfix(&self) -> bool {
         matches!(self, 
             NodeTag::Deref |
-            NodeTag::Bang |
-            NodeTag::Question |
+            NodeTag::PanicIfErr |
+            NodeTag::BubbleIfErr |
             NodeTag::FuncCall |
             NodeTag::Index)
     }
@@ -131,5 +131,39 @@ impl NodeTag {
             NodeTag::Colon => true,
             _ => false,
         }
+    }
+
+    /**
+     * Binary here is defined as this has a left and right side pointing to expressions
+     */
+    pub fn is_binary_expression(&self) -> bool {
+        matches!(self, 
+            NodeTag::Add |
+            NodeTag::Subtract |
+            NodeTag::Multiply |
+            NodeTag::Divide |
+            NodeTag::Modulo |
+            NodeTag::Equal |
+            NodeTag::NotEqual |
+            NodeTag::Less |
+            NodeTag::Greater |
+            NodeTag::LessEqual |
+            NodeTag::GreaterEqual |
+            NodeTag::And |
+            NodeTag::Or |
+            NodeTag::BAnd |
+            NodeTag::BOr |
+            NodeTag::XOr |
+            NodeTag::LeftShift |
+            NodeTag::RightShift |
+            NodeTag::UnsignedRightShift |
+            NodeTag::Dot |
+            NodeTag::ExclamationDot |
+            NodeTag::QuestionDot |
+            NodeTag::QuestionQuestionDot |
+            NodeTag::Colon |
+            NodeTag::UndefinedCoalescing |
+            NodeTag::As
+        )
     }
 }

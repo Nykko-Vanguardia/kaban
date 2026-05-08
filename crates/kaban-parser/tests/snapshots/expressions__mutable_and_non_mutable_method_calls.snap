@@ -1,0 +1,21 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: x:foo(x, y,); x.bazz();
+
+Block [
+    MethodCall {
+        method name: Identifier("foo"),
+        is mutable: true,
+        args: [
+            Identifier("x"),
+            Identifier("y"),
+        ],
+    },
+    MethodCall {
+        method name: Identifier("bazz"),
+        is mutable: false,
+        args: [],
+    },
+]

@@ -46,10 +46,17 @@ impl<'a> AST<'a> {
         (data.left, data.right)
     }
 
+    #[inline(always)]
+    pub fn get_one_extra(&self, index: UIndex) -> UIndex {
+        self.extra[index.usize()]
+    }
+
+    #[inline(always)]
     pub fn get_extra_span(&self, start: UIndex, end: UIndex) -> &[UIndex] {
         &self.extra[start.usize()..end.usize()]
     }
 
+    #[inline(always)]
     pub fn get_extra_from_count(&self, count: UIndex, start: UIndex) -> &[UIndex] {
         &self.extra[start.usize()..(start + count).usize()]
     }

@@ -1,0 +1,34 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: v[!10] - w + x() + y[1] + z^;
+
+Block [
+    Add {
+        left: Add {
+            left: Add {
+                left: Subtract {
+                    left: Index {
+                        callee: Identifier("v"),
+                        index: IntLit("10"),
+                        is_safe: false,
+                    },
+                    right: Identifier("w"),
+                },
+                right: FuncCall {
+                    callee: Identifier("x"),
+                    args: [],
+                },
+            },
+            right: Index {
+                callee: Identifier("y"),
+                index: IntLit("1"),
+                is_safe: true,
+            },
+        },
+        right: Deref(
+            Identifier("z"),
+        ),
+    },
+]

@@ -1,4 +1,4 @@
-use kaban_core::{UIndex, SourceSpan, ToUIndex, source::Source};
+use kaban_core::{SourceSpan, ToUIndex, UIndex, source::Source};
 use kaban_lexer::{Token, token::TokenKind};
 use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, TokenIndex, UIndexVec}};
 
@@ -191,8 +191,8 @@ impl<'a> Parser<'a> {
     fn parse_postfix_expression(&mut self, operand: NodeIndex, operator: NodeTag)-> Option<NodeIndex> {
         match  operator {
             NodeTag::Deref |
-            NodeTag::Bang |
-            NodeTag::Question => self.push_node(operator, operand.0, 0).some(),
+            NodeTag::PanicIfErr |
+            NodeTag::BubbleIfErr => self.push_node(operator, operand.0, 0).some(),
             NodeTag::FuncCall => {
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                 self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
@@ -201,8 +201,8 @@ impl<'a> Parser<'a> {
                 self.push_node(NodeTag::FuncCall, operand.0, extra_index.0).some()
             },
             NodeTag::Index => {
-                let index = self.parse_expression()?;
                 let safe = !self.if_matches_then_consume_bool(TokenKind::Bang);
+                let index = self.parse_expression()?;
                 self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket)?;
                 let extra = self.push_one_extra(safe.uindex());
                 self.push_one_extra(index.0);
@@ -316,11 +316,12 @@ impl<'a> Parser<'a> {
                 if self.if_matches_then_consume_bool(TokenKind::LeftParen) {
                     let args  = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                     self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
-                    let mutable_self = operator == NodeTag::Colon;
-                    let extra = self.push_one_extra(mutable_self.uindex());
+                    let is_mutable_self = operator == NodeTag::Colon;
+                    let extra_pointer = self.push_one_extra(child.0);
+                    self.push_one_extra(is_mutable_self.uindex());
                     self.push_one_extra(args.len().uindex());
                     self.push_extra(args.uindex_slice());
-                    self.push_node(NodeTag::MethodCall, parent.0, extra.0).some()
+                    self.push_node(NodeTag::MethodCall, parent.0, extra_pointer.0).some()
                 } else {
                     self.push_node(operator, parent.0, child.0).some()
                 }
@@ -455,14 +456,15 @@ impl<'a> Parser<'a> {
             TokenKind::GreaterGreater => NodeTag::RightShift,
             TokenKind:: GreaterGreaterGreater => NodeTag::UnsignedRightShift,
             TokenKind::Caret => NodeTag::Deref,
-            TokenKind::Bang => NodeTag::Bang,
-            TokenKind::Question => NodeTag::Question,
+            TokenKind::Bang => NodeTag::PanicIfErr,
+            TokenKind::Question => NodeTag::BubbleIfErr,
             TokenKind::Dot => NodeTag::Dot,
             TokenKind::BangDot => NodeTag::ExclamationDot,
             TokenKind::QuestionDot => NodeTag::QuestionDot,
             TokenKind::Colon => NodeTag::Colon,
             TokenKind::QuestionQuestionDot => NodeTag::QuestionQuestionDot,
-            TokenKind::LeftBracket => NodeTag::UndefinedCoalescing,
+            TokenKind::LeftBracket => NodeTag::Index,
+            TokenKind::QuestionQuestion => NodeTag::UndefinedCoalescing,
             TokenKind::As => NodeTag::As,
             TokenKind::LeftParen => NodeTag::FuncCall,
             _ => return None,
