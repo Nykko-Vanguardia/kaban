@@ -5,16 +5,18 @@ expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: [10 + 1,] + [10, 2,];
 
 Block [
-    Add {
-        left: ArrayLit [
-            Add {
-                left: IntLit("10"),
-                right: IntLit("1"),
-            },
-        ],
-        right: ArrayLit [
-            IntLit("10"),
-            IntLit("2"),
-        ],
-    },
+    ExpressionStatement(
+        Add {
+            left: ArrayLit [
+                Add {
+                    left: IntLit("10"),
+                    right: IntLit("1"),
+                },
+            ],
+            right: ArrayLit [
+                IntLit("10"),
+                IntLit("2"),
+            ],
+        },
+    ),
 ]

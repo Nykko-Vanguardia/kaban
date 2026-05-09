@@ -63,9 +63,10 @@ impl<'a> Parser<'a> {
         match current_token.kind {
             TokenKind::Let => self.handle_let_statements(),
             _ => { 
-                let expression = self.parse_expression(); 
+                let expression = self.parse_expression()?; 
+                let expression_statement = self.push_node(NodeTag::ExpressionStatement, expression.0, 0);
                 self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon);
-                expression
+                expression_statement.some()
             },
         }
     }

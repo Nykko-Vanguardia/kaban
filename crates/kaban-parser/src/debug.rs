@@ -7,6 +7,7 @@ use crate::{ast::AST, node::{NodeIndex, NodeTag, TokenIndex, UIndexVec}};
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
     index: NodeIndex,
+    skip_expression_statement_indent: bool,
 }
 
 impl<'a> Debug for NodePrinter<'a> {
@@ -18,6 +19,13 @@ impl<'a> Debug for NodePrinter<'a> {
         match tag {
             t if t.is_token_leaf() => self.write_token(f, left),
             NodeTag::BoolLit => { write!(f, "{}", left.bool()) },
+            NodeTag::ExpressionStatement => {
+                if self.skip_expression_statement_indent {
+                    write!(f, "{:#?}", &self.child(left))
+                } else {
+                    f.debug_tuple("ExpressionStatement").field(&self.child(left)).finish()
+                }
+            },
             t if t.is_binary_expression() => {
                 f.debug_struct(format!("{:?}", t).as_str())
                     .field("left", &self.child(left))
@@ -88,6 +96,7 @@ impl<'a> NodePrinter<'a> {
         Self {
             ast: self.ast,
             index: NodeIndex(index),
+            skip_expression_statement_indent: self.skip_expression_statement_indent,
         }
     }
 
@@ -97,6 +106,7 @@ impl<'a> NodePrinter<'a> {
             children.push(Self {
                 ast: self.ast,
                 index: NodeIndex(index),
+                skip_expression_statement_indent: self.skip_expression_statement_indent,
             });
         };
         children
@@ -116,14 +126,24 @@ impl<'a> AST<'a> {
     pub fn to_debugger(&'a self) -> NodePrinter<'a> {
         NodePrinter {
             ast: self,
-            index: self.root
+            index: self.root,
+            skip_expression_statement_indent: false,
+        }
+    }
+
+    pub fn to_debugger_options(&'a self, skip_expression_statement: bool) -> NodePrinter<'a> {
+        NodePrinter {
+            ast: self,
+            index: self.root,
+            skip_expression_statement_indent: skip_expression_statement,
         }
     }
 
     pub fn create_debugger(&'a self, node: NodeIndex) -> NodePrinter<'a> {
         NodePrinter {
             ast: self,
-            index: node
+            index: node,
+            skip_expression_statement_indent: false,
         }
     }
 }

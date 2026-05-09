@@ -5,8 +5,10 @@ expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: x == false;
 
 Block [
-    Equal {
-        left: Identifier("x"),
-        right: false,
-    },
+    ExpressionStatement(
+        Equal {
+            left: Identifier("x"),
+            right: false,
+        },
+    ),
 ]

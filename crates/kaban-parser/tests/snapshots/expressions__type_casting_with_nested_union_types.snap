@@ -5,29 +5,31 @@ expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: x as union(i32*, Person[], f64, union(i32&mut, f64&, c8 &mut));
 
 Block [
-    As {
-        left: Identifier("x"),
-        right: Union [
-            Pointer(
-                Type(I32),
-            ),
-            DynArrayType(
-                NamedType(
-                    Identifier("Person"),
-                ),
-            ),
-            Type(F64),
-            Union [
-                MutBorrow(
+    ExpressionStatement(
+        As {
+            left: Identifier("x"),
+            right: Union [
+                Pointer(
                     Type(I32),
                 ),
-                Borrow(
-                    Type(F64),
+                DynArrayType(
+                    NamedType(
+                        Identifier("Person"),
+                    ),
                 ),
-                MutBorrow(
-                    Type(C8),
-                ),
+                Type(F64),
+                Union [
+                    MutBorrow(
+                        Type(I32),
+                    ),
+                    Borrow(
+                        Type(F64),
+                    ),
+                    MutBorrow(
+                        Type(C8),
+                    ),
+                ],
             ],
-        ],
-    },
+        },
+    ),
 ]

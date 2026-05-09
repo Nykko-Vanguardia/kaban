@@ -5,20 +5,22 @@ expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: x as i32*?[CONSTANT + 1]*;
 
 Block [
-    As {
-        left: Identifier("x"),
-        right: Pointer(
-            FixedArrayType {
-                type: Optional(
-                    Pointer(
-                        Type(I32),
+    ExpressionStatement(
+        As {
+            left: Identifier("x"),
+            right: Pointer(
+                FixedArrayType {
+                    type: Optional(
+                        Pointer(
+                            Type(I32),
+                        ),
                     ),
-                ),
-                size: Add {
-                    left: Identifier("CONSTANT"),
-                    right: IntLit("1"),
+                    size: Add {
+                        left: Identifier("CONSTANT"),
+                        right: IntLit("1"),
+                    },
                 },
-            },
-        ),
-    },
+            ),
+        },
+    ),
 ]
