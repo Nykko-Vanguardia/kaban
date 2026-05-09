@@ -8,12 +8,10 @@ Block [
     As {
         left: Identifier("x"),
         right: Pointer(
-            FixedArray {
+            FixedArrayType {
                 type: Optional(
                     Pointer(
-                        Type(
-                            "I32",
-                        ),
+                        Type(I32),
                     ),
                 ),
                 size: Add {

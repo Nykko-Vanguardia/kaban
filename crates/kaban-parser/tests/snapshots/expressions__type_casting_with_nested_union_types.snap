@@ -9,33 +9,23 @@ Block [
         left: Identifier("x"),
         right: Union [
             Pointer(
-                Type(
-                    "I32",
-                ),
+                Type(I32),
             ),
-            DynArray(
+            DynArrayType(
                 NamedType(
                     Identifier("Person"),
                 ),
             ),
-            Type(
-                "F64",
-            ),
+            Type(F64),
             Union [
                 MutBorrow(
-                    Type(
-                        "I32",
-                    ),
+                    Type(I32),
                 ),
                 Borrow(
-                    Type(
-                        "F64",
-                    ),
+                    Type(F64),
                 ),
                 MutBorrow(
-                    Type(
-                        "C8",
-                    ),
+                    Type(C8),
                 ),
             ],
         ],

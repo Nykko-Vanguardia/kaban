@@ -2,7 +2,7 @@ use std::fmt::{Debug, Result};
 use kaban_core::{ToBool, UIndex};
 use kaban_lexer::{TokenPrinter};
 
-use crate::{node::{NodeIndex, NodeTag, TokenIndex}, ast::AST};
+use crate::{ast::AST, node::{NodeIndex, NodeTag, TokenIndex, UIndexVec}};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -13,6 +13,7 @@ impl<'a> Debug for NodePrinter<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let tag = self.ast.get_tag(self.index);
         let (left, right) = self.ast.get_left_right(self.index);
+        let index = self.index;
 
         match tag {
             t if t.is_token_leaf() => self.write_token(f, left),
@@ -24,27 +25,25 @@ impl<'a> Debug for NodePrinter<'a> {
                     .finish()
             },
             NodeTag::ArrayLit | NodeTag::Block | NodeTag::Union => {
-                let statements = self.ast.get_extra_from_count(left, right);
-                let statements = self.children(statements);
+                let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;
                 f.debug_list()
-                    .entries(statements.iter())
+                    .entries(self.children(general_list.indices).iter())
                     .finish()
             },
             NodeTag::Index => {
-                let extra = self.ast.get_extra_from_count(2, right);
+                let index = self.ast.view_index(index);
                 f.debug_struct("Index")
-                    .field("callee", &self.child(left))
-                    .field("index", &self.child(extra[1]))
-                    .field("is_safe", &extra[0].bool())
+                    .field("callee", &self.child(index.callee.0))
+                    .field("index", &self.child(index.index_by.0))
+                    .field("is_safe", &index.is_safe_index)
                     .finish()
             },
             NodeTag::FuncCall => {
-                let arg_count = self.ast.get_one_extra(right);
-                let args = self.ast.get_extra_from_count(arg_count, right + 1);
+                let func_call = self.ast.view_func_call(index);
                 f.debug_struct("FuncCall")
                     .field("callee", &self.child(left))
-                    .field("args", &self.children(args))
+                    .field("args", &self.children(func_call.args.uindex_slice()))
                     .finish()
             }
             NodeTag::New | NodeTag::Destruct => todo!(),
@@ -53,14 +52,14 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field(&self.child(left))
                     .finish()
             }
-            NodeTag::FixedArray => {
-                f.debug_struct("FixedArray")
+            NodeTag::FixedArrayType => {
+                f.debug_struct("FixedArrayType")
                     .field("type", &self.child(left))
                     .field("size", &self.child(right))
                     .finish()
 
             },
-            NodeTag::Named => {
+            NodeTag::NamedType => {
                 f.debug_tuple("NamedType")
                     .field(&self.get_token(left))
                     .finish()
@@ -71,17 +70,14 @@ impl<'a> Debug for NodePrinter<'a> {
                     .finish()
             },
             NodeTag::MethodCall => {
-                let method_name = self.ast.get_one_extra(right);
-                let is_mut_self = self.ast.get_one_extra(right + 1);
-                let arg_count = self.ast.get_one_extra(right + 2);
-                let args = self.ast.get_extra_from_count(arg_count, right+3);
+                let method = self.ast.view_method_call(index);
                 f.debug_struct("MethodCall")
-                    .field("method name", &self.child(method_name))
-                    .field("is mutable", &is_mut_self.bool())
-                    .field("args", &self.children(args))
+                    .field("method name", &self.child(method.method_name.0))
+                    .field("is mutable", &method.is_self_mut)
+                    .field("args", &self.children(method.args.uindex_slice()))
                     .finish()
             }
-            t if t.is_type() => f.debug_tuple("Type").field(&format!("{:?}", t).as_str()).finish(),
+            t if t.is_type() => write!(f, "Type({:?})", t),
             _ => todo!()
         }
     }

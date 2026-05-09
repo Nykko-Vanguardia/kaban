@@ -248,13 +248,13 @@ pub enum NodeTag {
     //arrays
     /// # left: NodeIndex - Type(Recursive)
     /// # right: NodeIndex - Expression (Size) eg. T[10 + 1]
-    FixedArray, // T[N]
+    FixedArrayType, // T[N]
     /// # left: NodeIndex - Type(Recursive)
-    DynArray, // T[]
+    DynArrayType, // T[]
 
     //user defined
     /// # left: TokenIndex - Name(Recursive)
-    Named, // Person, MyStruct etc
+    NamedType, // Person, MyStruct etc
 
     //compound
     /// # left: u32 = arg count
@@ -322,8 +322,8 @@ impl NodeTag {
             NodeTag::MutBorrow |
             NodeTag::Optional |
             NodeTag::OptionalGarbage |
-            NodeTag::FixedArray |
-            NodeTag::DynArray |
+            NodeTag::FixedArrayType |
+            NodeTag::DynArrayType |
             NodeTag::Union |
             NodeTag::Result
         )
@@ -359,7 +359,7 @@ impl NodeTag {
             NodeTag::MutBorrow |
             NodeTag::Optional |
             NodeTag::OptionalGarbage |
-            NodeTag::DynArray
+            NodeTag::DynArrayType
             // NodeTag::FixedArray 
             // NodeTag::Named |
             // NodeTag::Union |
@@ -405,8 +405,39 @@ impl UIndexVec for Vec<NodeIndex> {
     }
 }
 
+impl UIndexVec for &[NodeIndex] {
+    fn uindex_slice(&self) -> &[UIndex] {
+        unsafe { 
+            std::mem::transmute::<&[NodeIndex], &[UIndex]>(self) 
+        }
+    }
+}
+
 pub trait UIndexVec {
     fn uindex_slice(&self) -> &[UIndex];
+}
+
+impl<'a> NodeIndexVec<'a> for &[UIndex] {
+    fn node_index_slice(&self) -> &'a [NodeIndex] {
+        unsafe {
+            std::mem::transmute::<&[UIndex], &[NodeIndex]>(self)
+        }
+    }
+}
+
+pub trait NodeIndexVec<'a> {
+    fn node_index_slice(&self) -> &'a [NodeIndex];
+}
+
+impl ToNodeIndex for UIndex {
+    #[inline(always)]
+    fn node_index(self) -> NodeIndex {
+        NodeIndex(self)
+    }
+}
+
+pub trait ToNodeIndex {
+    fn node_index(self) -> NodeIndex;
 }
 
 // #[derive(Debug)]

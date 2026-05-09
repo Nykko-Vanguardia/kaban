@@ -255,7 +255,7 @@ impl<'a> Parser<'a> {
             TokenKind::Void => self.push_node(NodeTag::Void, 0, 0),
             TokenKind::Undefined => self.push_node(NodeTag::Undefined, 0, 0),
             TokenKind::Garbage => self.push_node(NodeTag::Garbage, 0, 0),
-            TokenKind::Identifier => self.push_node(NodeTag::Named, current_token.index.0, 0),
+            TokenKind::Identifier => self.push_node(NodeTag::NamedType, current_token.index.0, 0),
             TokenKind::Union => {
                 advance_after_match = false;
                 self.advance();
@@ -292,11 +292,11 @@ impl<'a> Parser<'a> {
                     self.advance();
                     if matches!(self.peek_current().kind, TokenKind::RightBracket) {
                         self.advance();
-                        self.push_node(NodeTag::DynArray, type_.0, 0)
+                        self.push_node(NodeTag::DynArrayType, type_.0, 0)
                     } else {
                         let size = self.parse_expression()?;
                         self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket)?;
-                        self.push_node(NodeTag::FixedArray, type_.0, size.0)
+                        self.push_node(NodeTag::FixedArrayType, type_.0, size.0)
                     }
                 }
                 _ => break,
