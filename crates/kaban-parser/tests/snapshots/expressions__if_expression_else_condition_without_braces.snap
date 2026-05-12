@@ -5,24 +5,18 @@ expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: if (x == 10) foo(); else bazz();
 
 Block [
-    ExpressionStatement(
-        IfExpression {
-            condition: Equal {
-                left: Identifier("x"),
-                right: IntLit("10"),
-            },
-            then: ExpressionStatement(
-                FuncCall {
-                    callee: Identifier("foo"),
-                    args: [],
-                },
-            ),
-            else: ExpressionStatement(
-                FuncCall {
-                    callee: Identifier("bazz"),
-                    args: [],
-                },
-            ),
+    IfExpression {
+        condition: Equal {
+            left: Identifier("x"),
+            right: IntLit("10"),
         },
-    ),
+        then: FuncCall {
+            callee: Identifier("foo"),
+            args: [],
+        },
+        else: FuncCall {
+            callee: Identifier("bazz"),
+            args: [],
+        },
+    },
 ]

@@ -5,13 +5,11 @@ expression: "format!(\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
 input: 1 + 2 + 3;
 
 Block [
-    ExpressionStatement(
-        Add {
-            left: Add {
-                left: IntLit("1"),
-                right: IntLit("2"),
-            },
-            right: IntLit("3"),
+    Add {
+        left: Add {
+            left: IntLit("1"),
+            right: IntLit("2"),
         },
-    ),
+        right: IntLit("3"),
+    },
 ]

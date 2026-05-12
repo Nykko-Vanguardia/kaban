@@ -7,20 +7,16 @@ input: if (x == 10) {
     }
 
 Block [
-    ExpressionStatement(
-        IfExpression {
-            condition: Equal {
-                left: Identifier("x"),
-                right: IntLit("10"),
-            },
-            then: Block [
-                ExpressionStatement(
-                    FuncCall {
-                        callee: Identifier("foo"),
-                        args: [],
-                    },
-                ),
-            ],
+    IfExpression {
+        condition: Equal {
+            left: Identifier("x"),
+            right: IntLit("10"),
         },
-    ),
+        then: Block [
+            FuncCall {
+                callee: Identifier("foo"),
+                args: [],
+            },
+        ],
+    },
 ]

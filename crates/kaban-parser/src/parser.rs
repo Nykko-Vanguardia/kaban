@@ -6,7 +6,7 @@ pub struct Parser<'a> {
     tokens: &'a [Token],
     source: Source<'a>,
     current: usize,
-    errors: Vec<ParseError>,
+    pub errors: Vec<ParseError>,
 
     node_tags: Vec<NodeTag>,
     node_data: Vec<NodeData>,
@@ -64,13 +64,16 @@ impl<'a> Parser<'a> {
             TokenKind::Let => self.parse_let_statement(),
             _ => { 
                 let expression = self.parse_expression()?; 
-                let expression_statement = self.push_node(NodeTag::ExpressionStatement, expression.0, 0);
+                //Decided to remove expression statement wrapper for now
+                //rely on pass keywords
+                // let expression_statement = self.push_node(NodeTag::ExpressionStatement, expression.0, 0);
 
                 let tag = self.node_tags[expression.0.usize()];
                 if !tag.doesnt_require_semicolon() {
                     self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
                 }
-                expression_statement.some()
+                // expression_statement.some()
+                expression.some()
             },
         }
     }
@@ -172,7 +175,7 @@ impl<'a> Parser<'a> {
             TokenKind::Undefined => self.push_node(NodeTag::Undefined, left.0, right),
             TokenKind::Garbage => self.push_node(NodeTag::Garbage, left.0, right),
             TokenKind::Self_ => self.push_node(NodeTag::Self_, left.0, right),
-            TokenKind::LeftBrace => self.parse_and_consume_block()?,
+            TokenKind::LeftBrace => { advance_after_match = false; self.parse_and_consume_block()? },
             TokenKind::If => { advance_after_match = false; self.parse_if_expression()? },
             TokenKind::Do => { advance_after_match = false; self.parse_do_while_expression()? },
             TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
@@ -223,7 +226,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse_and_consume_block(&mut self) -> Option<NodeIndex> {
         // debug_assert!(self.check_bool(TokenKind::LeftBrace));
-        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock)?;
         let mut statements = Vec::new();
         while !self.is_at_end() && !self.check_bool(TokenKind::RightBrace) {
             if let Some(statment) = self.parse_statement() {
@@ -235,13 +238,15 @@ impl<'a> Parser<'a> {
         self.push_block(statements).some()
     }
 
-    pub fn parse_and_consume_block_or_statement(&mut self) -> Option<NodeIndex> {
-        if self.check_bool(TokenKind::LeftBrace) {
-            let block = self.parse_and_consume_block();
-            block
-        } else {
-            self.parse_statement()
+    pub fn parse_block_or_semicolon_terminated_expression(&mut self) -> Option<NodeIndex> {
+        let is_a_block = self.check_bool(TokenKind::LeftBrace);
+        let block_or_expression = self.parse_expression();
+
+        if !is_a_block {
+            self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
         }
+
+        block_or_expression
     }
 
     fn parse_type_decleration(&mut self) -> Option<NodeIndex> {
@@ -370,15 +375,16 @@ impl<'a> Parser<'a> {
 
     fn parse_if_expression(&mut self) -> Option<NodeIndex> {
         self.advance();
-        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen));
+        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
         let condition = self.parse_expression()?;
-        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
-        let then = self.parse_and_consume_block_or_statement()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        let then = self.parse_block_or_semicolon_terminated_expression()?;
         let else_ = if self.if_matches_then_consume_bool(TokenKind::Else) {
+            // self.parse_block_or_semicolon_terminated_expression()?.some()
             if self.check_bool(TokenKind::If) {
                 self.parse_if_expression()
             } else {
-                self.parse_and_consume_block_or_statement()
+                self.parse_block_or_semicolon_terminated_expression()
             }
         } else {
             None
@@ -397,7 +403,7 @@ impl<'a> Parser<'a> {
         let arms = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
             let left = p.parse_expression()?.0;
             p.must_consume(TokenKind::FatArrow, ParseError::ExpectedToken(TokenKind::FatArrow))?;
-            let right = p.parse_and_consume_block_or_statement()?.0;
+            let right = p.parse_expression()?.0;
             p.push_node(NodeTag::MatchArms, left, right).some()
         });
         self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);

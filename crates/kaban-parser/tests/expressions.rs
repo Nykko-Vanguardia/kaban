@@ -8,9 +8,15 @@ macro_rules! test_snapshot {
         let source = input.to_source();
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize(); 
-        let ast = Parser::new(&tokens, source).parse_program();
+        let mut parser = Parser::new(&tokens, source);
+        let ast = parser.parse_program();
+        let print = if parser.errors.len() > 0 {
+            format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
+        } else {
+            format!("input: {}\n\n{:#?}", input, ast.to_debugger())
+        };
         
-        insta::assert_snapshot!(format!("input: {}\n\n{:#?}", input, ast.to_debugger()));
+        insta::assert_snapshot!(print);
     };
 }
 
@@ -21,8 +27,15 @@ fn addition_is_left_associative() {
 
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize(); 
-    let ast = Parser::new(&tokens, source).parse_program();
-    insta::assert_snapshot!(format!("input: {}\n\n{:#?}", input, ast.to_debugger()));
+    let mut parser = Parser::new(&tokens, source);
+    let ast = parser.parse_program();
+    let print = if parser.errors.len() > 0 {
+        format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
+    } else {
+        format!("input: {}\n\n{:#?}", input, ast.to_debugger())
+    };
+
+    insta::assert_snapshot!(print);
 }
 
 #[test]
@@ -76,7 +89,8 @@ fn if_expression_without_braces() {
 fn if_expression_else_condition_and_braces() {
     test_snapshot!("if (x == 10) { foo(); } else { bazz(); }");
 }
-
+    // if_expression_else_condition_and_braces
+    // if_expression_else_condition_and_braces_and_multiple_expressions
 #[test]
 fn if_expression_else_condition_and_braces_and_multiple_expressions() {
     test_snapshot!("if (x == 10) { foo(); buzz(); } else { bazz(); }");
