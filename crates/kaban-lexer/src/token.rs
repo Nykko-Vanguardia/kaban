@@ -61,6 +61,7 @@ pub enum TokenKind {
     Continue,
     Pass,
     While,
+    Do,
     Return,
     Func,
     Union,

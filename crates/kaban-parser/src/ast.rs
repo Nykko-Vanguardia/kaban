@@ -1,7 +1,7 @@
 use kaban_core::{ToBool, ToUsize, UIndex, source::Source};
 use kaban_lexer::{Token};
 
-use crate::{node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToNodeIndex, TokenIndex} };
+use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToWrapper, TokenIndex, UOption};
 
 pub struct AST<'a> {
     tokens: &'a [Token],
@@ -149,6 +149,45 @@ impl<'a> AST<'a> {
             indices: self.get_extra_from_count(list_len, extra),
         }
     }
+
+    pub fn view_if_expression(&'a self, index: NodeIndex) -> If {
+        debug_assert!(NodeTag::If == self.get_tag(index));
+        let (condition, extra_pointer) = self.get_left_right(index);
+        let then_pointer = extra_pointer;
+        let else_pointer = extra_pointer + 1;
+        let else_ = self.get_one_extra(else_pointer).node_index(); 
+        If {
+            condition: condition.node_index(),
+            then: self.get_one_extra(then_pointer).node_index(),
+            else_: else_.uoption(),
+        }
+    }
+    
+    pub fn view_let_statement(&'a self, index: NodeIndex) -> Let {
+        debug_assert!(NodeTag::Let == self.get_tag(index));
+        let (name, extra_pointer) = self.get_left_right(index);
+        let mutable = extra_pointer;
+        let type_ = extra_pointer + 1;
+        let assignment = extra_pointer + 2; 
+        Let {
+            name: name.token_index(),
+            mutable: self.get_one_extra(mutable).bool(),
+            type_: self.get_one_extra(type_).uoption(),
+            assignment: self.get_one_extra(assignment).node_index(),
+        }
+    }
+
+    pub fn view_match_expression(&'a self, index: NodeIndex) -> Match<'a> {
+        debug_assert!(NodeTag::Match == self.get_tag(index));
+        let (target, extra_pointer) = self.get_left_right(index);
+        let arm_count = self.get_one_extra(extra_pointer);
+        let arm_list_start = extra_pointer + 1; 
+        let arms = self.get_extra_from_count(arm_count, arm_list_start);
+        Match {
+            target: target.node_index(),
+            arms: arms.node_index_slice(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -191,4 +230,23 @@ pub struct Block<'a> {
 pub struct GeneralList<'a> {
     pub len: UIndex,
     pub indices: &'a [UIndex],
+}
+
+
+pub struct If {
+    pub condition: NodeIndex,
+    pub then: NodeIndex,
+    pub else_: UOption,
+}
+
+pub struct Let {
+    pub name: TokenIndex,
+    pub mutable: bool,
+    pub type_: UOption,
+    pub assignment: NodeIndex,
+}
+
+pub struct Match<'a> {
+    pub target: NodeIndex,
+    pub arms: &'a[NodeIndex],
 }

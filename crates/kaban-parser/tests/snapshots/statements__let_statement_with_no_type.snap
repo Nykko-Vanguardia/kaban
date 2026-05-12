@@ -1,0 +1,16 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: let x = 10 + 5;
+
+Block [
+    Let {
+        name: Identifier("x"),
+        mutable: false,
+        assignment: Add {
+            left: IntLit("10"),
+            right: IntLit("5"),
+        },
+    },
+]

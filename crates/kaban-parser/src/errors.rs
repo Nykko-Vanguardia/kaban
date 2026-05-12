@@ -16,4 +16,8 @@ pub enum ParseError {
     MissingRightParen,
     #[error("Missing parenthesis")]
     MissingLeftParen,
+    #[error("Missing closing brace")]
+    MissingRightBrace,
+    #[error("Expected Block")]
+    MissingBlock,
 }

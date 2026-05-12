@@ -97,6 +97,7 @@ impl<'a> Lexer<'a> {
             b"continue" => TokenKind::Continue,
             b"pass" => TokenKind::Pass,
             b"while" => TokenKind::While,
+            b"do" => TokenKind::Do,
             b"return" => TokenKind::Return,
             b"func" => TokenKind::Func,
             b"union" => TokenKind::Union,

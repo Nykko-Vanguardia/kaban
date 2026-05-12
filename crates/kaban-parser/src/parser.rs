@@ -1,6 +1,6 @@
-use kaban_core::{SourceSpan, ToUIndex, UIndex, source::Source};
+use kaban_core::{SourceSpan, ToUIndex, ToUsize, UIndex, source::Source};
 use kaban_lexer::{Token, token::TokenKind};
-use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, TokenIndex, UIndexVec}};
+use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, UIndexVec}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
     pub fn parse_program(&mut self) -> AST<'a> {
         let mut top_level_statements  = Vec::new();
         while !self.is_at_end() {
-            if let Some(statment) = self.parse_next_statement() {
+            if let Some(statment) = self.parse_statement() {
                 top_level_statements.push(statment);
             }
         };
@@ -57,15 +57,19 @@ impl<'a> Parser<'a> {
         self.current = 0;
     }
 
-    pub fn parse_next_statement(&mut self) -> Option<NodeIndex> {
+    pub fn parse_statement(&mut self) -> Option<NodeIndex> {
         let current_token = self.peek_current();
 
         match current_token.kind {
-            TokenKind::Let => self.handle_let_statements(),
+            TokenKind::Let => self.parse_let_statement(),
             _ => { 
                 let expression = self.parse_expression()?; 
                 let expression_statement = self.push_node(NodeTag::ExpressionStatement, expression.0, 0);
-                self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon);
+
+                let tag = self.node_tags[expression.0.usize()];
+                if !tag.doesnt_require_semicolon() {
+                    self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+                }
                 expression_statement.some()
             },
         }
@@ -147,7 +151,6 @@ impl<'a> Parser<'a> {
                 let bool: UIndex = if self.source.matches(current_token.span(), "true") { 1 } else { 0 };
                 self.push_node(NodeTag::BoolLit, bool, right)
             },
-            TokenKind::StringLit => self.push_node(NodeTag::StringLit, left.0, right),
             TokenKind::LeftBracket => {
                 advance_after_match = false;
                 self.advance();
@@ -156,6 +159,7 @@ impl<'a> Parser<'a> {
                 let right = self.push_extra(args.uindex_slice());
                 self.push_node(NodeTag::ArrayLit, args.len().uindex(), right.0)
             }
+            TokenKind::StringLit => self.push_node(NodeTag::StringLit, left.0, right),
             TokenKind::StringObjLit => todo!(),
             TokenKind::InterpolatedStringObjLit => todo!(),
             TokenKind::LeftParen => {
@@ -168,6 +172,10 @@ impl<'a> Parser<'a> {
             TokenKind::Undefined => self.push_node(NodeTag::Undefined, left.0, right),
             TokenKind::Garbage => self.push_node(NodeTag::Garbage, left.0, right),
             TokenKind::Self_ => self.push_node(NodeTag::Self_, left.0, right),
+            TokenKind::LeftBrace => self.parse_and_consume_block()?,
+            TokenKind::If => { advance_after_match = false; self.parse_if_expression()? },
+            TokenKind::Do => { advance_after_match = false; self.parse_do_while_expression()? },
+            TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -212,26 +220,28 @@ impl<'a> Parser<'a> {
             _ => unreachable!(),
         }
     }
-    fn handle_let_statements(&mut self) -> Option<NodeIndex> {
-        // self.advance();
-        // let mutable = self.if_matches_then_consume_bool(TokenKind::Mut);
-        // let name = self.must_consume(TokenKind::Identifier, ParseError::Expected("Identifier".to_string()))?;
-        // let name = name.span;
-        // let let_type = if self.if_matches_then_consume_bool(TokenKind::Colon) {
-        //     self.parse_type_decleration()
-        // } else { 
-        //     None 
-        // };
-        // self.must_consume(TokenKind::Equals, ParseError::Expected("=".to_string()))?;
-        // let assignment = self.parse_expression()?;
-        // self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
-        // Some(Statement::Let { 
-        //     mutable, 
-        //     name, 
-        //     let_type, 
-        //     assignment,
-        // })
-        todo!()
+
+    pub fn parse_and_consume_block(&mut self) -> Option<NodeIndex> {
+        // debug_assert!(self.check_bool(TokenKind::LeftBrace));
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        let mut statements = Vec::new();
+        while !self.is_at_end() && !self.check_bool(TokenKind::RightBrace) {
+            if let Some(statment) = self.parse_statement() {
+                statements.push(statment);
+            }
+        };
+
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace)?;
+        self.push_block(statements).some()
+    }
+
+    pub fn parse_and_consume_block_or_statement(&mut self) -> Option<NodeIndex> {
+        if self.check_bool(TokenKind::LeftBrace) {
+            let block = self.parse_and_consume_block();
+            block
+        } else {
+            self.parse_statement()
+        }
     }
 
     fn parse_type_decleration(&mut self) -> Option<NodeIndex> {
@@ -261,11 +271,8 @@ impl<'a> Parser<'a> {
                 advance_after_match = false;
                 self.advance();
                 self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
-                let mut types = Vec::new();
-                while !self.is_at_end() && !self.if_matches_then_consume_bool(TokenKind::RightParen) {
-                    types.push(self.parse_type_decleration()?);
-                    if !self.if_matches_then_consume_bool(TokenKind::Comma) { break; }
-                }
+                let types = self.parse_comma_seperated_nodes(TokenKind::RightParen, 
+                    |p| p.parse_type_decleration());
                 self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
                 let extra = self.push_extra(types.uindex_slice());
                 self.push_node(NodeTag::Union, types.len().uindex(), extra.0)
@@ -337,6 +344,78 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::Block, block_size, extra_ptr.0)
     }
 
+}
+
+//Complicated statements or expressions
+impl<'a> Parser<'a> {
+    fn parse_let_statement(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        let mutable = self.if_matches_then_consume_bool(TokenKind::Mut);
+        let name = self.must_consume(TokenKind::Identifier, ParseError::ExpectedToken(TokenKind::Identifier))?;
+        let name = name.index;
+        let let_type = if self.if_matches_then_consume_bool(TokenKind::Colon) {
+            self.parse_type_decleration()
+        } else { 
+            None
+        };
+        self.must_consume(TokenKind::Equals, ParseError::ExpectedToken(TokenKind::Equals))?;
+        let assignment = self.parse_expression()?;
+        self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        
+        let extra_pointer = self.push_one_extra(mutable.uindex());
+        self.push_one_extra(let_type.option());
+        self.push_one_extra(assignment.0);
+        self.push_node(NodeTag::Let, name.0, extra_pointer.0).some()
+    }
+
+    fn parse_if_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen));
+        let condition = self.parse_expression()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+        let then = self.parse_and_consume_block_or_statement()?;
+        let else_ = if self.if_matches_then_consume_bool(TokenKind::Else) {
+            if self.check_bool(TokenKind::If) {
+                self.parse_if_expression()
+            } else {
+                self.parse_and_consume_block_or_statement()
+            }
+        } else {
+            None
+        };
+        let extra_index = self.push_one_extra(then.0);
+        self.push_one_extra(else_.option());
+        self.push_node(NodeTag::If, condition.0, extra_index.0).some()
+    }
+
+    fn parse_match_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen));
+        let target = self.parse_expression()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        let arms = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let left = p.parse_expression()?.0;
+            p.must_consume(TokenKind::FatArrow, ParseError::ExpectedToken(TokenKind::FatArrow))?;
+            let right = p.parse_and_consume_block_or_statement()?.0;
+            p.push_node(NodeTag::MatchArms, left, right).some()
+        });
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+        let extra_index = self.push_one_extra(arms.len().uindex());
+        self.push_extra(arms.uindex_slice());
+        self.push_node(NodeTag::Match, target.0, extra_index.0).some()
+    }
+
+    fn parse_do_while_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        let block = self.parse_and_consume_block()?;
+        self.must_consume(TokenKind::While, ParseError::ExpectedToken(TokenKind::While));
+        self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen);
+        let condition = self.parse_expression()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+
+        self.push_node(NodeTag::DoWhile, condition.0, block.0).some()
+    }
 }
 
 //helper
@@ -419,6 +498,10 @@ impl<'a> Parser<'a> {
         self.if_matches_then_consume(token_kind).is_some()
     }
 
+    //FIXME: Error recovery forced parser to get stuck in a loop
+    //error: during the testing of if_expression_with_else_if_condition() in expressions.rs
+    //an error occured when I accidentally mistyped the input "if condition) foo();"
+    //which triggered a missing left parenthisis error, this caused the program to hang.
     fn error_recovery(&mut self, error: ParseError) {
         self.errors.push(error);
         while !Self::is_recovery_point(self.peek_current().kind) && !self.is_at_end() {
@@ -503,6 +586,23 @@ impl<'a> Parser<'a> {
         }
 
         expressions
+    }
+
+    fn parse_comma_seperated_nodes(
+        &mut self, 
+        closing_delimiter: TokenKind, 
+        callback: impl Fn(&mut Parser) -> Option<NodeIndex>
+    ) -> Vec<NodeIndex> {
+        let mut nodes = Vec::new();
+        while !self.is_at_end() && !self.check_bool(closing_delimiter) {
+            if let Some(node) = callback(self) {
+                nodes.push(node);
+            };
+
+            if !self.if_matches_then_consume_bool(TokenKind::Comma) {break;};
+        }
+
+        nodes
     }
 
     // DEAD CODE:

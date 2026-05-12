@@ -60,3 +60,53 @@ fn bool_equality() {
     test_snapshot!("x == false;");
 }
 
+#[test]
+fn if_expression_with_braces() {
+    test_snapshot!("if (x == 10) {
+            foo();
+    }");
+}
+
+#[test]
+fn if_expression_without_braces() {
+    test_snapshot!("if (x == 10) foo(); x + 10;");
+}
+
+#[test]
+fn if_expression_else_condition_and_braces() {
+    test_snapshot!("if (x == 10) { foo(); } else { bazz(); }");
+}
+
+#[test]
+fn if_expression_else_condition_and_braces_and_multiple_expressions() {
+    test_snapshot!("if (x == 10) { foo(); buzz(); } else { bazz(); }");
+}
+
+#[test]
+fn if_expression_else_condition_without_braces() {
+    test_snapshot!("if (x == 10) foo(); else bazz();");
+}
+
+#[test]
+fn if_expression_with_else_if_condition() {
+    test_snapshot!("if (x == 10) foo(); else if (x == y) buzz(); else bazz();");
+}
+
+#[test]
+fn match_statement_with_brace_and_no_brace() {
+    test_snapshot!("
+        match (foo()) {
+            10 => 20,
+            20 => buzz(),
+            _ => {
+                bazz();
+                fizz();
+            },
+        }
+    ");
+}
+
+#[test]
+fn do_while_condition_with_bool_condition() {
+    test_snapshot!("do {foo(); let x = 10;} while (x == 10)");
+}

@@ -1,0 +1,29 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: do {foo(); let x = 10;} while (x == 10)
+
+Block [
+    ExpressionStatement(
+        DoWhile {
+            block: Block [
+                ExpressionStatement(
+                    FuncCall {
+                        callee: Identifier("foo"),
+                        args: [],
+                    },
+                ),
+                Let {
+                    name: Identifier("x"),
+                    mutable: false,
+                    assignment: IntLit("10"),
+                },
+            ],
+            condition: Equal {
+                left: Identifier("x"),
+                right: IntLit("10"),
+            },
+        },
+    ),
+]

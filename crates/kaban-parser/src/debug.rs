@@ -86,6 +86,57 @@ impl<'a> Debug for NodePrinter<'a> {
                     .finish()
             }
             t if t.is_type() => write!(f, "Type({:?})", t),
+            NodeTag::If => {
+                let if_ = self.ast.view_if_expression(index);
+                if if_.else_.is_some() {
+                    f.debug_struct("IfExpression")
+                        .field("condition", &self.child(if_.condition.0))
+                        .field("then", &self.child(if_.then.0))
+                        .field("else", &self.child(if_.else_.unwrap()))
+                        .finish()
+                } else {
+                    f.debug_struct("IfExpression")
+                        .field("condition", &self.child(if_.condition.0))
+                        .field("then", &self.child(if_.then.0))
+                        .finish()
+                }
+            },
+            NodeTag::Match => {
+                let match_ = self.ast.view_match_expression(index);
+                f.debug_struct("Match")
+                    .field("target", &self.child(match_.target.0))
+                    .field("arms", &self.children(match_.arms.uindex_slice()))
+                    .finish()
+            },
+            NodeTag::MatchArms => {
+                f.debug_struct("Arm")
+                    .field("left", &self.child(left))
+                    .field("right", &self.child(right))
+                    .finish()
+            },
+            NodeTag::DoWhile => {
+                f.debug_struct("DoWhile")
+                    .field("block", &self.child(right))
+                    .field("condition", &self.child(left))
+                    .finish()
+            },
+            NodeTag::Let => {
+                let let_ = self.ast.view_let_statement(index);
+                if let_.type_.is_some() {
+                    f.debug_struct("Let")
+                        .field("name", &self.get_token(let_.name.0))
+                        .field("mutable", &let_.mutable)
+                        .field("type", &self.child(let_.type_.unwrap()))
+                        .field("assignment", &self.child(let_.assignment.0))
+                        .finish()
+                } else {
+                    f.debug_struct("Let")
+                        .field("name", &self.get_token(let_.name.0))
+                        .field("mutable", &let_.mutable)
+                        .field("assignment", &self.child(let_.assignment.0))
+                        .finish()
+                }
+            },
             _ => todo!()
         }
     }
