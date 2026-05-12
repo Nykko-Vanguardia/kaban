@@ -1,3 +1,6 @@
+## Kaban
+Kaban is a systems language designed with manual memory management and compile-time safety in  mind. Further specifications will be released once the design foundation is solidified.
+
 ## Current Status
 The Lexer is stable on `main`.
 The parser is currently being worked on in the [parser branch](../../tree/parser) (20+ commits ahead)
