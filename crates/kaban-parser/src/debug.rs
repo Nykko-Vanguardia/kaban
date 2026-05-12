@@ -2,7 +2,7 @@ use std::fmt::{Debug, Result};
 use kaban_core::{ToBool, UIndex};
 use kaban_lexer::{TokenPrinter};
 
-use crate::{ast::AST, node::{NodeIndex, NodeTag, TokenIndex, UIndexVec}};
+use crate::{ast::AST, node::{NodeIndex, NodeTag, ToWrapper, TokenIndex, UIndexVec}};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -114,8 +114,8 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("right", &self.child(right))
                     .finish()
             },
-            NodeTag::DoWhile => {
-                f.debug_struct("DoWhile")
+            NodeTag::DoWhile | NodeTag::While => {
+                f.debug_struct(format!("{:?}", tag).as_str())
                     .field("block", &self.child(right))
                     .field("condition", &self.child(left))
                     .finish()
@@ -137,6 +137,15 @@ impl<'a> Debug for NodePrinter<'a> {
                         .finish()
                 }
             },
+            NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
+            NodeTag::Return | NodeTag::Pass => {
+                if left.uoption().is_some() {
+                    f.debug_tuple(format!("{:?}", tag).as_str()).field(&self.child(left)).finish()
+                } else {
+                    f.debug_tuple(format!("{:?}", tag).as_str()).finish()
+                }
+            }
+
             _ => todo!()
         }
     }

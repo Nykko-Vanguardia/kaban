@@ -4,56 +4,64 @@ impl NodeTag {
     pub fn precedence(&self) -> u8 {
         match self {
             //Arithmetic
-            NodeTag::Add => 10,
-            NodeTag::Subtract => 10,
-            NodeTag::Multiply => 11,
-            NodeTag::Divide => 11,
-            NodeTag::Modulo => 11,
+            NodeTag::Add => 11,
+            NodeTag::Subtract => 11,
+            NodeTag::Multiply => 12,
+            NodeTag::Divide => 12,
+            NodeTag::Modulo => 12,
 
             //Comparison
-            NodeTag::Equal => 7,
-            NodeTag::NotEqual => 7,
-            NodeTag::Less => 8,
-            NodeTag::Greater => 8,
-            NodeTag::LessEqual => 8,
-            NodeTag::GreaterEqual => 8,
+            NodeTag::Equal => 8,
+            NodeTag::NotEqual => 8,
+            NodeTag::Less => 9,
+            NodeTag::Greater => 9,
+            NodeTag::LessEqual => 9,
+            NodeTag::GreaterEqual => 9,
 
             //Logical
-            NodeTag::And => 3,
-            NodeTag::Or => 2,
+            NodeTag::And => 4,
+            NodeTag::Or => 3,
 
             //BitwiseBinary
-            NodeTag::BAnd => 5,
-            NodeTag::BOr => 4,
-            NodeTag::XOr => 6,
-            NodeTag::LeftShift => 9,
-            NodeTag::RightShift => 9,
-            NodeTag::UnsignedRightShift => 9,
+            NodeTag::BAnd => 6,
+            NodeTag::BOr => 5,
+            NodeTag::XOr => 7,
+            NodeTag::LeftShift => 10,
+            NodeTag::RightShift => 10,
+            NodeTag::UnsignedRightShift => 10,
 
             //PrefixUnary
-            NodeTag::Negative => 12,
-            NodeTag::Not => 12,
-            NodeTag::BNot => 12,
-            NodeTag::New => 12,
-            NodeTag::Destruct => 12,
+            NodeTag::Negative => 13,
+            NodeTag::Not => 13,
+            NodeTag::BNot => 13,
+            NodeTag::New => 13,
+            NodeTag::Destruct => 13,
 
             //PostfixUnary
-            NodeTag::Deref => 13,
-            NodeTag::PanicIfErr => 13,
-            NodeTag::BubbleIfErr => 13,
-            NodeTag::FuncCall => 13,
-            NodeTag::Index => 13,
+            NodeTag::Deref => 14,
+            NodeTag::PanicIfErr => 14,
+            NodeTag::BubbleIfErr => 14,
+            NodeTag::FuncCall => 14,
+            NodeTag::Index => 14,
 
             //MemberAccess
-            NodeTag::Dot => 13,
-            NodeTag::ExclamationDot => 13,
-            NodeTag::QuestionDot => 13,
-            NodeTag::QuestionQuestionDot => 13,
-            NodeTag::Colon => 13,
+            NodeTag::Dot => 14,
+            NodeTag::ExclamationDot => 14,
+            NodeTag::QuestionDot => 14,
+            NodeTag::QuestionQuestionDot => 14,
+            NodeTag::Colon => 14,
 
             //Special
-            NodeTag::UndefinedCoalescing => 1,
-            NodeTag::As => 13,
+            NodeTag::UndefinedCoalescing => 2,
+            NodeTag::As => 14,
+
+            //Assignment
+            NodeTag::Assignment  => 1,
+            NodeTag::PlusAssignment  => 1,
+            NodeTag::MinusAssignment  => 1,
+            NodeTag::MultiplyAssignment  => 1,
+            NodeTag::DivideAssignment  => 1,
+            NodeTag::ModuloAssignment => 1,
             _ => {
                 debug_assert!(self.is_operator(), 
                     "Tried to get a precedence of a non error node tag: {:?}", self);
@@ -100,7 +108,13 @@ impl NodeTag {
             NodeTag::QuestionQuestionDot |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |
-            NodeTag::As
+            NodeTag::As |
+            NodeTag::Assignment |
+            NodeTag::PlusAssignment |
+            NodeTag::MinusAssignment |
+            NodeTag::MultiplyAssignment |
+            NodeTag::DivideAssignment |
+            NodeTag::ModuloAssignment
         )
     }
 
@@ -163,7 +177,25 @@ impl NodeTag {
             NodeTag::QuestionQuestionDot |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |
-            NodeTag::As
+            NodeTag::As |
+            NodeTag::Assignment |
+            NodeTag::PlusAssignment |
+            NodeTag::MinusAssignment |
+            NodeTag::MultiplyAssignment |
+            NodeTag::DivideAssignment |
+            NodeTag::ModuloAssignment
+        )
+    }
+
+    #[allow(dead_code)]
+    fn is_assignment(&self) -> bool {
+        matches!(self, 
+            NodeTag::Assignment |
+            NodeTag::PlusAssignment |
+            NodeTag::MinusAssignment |
+            NodeTag::MultiplyAssignment |
+            NodeTag::DivideAssignment |
+            NodeTag::ModuloAssignment
         )
     }
 }

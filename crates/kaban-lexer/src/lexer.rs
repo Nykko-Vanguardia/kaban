@@ -264,6 +264,14 @@ impl<'a> Lexer<'a> {
                     TokenKind::Slash
                 }
             },
+            b'%' => {
+                if self.match_and_consume("%=") {
+                    TokenKind::PercentEquals
+                } else {
+                    self.advance_current();
+                    TokenKind::Percent
+                }
+            },
             b'.' => {
                 if self.match_and_consume("...") {
                     TokenKind::DotDotDot
@@ -287,7 +295,6 @@ impl<'a> Lexer<'a> {
             b']' => { self.advance_current(); TokenKind::RightBracket },
             b'^' => { self.advance_current(); TokenKind::Caret },
             b'#' => { self.advance_current(); TokenKind::Hash },
-            b'%' => { self.advance_current(); TokenKind::Percent },
             _ => self.error_recovery(LexError::UnexpectedCharacter),
         }
     }

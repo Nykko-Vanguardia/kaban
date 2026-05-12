@@ -115,6 +115,7 @@ pub enum TokenKind {
     MinusEquals, // -=
     StarEquals, // *=
     SlashEquals, // /=
+    PercentEquals, // %=
     Bang, // !
     BangDot,
     Question,

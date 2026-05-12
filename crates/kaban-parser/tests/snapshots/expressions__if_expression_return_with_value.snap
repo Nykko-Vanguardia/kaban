@@ -1,0 +1,22 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: if (x == 10) return x(x);
+
+Block [
+    IfExpression {
+        condition: Equal {
+            left: Identifier("x"),
+            right: IntLit("10"),
+        },
+        then: Return(
+            FuncCall {
+                callee: Identifier("x"),
+                args: [
+                    Identifier("x"),
+                ],
+            },
+        ),
+    },
+]

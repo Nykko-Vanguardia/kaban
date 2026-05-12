@@ -178,6 +178,15 @@ pub enum NodeTag {
     /// # right: NodeIndex - Type
     As,
 
+    //Assignment (NO RETURNS)
+    Assignment,
+    PlusAssignment,
+    MinusAssignment,
+    MultiplyAssignment,
+    DivideAssignment,
+    ModuloAssignment,
+
+
 
     //STATEMENTS (No returns)------
     /// # left: TokenIndex = name
@@ -187,16 +196,15 @@ pub enum NodeTag {
     /// - extra\[right + 2\] = Expression
     Let,
     FuncDecl,
+    /// # left: NodeIndex | U_NONE = return value
     Return,
+    /// # left: NodeIndex | U_NONE = pass value
     Pass,
     Break,
     Continue,
     ExpressionStatement,
-    Assignment,
-    PlusAssignment,
-    MinusAssignment,
-    MultiplyAssignment,
-    ModuloAssignment,
+    /// # left: NodeIndex = condition (expression)
+    /// # right: NodeIndex = block (Block)
     While,
     For,
     StructDecl,
@@ -219,7 +227,11 @@ pub enum NodeTag {
     /// - extra\[right\]: UIndex = arms_count (N)
     /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = arms
     Match,
-    AnonymousFuncDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
+    /// # left: UIndex = arg count (N)
+    /// # right: ExtraIndex -> \[return_type, args...\]
+    /// - extra\[right\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = parameter types
+    FuncExpressionDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     DoWhile, //dunno if i should keep this, do while like loop is safe to pass values because they
@@ -391,7 +403,9 @@ impl NodeTag {
             NodeTag::If |
             NodeTag::Match |
             NodeTag::Block |
-            NodeTag::DoWhile
+            NodeTag::While |
+            NodeTag::For
+            // NodeTag::DoWhile // you need a semicolon here
         )
     }
 

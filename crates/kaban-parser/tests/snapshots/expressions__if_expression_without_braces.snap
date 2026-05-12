@@ -1,8 +1,8 @@
 ---
 source: crates/kaban-parser/tests/expressions.rs
-expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+expression: print
 ---
-input: if (x == 10) foo(); x + 10;
+input: if (x == 10) x += 10; foo();
 
 Block [
     IfExpression {
@@ -10,13 +10,13 @@ Block [
             left: Identifier("x"),
             right: IntLit("10"),
         },
-        then: FuncCall {
-            callee: Identifier("foo"),
-            args: [],
+        then: PlusAssignment {
+            left: Identifier("x"),
+            right: IntLit("10"),
         },
     },
-    Add {
-        left: Identifier("x"),
-        right: IntLit("10"),
+    FuncCall {
+        callee: Identifier("foo"),
+        args: [],
     },
 ]

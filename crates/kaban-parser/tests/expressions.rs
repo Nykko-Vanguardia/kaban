@@ -74,6 +74,21 @@ fn bool_equality() {
 }
 
 #[test]
+fn continue_and_break() {
+    test_snapshot!("continue; break;");
+}
+
+#[test]
+fn pass_and_break_without_returning_anything() {
+    test_snapshot!("pass; return;");
+}
+
+#[test]
+fn pass_value_and_break_and_returning_expression() {
+    test_snapshot!("pass x + 10; return self.foo();");
+}
+
+#[test]
 fn if_expression_with_braces() {
     test_snapshot!("if (x == 10) {
             foo();
@@ -82,7 +97,17 @@ fn if_expression_with_braces() {
 
 #[test]
 fn if_expression_without_braces() {
-    test_snapshot!("if (x == 10) foo(); x + 10;");
+    test_snapshot!("if (x == 10) x += 10; foo();");
+}
+
+#[test]
+fn if_expression_return() {
+    test_snapshot!("if (x == 10) return;");
+}
+
+#[test]
+fn if_expression_return_with_value() {
+    test_snapshot!("if (x == 10) return x(x);");
 }
 
 #[test]
@@ -107,6 +132,11 @@ fn if_expression_with_else_if_condition() {
 }
 
 #[test]
+fn if_expression_with_else_if_condition_braces() {
+    test_snapshot!("if (x == 10) { foo(); x+=10; } else if (x == y) { buzz(); } else { bazz(); }");
+}
+
+#[test]
 fn match_statement_with_brace_and_no_brace() {
     test_snapshot!("
         match (foo()) {
@@ -121,6 +151,21 @@ fn match_statement_with_brace_and_no_brace() {
 }
 
 #[test]
+fn while_condition_with_bool_condition_and_braces() {
+    test_snapshot!("while (x == 10) { x += 1; }");
+}
+
+#[test]
 fn do_while_condition_with_bool_condition() {
-    test_snapshot!("do {foo(); let x = 10;} while (x == 10)");
+    test_snapshot!("do {foo(); let x = 10;} while (x == 10);");
+}
+
+#[test]
+fn identifier_assignment_with_binary_operation() {
+    test_snapshot!("x = 10 + 5;");
+}
+
+#[test]
+fn identifier_modulo_assignment_with_binary_operation() {
+    test_snapshot!("x %= 20 * 10 % 30;");
 }

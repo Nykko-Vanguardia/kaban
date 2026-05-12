@@ -1,0 +1,21 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: pass x + 10; return self.foo();
+
+Block [
+    Pass(
+        Add {
+            left: Identifier("x"),
+            right: IntLit("10"),
+        },
+    ),
+    Return(
+        MethodCall {
+            method name: Identifier("foo"),
+            is mutable: false,
+            args: [],
+        },
+    ),
+]

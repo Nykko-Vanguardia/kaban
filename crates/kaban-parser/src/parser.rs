@@ -1,6 +1,6 @@
 use kaban_core::{SourceSpan, ToUIndex, ToUsize, UIndex, source::Source};
 use kaban_lexer::{Token, token::TokenKind};
-use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, UIndexVec}};
+use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec}};
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
@@ -146,7 +146,8 @@ impl<'a> Parser<'a> {
         let left = current_token.index;
         let right = 0;
         let mut advance_after_match = true;
-        let atom = match current_token.kind {
+        let token_kind = current_token.kind;
+        let atom = match token_kind {
             TokenKind::IntLit => self.push_node(NodeTag::IntLit, left.0, right),
             TokenKind::FloatLit => self.push_node(NodeTag::FloatLit, left.0, right),
             TokenKind::Identifier => self.push_node(NodeTag::Identifier, left.0, right),
@@ -172,13 +173,29 @@ impl<'a> Parser<'a> {
                 self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
                 parenthesis_expression
             },
-            TokenKind::Undefined => self.push_node(NodeTag::Undefined, left.0, right),
-            TokenKind::Garbage => self.push_node(NodeTag::Garbage, left.0, right),
-            TokenKind::Self_ => self.push_node(NodeTag::Self_, left.0, right),
+            TokenKind::Undefined => self.push_node(NodeTag::Undefined, U_NONE, U_NONE),
+            TokenKind::Garbage => self.push_node(NodeTag::Garbage, U_NONE, U_NONE),
+            TokenKind::Self_ => self.push_node(NodeTag::Self_, U_NONE, U_NONE),
+            TokenKind::Continue => self.push_node(NodeTag::Continue, U_NONE, U_NONE),
+            TokenKind::Break => self.push_node(NodeTag::Break, U_NONE, U_NONE),
+            TokenKind::Return | TokenKind::Pass => {
+                advance_after_match = false;
+                self.advance();
+                let return_value = if self.check_bool(TokenKind::Semicolon) {
+                    U_NONE
+                } else {
+                    self.parse_expression()?.0
+                };
+                let tag = if token_kind == TokenKind::Return { NodeTag::Return } else { NodeTag::Pass };
+                self.push_node(tag, return_value, U_NONE)
+            },
             TokenKind::LeftBrace => { advance_after_match = false; self.parse_and_consume_block()? },
             TokenKind::If => { advance_after_match = false; self.parse_if_expression()? },
+            TokenKind::While => { advance_after_match = false; self.parse_while_expression()? },
+            TokenKind::For => { advance_after_match = false; self.parse_for_expression()? },
             TokenKind::Do => { advance_after_match = false; self.parse_do_while_expression()? },
             TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
+            TokenKind::Func => { advance_after_match = false; self.parse_func_decleration_expression()? },
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -412,15 +429,55 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::Match, target.0, extra_index.0).some()
     }
 
+    fn parse_while_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
+        let condition = self.parse_expression()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        let block = self.parse_and_consume_block()?;
+
+        self.push_node(NodeTag::While, condition.0, block.0).some()
+    }
+
     fn parse_do_while_expression(&mut self) -> Option<NodeIndex> {
         self.advance();
         let block = self.parse_and_consume_block()?;
-        self.must_consume(TokenKind::While, ParseError::ExpectedToken(TokenKind::While));
-        self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen);
+        self.must_consume(TokenKind::While, ParseError::ExpectedToken(TokenKind::While))?;
+        self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
         let condition = self.parse_expression()?;
-        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
 
         self.push_node(NodeTag::DoWhile, condition.0, block.0).some()
+    }
+
+    fn parse_for_expression(&mut self) -> Option<NodeIndex> {
+        // self.advance();
+        // self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
+        // let condition = self.parse_expression()?;
+        // self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        // let block = self.parse_and_consume_block()?;
+        //
+        // self.push_node(NodeTag::While, condition.0, block.0).some()
+        todo!()
+    }
+
+    fn parse_func_decleration_expression(&mut self) -> Option<NodeIndex> {
+        // self.advance();
+        // self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
+        // let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
+        //     p.parse_expression()
+        // });
+        // self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        // let return_type = if self.if_matches_then_consume_bool(TokenKind::SkinnyArrow) {
+        //     self.parse_type_decleration()?.some()
+        // } else {
+        //     None
+        // };
+        // let extra_pointer = self.push_one_extra(return_type.option());
+        // self.push_extra(param_types.uindex_slice());
+        //
+        // self.push_node(NodeTag::FuncExpressionDecl, param_types.len().uindex(), extra_pointer.0).some()
+        todo!()
     }
 }
 
@@ -556,6 +613,12 @@ impl<'a> Parser<'a> {
             TokenKind::LeftBracket => NodeTag::Index,
             TokenKind::QuestionQuestion => NodeTag::UndefinedCoalescing,
             TokenKind::As => NodeTag::As,
+            TokenKind::Equals => NodeTag::Assignment,
+            TokenKind::PlusEquals => NodeTag::PlusAssignment,
+            TokenKind::MinusEquals => NodeTag::MinusAssignment,
+            TokenKind::StarEquals => NodeTag::MultiplyAssignment,
+            TokenKind::SlashEquals => NodeTag::DivideAssignment,
+            TokenKind::PercentEquals => NodeTag::ModuloAssignment,
             TokenKind::LeftParen => NodeTag::FuncCall,
             _ => return None,
         })
