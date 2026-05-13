@@ -68,7 +68,7 @@ impl<'a> Lexer<'a> {
             // b"alloc" => TokenKind::Alloc,
             // b"kalloc" => TokenKind::Kalloc, //might not need this
             // b"realloc" => TokenKind::Realloc,
-            // b"free" => TokenKind::Free,
+            b"free" => TokenKind::Free,
             b"struct" => TokenKind::Struct,
             b"interface" => TokenKind::Interface,
             b"impl" => TokenKind::Impl,

@@ -33,7 +33,7 @@ pub enum TokenKind {
     // Alloc,
     // Kalloc,
     // Realloc,
-    // Free,
+    Free,
     Struct,
     Interface,
     Impl,
