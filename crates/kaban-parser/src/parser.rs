@@ -392,9 +392,16 @@ impl<'a> Parser<'a> {
             TokenKind::LeftParen => {
                 self.advance();
                 let elements = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| p.parse_identifier_or_destructure());
-                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
                 let extra_pointer = self.push_extra(elements.uindex_slice());
                 self.push_node(NodeTag::TupleDestructure, elements.len().uindex(), extra_pointer.0).some()
+            },
+            TokenKind::LeftBracket => {
+                self.advance();
+                let elements = self.parse_comma_seperated_nodes(TokenKind::RightBracket, |p| p.parse_identifier_or_destructure());
+                self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket)?;
+                let extra_pointer = self.push_extra(elements.uindex_slice());
+                self.push_node(NodeTag::ArrayDestructure, elements.len().uindex(), extra_pointer.0).some()
             },
             TokenKind::LeftBrace => {
                 self.advance();

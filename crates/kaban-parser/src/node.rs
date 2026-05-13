@@ -325,6 +325,9 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...args\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] (Identifiers)
     TupleDestructure,
+    /// # left: u32 = arg count
+    /// # right: ExtraIndex -> \[...args\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (Identifiers)
     ArrayDestructure,
 }
 

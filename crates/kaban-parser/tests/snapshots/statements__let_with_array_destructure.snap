@@ -1,0 +1,30 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: let [x, y] = [[20, 10], [30, 10]];
+
+Block [
+    Let {
+        name: ArrayDestructure [
+            IdentifierBinding {
+                name: Identifier("x"),
+                mutable: false,
+            },
+            IdentifierBinding {
+                name: Identifier("y"),
+                mutable: false,
+            },
+        ],
+        assignment: ArrayLit [
+            ArrayLit [
+                IntLit("20"),
+                IntLit("10"),
+            ],
+            ArrayLit [
+                IntLit("30"),
+                IntLit("10"),
+            ],
+        ],
+    },
+]

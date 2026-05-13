@@ -38,6 +38,7 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::Union |
             NodeTag::TupleDestructure |
             NodeTag::StructDestructure |
+            NodeTag::ArrayDestructure |
             NodeTag::TupleLit => {
                 let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;

@@ -45,6 +45,16 @@ fn let_with_nested_tuple_destructure_and_mutable_elements() {
 }
 
 #[test]
+fn let_with_array_destructure() {
+    test_snapshot!("let [x, y] = [[20, 10], [30, 10]];");
+}
+
+#[test]
+fn let_with_nested_array_destructure_and_mutable_elements() {
+    test_snapshot!("let [[mut ax, ay,], [bx, by]] = [[20, 10], [30, 10]];");
+}
+
+#[test]
 fn let_with_struct_destructure() {
     test_snapshot!("let {x, y} = foo();");
 }
