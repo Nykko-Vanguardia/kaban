@@ -1,0 +1,27 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: do {foo(); let x = 10;} while (x == 10);
+
+Block [
+    DoWhile {
+        block: Block [
+            FuncCall {
+                callee: Identifier("foo"),
+                args: [],
+            },
+            Let {
+                name: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                assignment: IntLit("10"),
+            },
+        ],
+        condition: Equal {
+            left: Identifier("x"),
+            right: IntLit("10"),
+        },
+    },
+]

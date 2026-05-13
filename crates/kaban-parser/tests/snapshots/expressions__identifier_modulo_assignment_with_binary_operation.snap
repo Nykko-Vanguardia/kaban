@@ -1,0 +1,18 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: x %= 20 * 10 % 30;
+
+Block [
+    ModuloAssignment {
+        left: Identifier("x"),
+        right: Modulo {
+            left: Multiply {
+                left: IntLit("20"),
+                right: IntLit("10"),
+            },
+            right: IntLit("30"),
+        },
+    },
+]

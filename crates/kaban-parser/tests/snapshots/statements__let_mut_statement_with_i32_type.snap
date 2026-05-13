@@ -1,0 +1,19 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: let mut z: i32 = 10 + 5;
+
+Block [
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("z"),
+            mutable: true,
+        },
+        type: Type(I32),
+        assignment: Add {
+            left: IntLit("10"),
+            right: IntLit("5"),
+        },
+    },
+]

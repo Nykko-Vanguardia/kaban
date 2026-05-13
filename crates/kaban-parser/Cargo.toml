@@ -1,8 +1,12 @@
 [package]
-name = "kaban-lexer"
+name = "kaban-parser"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 kaban-core = {workspace = true}
+kaban-lexer = {workspace = true}
 thiserror = {workspace = true}
+
+[dev-dependencies]
+insta = {workspace = true}

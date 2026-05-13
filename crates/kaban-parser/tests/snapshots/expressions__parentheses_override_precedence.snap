@@ -1,0 +1,15 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: (x + y) * w;
+
+Block [
+    Multiply {
+        left: Add {
+            left: Identifier("x"),
+            right: Identifier("y"),
+        },
+        right: Identifier("w"),
+    },
+]

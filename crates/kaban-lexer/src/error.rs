@@ -1,4 +1,4 @@
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LexError {
     #[error("Float literal must have a digit after the decimal point")]
     InvalidFloat,

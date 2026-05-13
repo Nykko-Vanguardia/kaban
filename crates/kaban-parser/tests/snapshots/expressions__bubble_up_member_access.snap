@@ -1,0 +1,14 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo?.bazz;
+
+Block [
+    MemberAccess {
+        left: BubbleIfErrOrNone(
+            Identifier("foo"),
+        ),
+        right: Identifier("bazz"),
+    },
+]

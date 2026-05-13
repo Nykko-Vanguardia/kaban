@@ -1,26 +1,39 @@
-use crate::LexError;
+use kaban_core::{UIndex, SourceSpan};
 
-#[derive(Debug, PartialEq)]
-pub enum Token<'a> {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: SourceSpan,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, start: UIndex, end: UIndex) -> Token {
+        Token {kind, span: SourceSpan {start, end}}
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TokenKind {
     //lits
-    IntLit(&'a str),
-    FloatLit(&'a str),
-    StringLit(&'a str),
-    StringObjLit(&'a str),  // for ``, automatically sugars to String.new()
-    InterpolatedStringObjLit(&'a str),  // for f`` automaticallu sugars to String.format()
-    BoolLit(bool),
-    Char8Lit(u8),
-    Char16Lit(&'a [u8]),
-    Char32Lit(&'a [u8]),
+    IntLit,
+    FloatLit,
+    StringLit,
+    StringObjLit,  // for ``, automatically sugars to String.new()
+    InterpolatedStringObjLit,  // for f`` automaticallu sugars to String.format()
+    BoolLit,
+    Char8Lit,
+    Char16Lit,
+    Char32Lit,
 
     //keywords
     Let,
     Mut,
     Const,
-    Alloc,
-    Kalloc,
-    Realloc,
-    Free,
+    // Alloc,
+    // Kalloc,
+    // Realloc,
+    // Free,
     Struct,
     Interface,
     Impl,
@@ -48,6 +61,7 @@ pub enum Token<'a> {
     Continue,
     Pass,
     While,
+    Do,
     Return,
     Func,
     Union,
@@ -68,7 +82,7 @@ pub enum Token<'a> {
     ASM,
 
     //identifiers
-    Identifier(&'a str),
+    Identifier,
 
     //symbols
     Semicolon,
@@ -90,6 +104,7 @@ pub enum Token<'a> {
     SkinnyArrow, // -> Im still not sure between these two
     Plus,
     Minus,
+    Percent,
     PlusPlus, //++
     MinusMinus, //--
     Slash,
@@ -100,8 +115,8 @@ pub enum Token<'a> {
     MinusEquals, // -=
     StarEquals, // *=
     SlashEquals, // /=
+    PercentEquals, // %=
     Bang, // !
-    BangDot,
     Question,
     QuestionQuestion,
     QuestionQuestionDot,
@@ -116,7 +131,7 @@ pub enum Token<'a> {
     Dot, // . for field access
     LessLess, // << bitwise
     GreaterGreater, // >> bit wise
-
+    GreaterGreaterGreater,
     //types
     I8,
     I16,
@@ -129,9 +144,9 @@ pub enum Token<'a> {
     U32, 
     U64,
     USize,
-    Char8,
-    Char16,
-    Char32,
+    C8,
+    C16,
+    C32,
     Bool,
     Void,
     Undefined,
@@ -150,12 +165,7 @@ pub enum Token<'a> {
     Nil,
 
     //Special
-    DocComment(&'a str),
+    DocComment,
     EOF,
-    Invalid{
-        error: LexError,
-        line: usize,
-        col: usize,
-        cause: &'a str,
-    },
+    Invalid
 }

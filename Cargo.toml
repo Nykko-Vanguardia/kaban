@@ -5,11 +5,14 @@ edition = "2024"
 
 [workspace]
 members = [
+    "crates/kaban-core",
     "crates/kaban-lexer",
+    "crates/kaban-parser",
 ]
 
-[dependencies]
-kaban-lexer = { path = "crates/kaban-lexer" }
-
 [workspace.dependencies]
+kaban-lexer = { path = "crates/kaban-lexer" }
+kaban-parser = { path = "crates/kaban-parser" }
+kaban-core = { path = "crates/kaban-core" }
 thiserror = "2.0.18"
+insta = { version = "1.39.0", features = ["yaml"] }
