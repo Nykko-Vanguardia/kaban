@@ -117,9 +117,7 @@ pub enum TokenKind {
     SlashEquals, // /=
     PercentEquals, // %=
     Bang, // !
-    BangDot,
     Question,
-    QuestionDot,
     QuestionQuestion,
     QuestionQuestionDot,
     Less,

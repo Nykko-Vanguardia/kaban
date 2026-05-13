@@ -1,5 +1,5 @@
 use kaban_core::{SourceSpan, ToUIndex, ToUsize, UIndex, source::Source};
-use kaban_lexer::{Token, token::TokenKind};
+use kaban_lexer::{Token, token::{TokenKind}};
 use crate::{ast::AST, errors::ParseError, node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec}};
 
 pub struct Parser<'a> {
@@ -170,8 +170,19 @@ impl<'a> Parser<'a> {
                 advance_after_match = false;
                 self.advance();
                 let parenthesis_expression = self.parse_expression()?;
-                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
-                parenthesis_expression
+                if self.check_bool(TokenKind::Comma) {
+                    self.advance();
+                    let first_element = parenthesis_expression;
+                    let additional_len_for_first_element = 1;
+                    let tuple_elements = self.parse_comma_seperated_expressions(TokenKind::RightParen);
+                    self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                    let extra_pointer = self.push_one_extra(first_element.0);
+                    self.push_extra(tuple_elements.uindex_slice());
+                    self.push_node(NodeTag::TupleLit, tuple_elements.len().uindex() + additional_len_for_first_element, extra_pointer.0)
+                } else {
+                    self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                    parenthesis_expression
+                }
             },
             TokenKind::Undefined => self.push_node(NodeTag::Undefined, U_NONE, U_NONE),
             TokenKind::Garbage => self.push_node(NodeTag::Garbage, U_NONE, U_NONE),
@@ -220,8 +231,8 @@ impl<'a> Parser<'a> {
     fn parse_postfix_expression(&mut self, operand: NodeIndex, operator: NodeTag)-> Option<NodeIndex> {
         match  operator {
             NodeTag::Deref |
-            NodeTag::PanicIfErr |
-            NodeTag::BubbleIfErr => self.push_node(operator, operand.0, 0).some(),
+            NodeTag::PanicIfErrOrNone |
+            NodeTag::BubbleIfErrOrNone => self.push_node(operator, operand.0, 0).some(),
             NodeTag::FuncCall => {
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                 self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
@@ -342,7 +353,7 @@ impl<'a> Parser<'a> {
 
     fn parse_member_access_or_method(&mut self, parent: NodeIndex, child: NodeIndex, operator: NodeTag) -> Option<NodeIndex> {
         match operator {
-            NodeTag::Dot | NodeTag::Colon => {
+            NodeTag::MemberAccess | NodeTag::Colon => {
                 if self.if_matches_then_consume_bool(TokenKind::LeftParen) {
                     let args  = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                     self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
@@ -366,15 +377,59 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::Block, block_size, extra_ptr.0)
     }
 
+    fn parse_identifier_or_destructure(&mut self) -> Option<NodeIndex> {
+        let token = self.peek_current();
+        match token.kind {
+            TokenKind::Mut => {
+                self.advance();
+                let identifier = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                self.push_node(NodeTag::IdentifierBinding, identifier.index.0, 1).some()
+            }
+            TokenKind::Identifier => { 
+                self.advance();
+                self.push_node(NodeTag::IdentifierBinding, token.index.0, 0).some()
+            },
+            TokenKind::LeftParen => {
+                self.advance();
+                let elements = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| p.parse_identifier_or_destructure());
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+                let extra_pointer = self.push_extra(elements.uindex_slice());
+                self.push_node(NodeTag::TupleDestructure, elements.len().uindex(), extra_pointer.0).some()
+            },
+            TokenKind::LeftBrace => {
+                self.advance();
+                let binding_list = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+                    let is_mut = p.if_matches_then_consume_bool(TokenKind::Mut);
+                    let field_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                    let binding = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                        if is_mut {
+                            p.error_recovery(ParseError::StructMutBinding);
+                        };
+                        // let field_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                        // p.push_node(NodeTag::IdentifierBinding, field_name.index.0, is_mut.uindex())
+                        p.parse_identifier_or_destructure()?
+                    } else {
+                        p.push_node(NodeTag::IdentifierBinding, field_name.index.0, is_mut.uindex())
+                    };
+                    p.push_node(NodeTag::StructDestructureBinding, field_name.index.0, binding.0).some()
+                });
+                self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+                let extra_pointer = self.push_extra(binding_list.uindex_slice());
+                self.push_node(NodeTag::StructDestructure, binding_list.len().uindex(), extra_pointer.0).some()
+            },
+            _ => {
+                self.error_recovery(ParseError::MissingIdentifier);
+                None
+            }
+        }
+    }
 }
 
 //Complicated statements or expressions
 impl<'a> Parser<'a> {
     fn parse_let_statement(&mut self) -> Option<NodeIndex> {
         self.advance();
-        let mutable = self.if_matches_then_consume_bool(TokenKind::Mut);
-        let name = self.must_consume(TokenKind::Identifier, ParseError::ExpectedToken(TokenKind::Identifier))?;
-        let name = name.index;
+        let binding = self.parse_identifier_or_destructure()?;
         let let_type = if self.if_matches_then_consume_bool(TokenKind::Colon) {
             self.parse_type_decleration()
         } else { 
@@ -384,10 +439,9 @@ impl<'a> Parser<'a> {
         let assignment = self.parse_expression()?;
         self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
         
-        let extra_pointer = self.push_one_extra(mutable.uindex());
-        self.push_one_extra(let_type.option());
+        let extra_pointer = self.push_one_extra(let_type.option());
         self.push_one_extra(assignment.0);
-        self.push_node(NodeTag::Let, name.0, extra_pointer.0).some()
+        self.push_node(NodeTag::Let, binding.0, extra_pointer.0).some()
     }
 
     fn parse_if_expression(&mut self) -> Option<NodeIndex> {
@@ -441,7 +495,7 @@ impl<'a> Parser<'a> {
 
     fn parse_do_while_expression(&mut self) -> Option<NodeIndex> {
         self.advance();
-        let block = self.parse_and_consume_block()?;
+        let block = self.parse_block_or_semicolon_terminated_expression()?;
         self.must_consume(TokenKind::While, ParseError::ExpectedToken(TokenKind::While))?;
         self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
         let condition = self.parse_expression()?;
@@ -451,18 +505,21 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_for_expression(&mut self) -> Option<NodeIndex> {
-        // self.advance();
-        // self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
-        // let condition = self.parse_expression()?;
-        // self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
-        // let block = self.parse_and_consume_block()?;
-        //
-        // self.push_node(NodeTag::While, condition.0, block.0).some()
-        todo!()
+        self.advance();
+        self.must_consume(TokenKind::LeftParen, ParseError::MissingLeftParen)?;
+        let binding = self.parse_identifier_or_destructure()?;
+        self.must_consume(TokenKind::In, ParseError::ExpectedToken(TokenKind::In))?;
+        let iterator = self.parse_expression()?;
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        let block = self.parse_block_or_semicolon_terminated_expression()?;
+
+        let extra_pointer = self.push_one_extra(iterator.0);
+        self.push_one_extra(block.0);
+        self.push_node(NodeTag::For, binding.0, extra_pointer.0).some()
     }
 
     fn parse_func_decleration_expression(&mut self) -> Option<NodeIndex> {
-        // self.advance();
+
         // self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
         // let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
         //     p.parse_expression()
@@ -561,7 +618,7 @@ impl<'a> Parser<'a> {
         self.if_matches_then_consume(token_kind).is_some()
     }
 
-    //FIXME: Error recovery forced parser to get stuck in a loop
+    //FIXME: (#3) Error recovery forced parser to get stuck in a loop
     //error: during the testing of if_expression_with_else_if_condition() in expressions.rs
     //an error occured when I accidentally mistyped the input "if condition) foo();"
     //which triggered a missing left parenthisis error, this caused the program to hang.
@@ -602,14 +659,14 @@ impl<'a> Parser<'a> {
             TokenKind::LessLess => NodeTag::LeftShift,
             TokenKind::GreaterGreater => NodeTag::RightShift,
             TokenKind:: GreaterGreaterGreater => NodeTag::UnsignedRightShift,
+            TokenKind::DotDot => NodeTag::ExclusiveRange,
+            TokenKind::DotDotEquals => NodeTag::InclusiveRange,
             TokenKind::Caret => NodeTag::Deref,
-            TokenKind::Bang => NodeTag::PanicIfErr,
-            TokenKind::Question => NodeTag::BubbleIfErr,
-            TokenKind::Dot => NodeTag::Dot,
-            TokenKind::BangDot => NodeTag::ExclamationDot,
-            TokenKind::QuestionDot => NodeTag::QuestionDot,
+            TokenKind::Bang => NodeTag::PanicIfErrOrNone,
+            TokenKind::Question => NodeTag::BubbleIfErrOrNone,
+            TokenKind::Dot => NodeTag::MemberAccess,
             TokenKind::Colon => NodeTag::Colon,
-            TokenKind::QuestionQuestionDot => NodeTag::QuestionQuestionDot,
+            TokenKind::QuestionQuestionDot => NodeTag::UndefinedChainingAccess,
             TokenKind::LeftBracket => NodeTag::Index,
             TokenKind::QuestionQuestion => NodeTag::UndefinedCoalescing,
             TokenKind::As => NodeTag::As,

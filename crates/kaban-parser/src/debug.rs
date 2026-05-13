@@ -17,6 +17,7 @@ impl<'a> Debug for NodePrinter<'a> {
         let index = self.index;
 
         match tag {
+            NodeTag::Self_ => write!(f, "{:?}", tag),
             t if t.is_token_leaf() => self.write_token(f, left),
             NodeTag::BoolLit => { write!(f, "{}", left.bool()) },
             NodeTag::ExpressionStatement => {
@@ -32,7 +33,12 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("right", &self.child(right))
                     .finish()
             },
-            NodeTag::ArrayLit | NodeTag::Block | NodeTag::Union => {
+            NodeTag::ArrayLit |
+            NodeTag::Block |
+            NodeTag::Union |
+            NodeTag::TupleDestructure |
+            NodeTag::StructDestructure |
+            NodeTag::TupleLit => {
                 let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;
                 f.debug_list()
@@ -80,6 +86,7 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::MethodCall => {
                 let method = self.ast.view_method_call(index);
                 f.debug_struct("MethodCall")
+                    .field("callee", &self.child(method.callee.0))
                     .field("method name", &self.child(method.method_name.0))
                     .field("is mutable", &method.is_self_mut)
                     .field("args", &self.children(method.args.uindex_slice()))
@@ -120,19 +127,35 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("condition", &self.child(left))
                     .finish()
             },
+            NodeTag::For => {
+                let for_loop = self.ast.view_for_expression(index);
+                f.debug_struct("For")
+                    .field("binding", &self.child(for_loop.binding.0))
+                    .field("iterator", &self.child(for_loop.iterator.0))
+                    .field("block", &self.child(for_loop.block.0))
+                    .finish()
+            },
+            NodeTag::IdentifierBinding =>
+                f.debug_struct("IdentifierBinding")
+                .field("name", &self.get_token(left))
+                .field("mutable", &right.bool())
+                .finish(),
+            NodeTag::StructDestructureBinding =>
+                f.debug_struct("StructDestructureBinding")
+                .field("field_name", &self.get_token(left))
+                .field("binding", &self.child(right))
+                .finish(),
             NodeTag::Let => {
                 let let_ = self.ast.view_let_statement(index);
                 if let_.type_.is_some() {
                     f.debug_struct("Let")
-                        .field("name", &self.get_token(let_.name.0))
-                        .field("mutable", &let_.mutable)
+                        .field("name", &self.child(let_.name.0))
                         .field("type", &self.child(let_.type_.unwrap()))
                         .field("assignment", &self.child(let_.assignment.0))
                         .finish()
                 } else {
                     f.debug_struct("Let")
-                        .field("name", &self.get_token(let_.name.0))
-                        .field("mutable", &let_.mutable)
+                        .field("name", &self.child(let_.name.0))
                         .field("assignment", &self.child(let_.assignment.0))
                         .finish()
                 }
@@ -146,7 +169,7 @@ impl<'a> Debug for NodePrinter<'a> {
                 }
             }
 
-            _ => todo!()
+            _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
         }
     }
 }

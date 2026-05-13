@@ -165,17 +165,13 @@ impl<'a> Lexer<'a> {
             b'!' => {
                 if self.match_and_consume("!=") {
                     TokenKind::BangEqual
-                } else if self.match_and_consume("!.") {
-                    TokenKind::BangDot
                 } else {
                     self.advance_current();
                     TokenKind::Bang
                 }
             },
             b'?' => {
-                if self.match_and_consume("?.") {
-                    TokenKind::QuestionDot
-                } else if self.match_and_consume("??.") {
+                if self.match_and_consume("??.") {
                     TokenKind::QuestionQuestionDot
                 } else if self.match_and_consume("??") {
                     TokenKind::QuestionQuestion

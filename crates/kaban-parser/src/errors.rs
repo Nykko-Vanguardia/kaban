@@ -20,4 +20,9 @@ pub enum ParseError {
     MissingRightBrace,
     #[error("Expected Block")]
     MissingBlock,
+    #[error("Expected an Identifier or Destructure Pattern")]
+    MissingIdentifier,
+    //TODO: Make this error actually coherent
+    #[error("Mut expected to be after the : when binding not before")]
+    StructMutBinding,
 }

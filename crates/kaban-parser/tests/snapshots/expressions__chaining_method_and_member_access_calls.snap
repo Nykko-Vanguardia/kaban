@@ -1,0 +1,19 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: items.iter().enumerate();
+
+Block [
+    MethodCall {
+        callee: MethodCall {
+            callee: Identifier("items"),
+            method name: Identifier("iter"),
+            is mutable: false,
+            args: [],
+        },
+        method name: Identifier("enumerate"),
+        is mutable: false,
+        args: [],
+    },
+]

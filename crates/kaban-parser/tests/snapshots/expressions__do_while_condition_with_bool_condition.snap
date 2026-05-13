@@ -12,8 +12,10 @@ Block [
                 args: [],
             },
             Let {
-                name: Identifier("x"),
-                mutable: false,
+                name: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
                 assignment: IntLit("10"),
             },
         ],

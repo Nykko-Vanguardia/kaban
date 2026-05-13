@@ -27,6 +27,10 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...element\]
     /// - extra\[right..right + N\] = NodeId\[N\] (expressions)
     ArrayLit,
+    /// # left: u32 = element count
+    /// # right: ExtraIndex -> \[...element\]
+    /// - extra\[right..right + N\] = NodeId\[N\] (expressions)
+    TupleLit,
     /// # left : 0 | 1 - 1 being true, 0 being false
     BoolLit,
     /// # left: TokenIndex
@@ -108,6 +112,10 @@ pub enum NodeTag {
     /// # right: NodeIndex - Expression
     UnsignedRightShift,
 
+    //Range
+    ExclusiveRange,
+    InclusiveRange,
+
     //Prefix Unary
     /// # left: NodeIndex - Expression
     Negative,
@@ -132,14 +140,19 @@ pub enum NodeTag {
     /// # left: NodeIndex - Expression
     Deref,
     /// # left: NodeIndex - Expression
-    PanicIfErr,
+    PanicIfErrOrNone,
     /// # left: NodeIndex - Expression
-    BubbleIfErr,
+    BubbleIfErrOrNone,
     /// # left: NodeIndex = identifier (expression)
     /// # right: ExtraIndex -> \[arg_count, ...args\]
     /// - extra\[right\]: u32 = arg count
     /// - extra\[right + 1 .. right + 1 + N\] = NodeId\[N\] (arguments)
     FuncCall,
+    /// # left: NodeIndex = identifier/struct name (expression)
+    /// # right: ExtraIndex -> \[field_instantiation_count, ...field_instantiation\]
+    /// - extra\[right\]: u32 = field instantiation count
+    /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = field_instantiations
+    StructInstantiation,
     /// # left: NodeIndex = identifier (expression)
     /// # right: ExtraIndex -> \[safe_bool, index_number\]
     /// - extra\[right\]: 0 | 1 = 1 if safe, 0 if not
@@ -149,16 +162,10 @@ pub enum NodeTag {
     //MemberAccess
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
-    Dot,
+    MemberAccess,
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
-    ExclamationDot,
-    /// # left: NodeIndex - Expression
-    /// # right: NodeIndex - Expression
-    QuestionDot,
-    /// # left: NodeIndex - Expression
-    /// # right: NodeIndex - Expression
-    QuestionQuestionDot,
+    UndefinedChainingAccess,
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
     Colon,
@@ -189,11 +196,10 @@ pub enum NodeTag {
 
 
     //STATEMENTS (No returns)------
-    /// # left: TokenIndex = name
-    /// # right: ExtraIndex -> \[mutable, type, expression\]
-    /// - extra\[right\]: 0 | 1 = 1 if mutable (: operator) 0 if not (. operator)
-    /// - extra\[right + 1\]: NodeIndex | U_NONE = Pointer to type
-    /// - extra\[right + 2\] = Expression
+    /// # left: NodeIndex = IDENTIFIER BINDING NOT TOKEN!!!!
+    /// # right: ExtraIndex -> \[type, expression\]
+    /// - extra\[right\]: NodeIndex | U_NONE = Pointer to type
+    /// - extra\[right + 1\] = Expression
     Let,
     FuncDecl,
     /// # left: NodeIndex | U_NONE = return value
@@ -206,7 +212,13 @@ pub enum NodeTag {
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     While,
+    /// # left: NodeIndex = IDENTIFIER BINDING NOT TOKEN!!!!
+    /// # right: ExtraIndex -> \[iterator, block\]
+    /// - extra\[right\]: NodeIndex = Iterator
+    /// - extra\[right + 1\]: NodeIndex = Block
     For,
+    /// # left: NodeIndex = condition (expression)
+    /// # right: NodeIndex = block or expression (Block)
     StructDecl,
     ClassDecl,
     TypeAliasDecl,
@@ -236,7 +248,6 @@ pub enum NodeTag {
     /// # right: NodeIndex = block (Block)
     DoWhile, //dunno if i should keep this, do while like loop is safe to pass values because they
              //will always run
-    StructInstantiation,
     // AnonymousClassDecl, //Not sure yet
 
     //OTHERS-------------
@@ -294,6 +305,27 @@ pub enum NodeTag {
     Union, // union(i32, f64)
     //TODO:
     Result,
+
+    ///SPECIAL -------------
+    /// # left: TokenIndex = Identifier token
+    /// # right: 1 | 0 = Mutable or not
+    IdentifierBinding, //Decided to added this for binding identifiers let mut x; its also
+                       //applicable to destructures such as let (mut x, mut y);
+    /// # left: TokenIndex = Identifier token for the field name
+    /// # right: NodeIndex = To [IdentifierBinding]
+    /// this is for cases like let {mut x: new_name, y};
+    /// left is the token to x, right is an identifier node containing new_name and mut true
+    /// in the case of y, its automatically added to identifier binding
+    StructDestructureBinding,
+    /// # left: u32 = arg count
+    /// # right: ExtraIndex -> \[...args\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (Identifiers)
+    StructDestructure,
+    /// # left: u32 = arg count
+    /// # right: ExtraIndex -> \[...args\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (Identifiers)
+    TupleDestructure,
+    ArrayDestructure,
 }
 
 impl NodeTag {
@@ -510,6 +542,7 @@ impl ToWrapper for UIndex {
 
 pub trait ToWrapper {
     fn node_index(self) -> NodeIndex;
+    #[allow(dead_code)]
     fn token_index(self) -> TokenIndex;
     fn uoption(self) -> UOption;
 }

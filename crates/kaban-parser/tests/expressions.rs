@@ -69,6 +69,41 @@ fn type_casting_with_nested_union_types() {
 }
 
 #[test]
+fn bubble_up_on_undefined() {
+    test_snapshot!("x?;");   
+}
+
+#[test]
+fn panic_up_on_undefined() {
+    test_snapshot!("x!;");   
+}
+
+#[test]
+fn undefined_coalecing_with_member_access() {
+    test_snapshot!("x ?? foo.bazz;");   
+}
+
+#[test]
+fn  bubble_up_member_access() {
+    test_snapshot!("foo?.bazz;");
+}
+
+#[test]
+fn  panic_member_access() {
+    test_snapshot!("foo!.bazz;");
+}
+
+#[test]
+fn  undefined_chaining_member_access() {
+    test_snapshot!("foo??.bazz;");
+}
+
+#[test]
+fn chaining_method_and_member_access_calls() {
+    test_snapshot!("items.iter().enumerate();");
+}
+
+#[test]
 fn bool_equality() {
     test_snapshot!("x == false;");
 }
@@ -158,6 +193,16 @@ fn while_condition_with_bool_condition_and_braces() {
 #[test]
 fn do_while_condition_with_bool_condition() {
     test_snapshot!("do {foo(); let x = 10;} while (x == 10);");
+}
+
+#[test]
+fn for_condition_with_identifier_binding() {
+    test_snapshot!("for (i in 1..10) {x += i;}");
+}
+
+#[test]
+fn for_condition_with_tuple_destructure_binding_without_braces() {
+    test_snapshot!("for ((i, v,) in items.iter().enumerate()) x += i;");
 }
 
 #[test]

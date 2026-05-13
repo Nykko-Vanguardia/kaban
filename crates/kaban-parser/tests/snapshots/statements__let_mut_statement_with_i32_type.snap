@@ -6,8 +6,10 @@ input: let mut z: i32 = 10 + 5;
 
 Block [
     Let {
-        name: Identifier("z"),
-        mutable: true,
+        name: IdentifierBinding {
+            name: Identifier("z"),
+            mutable: true,
+        },
         type: Type(I32),
         assignment: Add {
             left: IntLit("10"),

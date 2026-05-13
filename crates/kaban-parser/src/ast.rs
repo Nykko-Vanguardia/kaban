@@ -150,6 +150,18 @@ impl<'a> AST<'a> {
         }
     }
 
+    pub fn view_for_expression(&'a self, index: NodeIndex) -> For {
+        debug_assert!(NodeTag::For == self.get_tag(index));
+        let (binding, extra_pointer) = self.get_left_right(index);
+        let iterator = extra_pointer;
+        let block = extra_pointer + 1;
+        For {
+            binding: binding.node_index(),
+            iterator: self.get_one_extra(iterator).node_index(),
+            block: self.get_one_extra(block).node_index(),
+        }
+    }
+
     pub fn view_if_expression(&'a self, index: NodeIndex) -> If {
         debug_assert!(NodeTag::If == self.get_tag(index));
         let (condition, extra_pointer) = self.get_left_right(index);
@@ -166,12 +178,10 @@ impl<'a> AST<'a> {
     pub fn view_let_statement(&'a self, index: NodeIndex) -> Let {
         debug_assert!(NodeTag::Let == self.get_tag(index));
         let (name, extra_pointer) = self.get_left_right(index);
-        let mutable = extra_pointer;
-        let type_ = extra_pointer + 1;
-        let assignment = extra_pointer + 2; 
+        let type_ = extra_pointer;
+        let assignment = extra_pointer + 1; 
         Let {
-            name: name.token_index(),
-            mutable: self.get_one_extra(mutable).bool(),
+            name: name.node_index(),
             type_: self.get_one_extra(type_).uoption(),
             assignment: self.get_one_extra(assignment).node_index(),
         }
@@ -188,6 +198,19 @@ impl<'a> AST<'a> {
             arms: arms.node_index_slice(),
         }
     }
+
+    //This was changed because it could be binded to not an identifier binding (eg. another struct
+    //binding like let {x: {a, b}}). Just call left and right
+    // pub fn view_struct_destructure_binding(&'a self, index: NodeIndex) -> StructDestructureBinding {
+    //     debug_assert!(NodeTag::StructDestructureBinding == self.get_tag(index));
+    //     let (field_name, identifier_binding) = self.get_left_right(index);
+    //     let (new_name, is_mutable) = self.get_left_right(identifier_binding.node_index());
+    //     StructDestructureBinding {
+    //         field_name: field_name.token_index(),
+    //         new_name: new_name.token_index(),
+    //         is_mutable: is_mutable.bool(),
+    //     }
+    // }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -232,6 +255,11 @@ pub struct GeneralList<'a> {
     pub indices: &'a [UIndex],
 }
 
+pub struct For {
+    pub binding: NodeIndex,
+    pub iterator: NodeIndex,
+    pub block: NodeIndex,
+}
 
 pub struct If {
     pub condition: NodeIndex,
@@ -240,8 +268,7 @@ pub struct If {
 }
 
 pub struct Let {
-    pub name: TokenIndex,
-    pub mutable: bool,
+    pub name: NodeIndex,
     pub type_: UOption,
     pub assignment: NodeIndex,
 }
@@ -250,3 +277,9 @@ pub struct Match<'a> {
     pub target: NodeIndex,
     pub arms: &'a[NodeIndex],
 }
+
+// pub struct StructDestructureBinding {
+//     pub field_name: TokenIndex,
+//     pub new_name: TokenIndex,
+//     pub is_mutable: bool,
+// }

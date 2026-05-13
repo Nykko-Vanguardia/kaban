@@ -30,6 +30,10 @@ impl NodeTag {
             NodeTag::RightShift => 10,
             NodeTag::UnsignedRightShift => 10,
 
+            //Range
+            NodeTag::InclusiveRange => 3,
+            NodeTag::ExclusiveRange => 3,
+
             //PrefixUnary
             NodeTag::Negative => 13,
             NodeTag::Not => 13,
@@ -39,16 +43,14 @@ impl NodeTag {
 
             //PostfixUnary
             NodeTag::Deref => 14,
-            NodeTag::PanicIfErr => 14,
-            NodeTag::BubbleIfErr => 14,
+            NodeTag::PanicIfErrOrNone => 14,
+            NodeTag::BubbleIfErrOrNone => 14,
             NodeTag::FuncCall => 14,
             NodeTag::Index => 14,
 
             //MemberAccess
-            NodeTag::Dot => 14,
-            NodeTag::ExclamationDot => 14,
-            NodeTag::QuestionDot => 14,
-            NodeTag::QuestionQuestionDot => 14,
+            NodeTag::MemberAccess => 14,
+            NodeTag::UndefinedChainingAccess => 14,
             NodeTag::Colon => 14,
 
             //Special
@@ -92,20 +94,20 @@ impl NodeTag {
             NodeTag::LeftShift |
             NodeTag::RightShift |
             NodeTag::UnsignedRightShift |
+            NodeTag::InclusiveRange |
+            NodeTag::ExclusiveRange |
             NodeTag::Negative |
             NodeTag::Not |
             NodeTag::BNot |
             NodeTag::New |
             NodeTag::Destruct |
             NodeTag::Deref |
-            NodeTag::PanicIfErr |
-            NodeTag::BubbleIfErr |
+            NodeTag::PanicIfErrOrNone |
+            NodeTag::BubbleIfErrOrNone |
             NodeTag::FuncCall |
             NodeTag::Index |
-            NodeTag::Dot |
-            NodeTag::ExclamationDot |
-            NodeTag::QuestionDot |
-            NodeTag::QuestionQuestionDot |
+            NodeTag::MemberAccess |
+            NodeTag::UndefinedChainingAccess |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |
             NodeTag::As |
@@ -121,8 +123,8 @@ impl NodeTag {
     pub fn is_postfix(&self) -> bool {
         matches!(self, 
             NodeTag::Deref |
-            NodeTag::PanicIfErr |
-            NodeTag::BubbleIfErr |
+            NodeTag::PanicIfErrOrNone |
+            NodeTag::BubbleIfErrOrNone |
             NodeTag::FuncCall |
             NodeTag::Index)
     }
@@ -138,10 +140,8 @@ impl NodeTag {
 
     pub fn is_member_access(&self) -> bool {
         match self {
-            NodeTag::Dot => true,
-            NodeTag::ExclamationDot => true,
-            NodeTag::QuestionDot => true,
-            NodeTag::QuestionQuestionDot => true,
+            NodeTag::MemberAccess |
+            NodeTag::UndefinedChainingAccess |
             NodeTag::Colon => true,
             _ => false,
         }
@@ -171,10 +171,10 @@ impl NodeTag {
             NodeTag::LeftShift |
             NodeTag::RightShift |
             NodeTag::UnsignedRightShift |
-            NodeTag::Dot |
-            NodeTag::ExclamationDot |
-            NodeTag::QuestionDot |
-            NodeTag::QuestionQuestionDot |
+            NodeTag::InclusiveRange |
+            NodeTag::ExclusiveRange |
+            NodeTag::MemberAccess |
+            NodeTag::UndefinedChainingAccess |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |
             NodeTag::As |

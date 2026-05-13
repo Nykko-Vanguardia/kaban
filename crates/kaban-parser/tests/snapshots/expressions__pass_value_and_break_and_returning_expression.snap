@@ -13,6 +13,7 @@ Block [
     ),
     Return(
         MethodCall {
+            callee: Self_,
             method name: Identifier("foo"),
             is mutable: false,
             args: [],

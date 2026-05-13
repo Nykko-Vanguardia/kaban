@@ -6,8 +6,10 @@ input: let x = 10 + 5;
 
 Block [
     Let {
-        name: Identifier("x"),
-        mutable: false,
+        name: IdentifierBinding {
+            name: Identifier("x"),
+            mutable: false,
+        },
         assignment: Add {
             left: IntLit("10"),
             right: IntLit("5"),

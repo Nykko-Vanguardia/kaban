@@ -1,0 +1,36 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: let ((ax, ay), b) = ((10, foo()), 10.5);
+
+Block [
+    Let {
+        name: TupleDestructure [
+            TupleDestructure [
+                IdentifierBinding {
+                    name: Identifier("ax"),
+                    mutable: false,
+                },
+                IdentifierBinding {
+                    name: Identifier("ay"),
+                    mutable: false,
+                },
+            ],
+            IdentifierBinding {
+                name: Identifier("b"),
+                mutable: false,
+            },
+        ],
+        assignment: TupleLit [
+            TupleLit [
+                IntLit("10"),
+                FuncCall {
+                    callee: Identifier("foo"),
+                    args: [],
+                },
+            ],
+            FloatLit("10.5"),
+        ],
+    },
+]

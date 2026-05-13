@@ -1,0 +1,35 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: for ((i, v,) in items.iter().enumerate()) x += i;
+
+Block [
+    For {
+        binding: TupleDestructure [
+            IdentifierBinding {
+                name: Identifier("i"),
+                mutable: false,
+            },
+            IdentifierBinding {
+                name: Identifier("v"),
+                mutable: false,
+            },
+        ],
+        iterator: MethodCall {
+            callee: MethodCall {
+                callee: Identifier("items"),
+                method name: Identifier("iter"),
+                is mutable: false,
+                args: [],
+            },
+            method name: Identifier("enumerate"),
+            is mutable: false,
+            args: [],
+        },
+        block: PlusAssignment {
+            left: Identifier("x"),
+            right: Identifier("i"),
+        },
+    },
+]

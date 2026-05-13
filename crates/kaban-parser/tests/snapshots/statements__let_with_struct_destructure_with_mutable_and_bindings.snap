@@ -1,0 +1,30 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: let {x: mut foo, y: buzz,} = foo();
+
+Block [
+    Let {
+        name: StructDestructure [
+            StructDestructureBinding {
+                field_name: Identifier("x"),
+                binding: IdentifierBinding {
+                    name: Identifier("foo"),
+                    mutable: true,
+                },
+            },
+            StructDestructureBinding {
+                field_name: Identifier("y"),
+                binding: IdentifierBinding {
+                    name: Identifier("buzz"),
+                    mutable: false,
+                },
+            },
+        ],
+        assignment: FuncCall {
+            callee: Identifier("foo"),
+            args: [],
+        },
+    },
+]
