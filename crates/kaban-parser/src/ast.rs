@@ -1,7 +1,7 @@
 use kaban_core::{ToBool, ToUsize, UIndex, source::Source};
 use kaban_lexer::{Token};
 
-use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToWrapper, TokenIndex, UOption};
+use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToOption, ToWrapper, TokenIndex};
 
 pub struct AST<'a> {
     tokens: &'a [Token],
@@ -171,7 +171,7 @@ impl<'a> AST<'a> {
         If {
             condition: condition.node_index(),
             then: self.get_one_extra(then_pointer).node_index(),
-            else_: else_.uoption(),
+            else_: else_.to_option(),
         }
     }
     
@@ -182,7 +182,7 @@ impl<'a> AST<'a> {
         let assignment = extra_pointer + 1; 
         Let {
             name: name.node_index(),
-            type_: self.get_one_extra(type_).uoption(),
+            type_: self.get_one_extra(type_).node_index().to_option(),
             assignment: self.get_one_extra(assignment).node_index(),
         }
     }
@@ -199,18 +199,17 @@ impl<'a> AST<'a> {
         }
     }
 
-    //This was changed because it could be binded to not an identifier binding (eg. another struct
-    //binding like let {x: {a, b}}). Just call left and right
-    // pub fn view_struct_destructure_binding(&'a self, index: NodeIndex) -> StructDestructureBinding {
-    //     debug_assert!(NodeTag::StructDestructureBinding == self.get_tag(index));
-    //     let (field_name, identifier_binding) = self.get_left_right(index);
-    //     let (new_name, is_mutable) = self.get_left_right(identifier_binding.node_index());
-    //     StructDestructureBinding {
-    //         field_name: field_name.token_index(),
-    //         new_name: new_name.token_index(),
-    //         is_mutable: is_mutable.bool(),
-    //     }
-    // }
+    pub fn view_struct_instantiation(&'a self, index: NodeIndex) -> StructInstantiation<'a> {
+        debug_assert!(NodeTag::StructInstantiation == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let field_count = self.get_one_extra(extra_pointer);
+        let field_start = extra_pointer + 1;
+        let field_instantiation = self.get_extra_from_count(field_count, field_start);
+        StructInstantiation {
+            struct_name: struct_name.node_index().to_option(),
+            field_instantiation: field_instantiation.node_index_slice(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -264,12 +263,12 @@ pub struct For {
 pub struct If {
     pub condition: NodeIndex,
     pub then: NodeIndex,
-    pub else_: UOption,
+    pub else_: Option<NodeIndex>,
 }
 
 pub struct Let {
     pub name: NodeIndex,
-    pub type_: UOption,
+    pub type_: Option<NodeIndex>,
     pub assignment: NodeIndex,
 }
 
@@ -278,8 +277,7 @@ pub struct Match<'a> {
     pub arms: &'a[NodeIndex],
 }
 
-// pub struct StructDestructureBinding {
-//     pub field_name: TokenIndex,
-//     pub new_name: TokenIndex,
-//     pub is_mutable: bool,
-// }
+pub struct StructInstantiation<'a> {
+    pub struct_name: Option<NodeIndex>,
+    pub field_instantiation: &'a[NodeIndex],
+}

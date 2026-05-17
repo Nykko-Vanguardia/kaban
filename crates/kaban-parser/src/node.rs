@@ -148,7 +148,7 @@ pub enum NodeTag {
     /// - extra\[right\]: u32 = arg count
     /// - extra\[right + 1 .. right + 1 + N\] = NodeId\[N\] (arguments)
     FuncCall,
-    /// # left: NodeIndex = identifier/struct name (expression)
+    /// # left: NodeIndex | U_NONE = identifier/struct name (expression)
     /// # right: ExtraIndex -> \[field_instantiation_count, ...field_instantiation\]
     /// - extra\[right\]: u32 = field instantiation count
     /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = field_instantiations
@@ -252,6 +252,9 @@ pub enum NodeTag {
 
     //OTHERS-------------
     Params,
+    /// # left: TokenIndex = Field Name (Identifier)
+    /// # right: NodeIndex = Expression
+    StructFieldInstantiation,
     /// # left: NodeIndex = Match Target (Expression)
     /// # right: NodeIndex = Then (Statement or Block)
     MatchArms,
@@ -457,21 +460,37 @@ impl TokenIndex {
     pub fn some(self) -> Option<TokenIndex> {
         Some(self)
     }
+
+}
+
+impl ToOption for TokenIndex {
+    fn to_option(self) -> Option<Self> {
+        match self.0 {
+            U_NONE => None,
+            _ => Some(self)
+        }
+    }
 }
 impl NodeIndex {
     pub fn some(self) -> Option<NodeIndex> {
         Some(self)
     }
+}
 
-    pub fn uoption(self) -> UOption {
-        UOption(self.0)
+impl ToOption for NodeIndex {
+    ///Returns None if U_NONE, else it returns Some
+    fn to_option(self) -> Option<Self> {
+        match self.0 {
+            U_NONE => None,
+            _ => Some(self)
+        }
     }
 }
 
 impl OptionalNode for Option<NodeIndex> {
     ///returns UNONE if none, else returns itself
     #[inline(always)]
-    fn option(self) -> UIndex {
+    fn to_index_or_u_none(self) -> UIndex {
         if let Some(index) = self {
             index.0
         } else {
@@ -481,7 +500,7 @@ impl OptionalNode for Option<NodeIndex> {
 }
 
 pub trait OptionalNode {
-    fn option(self) -> UIndex;
+    fn to_index_or_u_none(self) -> UIndex;
 }
 // impl DataIndex {
 //     pub fn some(self) -> Option<DataIndex> {
@@ -537,40 +556,23 @@ impl ToWrapper for UIndex {
         TokenIndex(self)
     }
 
-    #[inline(always)]
-    fn uoption(self) -> UOption {
-        UOption(self)
-    }
 }
 
 pub trait ToWrapper {
     fn node_index(self) -> NodeIndex;
     #[allow(dead_code)]
     fn token_index(self) -> TokenIndex;
-    fn uoption(self) -> UOption;
 }
 
-//Possible U_NONE UIndex
-pub struct UOption(UIndex);
-
-impl UOption {
-    #[inline(always)]
-    pub fn is_some(&self) -> bool {
-        self.0 != U_NONE
-    }
-
-    #[inline(always)]
-    pub fn unwrap(self) -> UIndex {
-        debug_assert!(self.is_some());
-        self.0
-    }
-
-    #[inline(always)]
-    pub fn unwrap_or(self, fallback: UIndex) -> UIndex {
-        if self.is_some() {
-            self.0
-        } else {
-            fallback
+impl ToOption for UIndex {
+    fn to_option(self) -> Option<Self> {
+        match self {
+            U_NONE => None,
+            _ => Some(self)
         }
     }
+}
+
+pub trait ToOption: Sized {
+    fn to_option(self) -> Option<Self>;
 }

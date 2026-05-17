@@ -2,7 +2,7 @@ use std::fmt::{Debug, Result};
 use kaban_core::{ToBool, UIndex};
 use kaban_lexer::{TokenPrinter};
 
-use crate::{ast::AST, node::{NodeIndex, NodeTag, ToWrapper, TokenIndex, UIndexVec}};
+use crate::{ast::{AST, StructInstantiation}, node::{NodeIndex, NodeTag, ToOption, TokenIndex, UIndexVec}};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -61,6 +61,26 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("args", &self.children(func_call.args.uindex_slice()))
                     .finish()
             }
+            NodeTag::StructInstantiation => {
+                let struct_instantiation: StructInstantiation<'_> = self.ast.view_struct_instantiation(index);
+                if let Some(struct_name) = struct_instantiation.struct_name {
+                    f.debug_struct("StructInstantiation")
+                        .field("name", &self.child(struct_name.0))
+                        .field("fields", &self.children(struct_instantiation.field_instantiation.uindex_slice()))
+                        // .field("fields", &struct_instantiation.field_instantiation)
+                        .finish()
+                } else {
+                    f.debug_struct("StructInstantiation")
+                        .field("name", &"NONE")
+                        .field("fields", &self.children(struct_instantiation.field_instantiation.uindex_slice()))
+                        .finish()
+                }
+            },
+            NodeTag::StructFieldInstantiation => 
+                f.debug_struct("Struct Field")
+                .field("name", &self.get_token(left))
+                .field("assignment", &self.child(right))
+                .finish(),
             NodeTag::New | NodeTag::Destruct => todo!(),
             t if t.is_postfix() || t.is_prefix() => {
                 f.debug_tuple(format!("{:?}", t).as_str())
@@ -96,11 +116,11 @@ impl<'a> Debug for NodePrinter<'a> {
             t if t.is_type() => write!(f, "Type({:?})", t),
             NodeTag::If => {
                 let if_ = self.ast.view_if_expression(index);
-                if if_.else_.is_some() {
+                if let Some(else_) = if_.else_ {
                     f.debug_struct("IfExpression")
                         .field("condition", &self.child(if_.condition.0))
                         .field("then", &self.child(if_.then.0))
-                        .field("else", &self.child(if_.else_.unwrap()))
+                        .field("else", &self.child(else_.0))
                         .finish()
                 } else {
                     f.debug_struct("IfExpression")
@@ -148,10 +168,10 @@ impl<'a> Debug for NodePrinter<'a> {
                 .finish(),
             NodeTag::Let => {
                 let let_ = self.ast.view_let_statement(index);
-                if let_.type_.is_some() {
+                if let Some(type_) = let_.type_ {
                     f.debug_struct("Let")
                         .field("name", &self.child(let_.name.0))
-                        .field("type", &self.child(let_.type_.unwrap()))
+                        .field("type", &self.child(type_.0))
                         .field("assignment", &self.child(let_.assignment.0))
                         .finish()
                 } else {
@@ -163,13 +183,12 @@ impl<'a> Debug for NodePrinter<'a> {
             },
             NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
             NodeTag::Return | NodeTag::Pass => {
-                if left.uoption().is_some() {
+                if let Some(left) = left.to_option() {
                     f.debug_tuple(format!("{:?}", tag).as_str()).field(&self.child(left)).finish()
                 } else {
                     f.debug_tuple(format!("{:?}", tag).as_str()).finish()
                 }
-            }
-
+            },
             _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
         }
     }

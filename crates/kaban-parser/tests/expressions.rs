@@ -123,6 +123,16 @@ fn pass_value_and_break_and_returning_expression() {
     test_snapshot!("pass x + 10; return self.foo();");
 }
 
+
+#[test]
+fn block_with_multiple_assignments_then_pass() {
+    test_snapshot!("x = {
+            let y = 10;
+            let z = 20;
+            pass y + z;
+        };");
+}
+
 #[test]
 fn if_expression_with_braces() {
     test_snapshot!("if (x == 10) {
@@ -149,8 +159,7 @@ fn if_expression_return_with_value() {
 fn if_expression_else_condition_and_braces() {
     test_snapshot!("if (x == 10) { foo(); } else { bazz(); }");
 }
-    // if_expression_else_condition_and_braces
-    // if_expression_else_condition_and_braces_and_multiple_expressions
+
 #[test]
 fn if_expression_else_condition_and_braces_and_multiple_expressions() {
     test_snapshot!("if (x == 10) { foo(); buzz(); } else { bazz(); }");
@@ -213,4 +222,49 @@ fn identifier_assignment_with_binary_operation() {
 #[test]
 fn identifier_modulo_assignment_with_binary_operation() {
     test_snapshot!("x %= 20 * 10 % 30;");
+}
+
+#[test]
+fn named_struct_instantiation_with_explicit_field_declarations() {
+    test_snapshot!("Foo {x: x, y: y};");
+}
+
+#[test]
+fn named_module_struct_instantiation_with_explicit_field_declarations() {
+    test_snapshot!("Foo.Buzz {x: x, y: y};");
+}
+
+#[test]
+fn named_module_struct_instantiation_with_implicit_field_declarations() {
+    test_snapshot!("Foo.Buzz {x, y,};");
+}
+
+#[test]
+fn named_module_struct_instantiation_with_explicit_and_implicit_field_declarations() {
+    test_snapshot!("Foo.Buzz {w: foo() + 10, x, y, z: 10,};");
+}
+
+#[test]
+fn anonymous_struct_instantiation_with_explicit_field_declarations() {
+    test_snapshot!("{x: x, y: y};");
+}
+
+#[test]
+fn anonymous_struct_instantiation_with_implicit_and_explicit_field_declarations() {
+    test_snapshot!("{x, y: y,};");
+}
+
+#[test]
+fn anonymous_struct_instantiation_with_implicit_field_declarations() {
+    test_snapshot!("{x, y,};");
+}
+
+#[test]
+fn anonymous_struct_instantiation_with_single_implicit_field_declarations() {
+    test_snapshot!("{x,};");
+}
+
+#[test]
+fn anonymous_struct_instantiation_with_nested_implicit_and_explicit_field_declarations() {
+    test_snapshot!("{x, y: {a: b, b, c: 20,}};");
 }

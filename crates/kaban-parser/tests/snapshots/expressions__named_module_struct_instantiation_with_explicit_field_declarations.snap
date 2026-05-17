@@ -1,0 +1,24 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: Foo.Buzz {x: x, y: y};
+
+Block [
+    StructInstantiation {
+        name: MemberAccess {
+            left: Identifier("Foo"),
+            right: Identifier("Buzz"),
+        },
+        fields: [
+            Struct Field {
+                name: Identifier("x"),
+                assignment: Identifier("x"),
+            },
+            Struct Field {
+                name: Identifier("y"),
+                assignment: Identifier("y"),
+            },
+        ],
+    },
+]

@@ -200,6 +200,8 @@ impl<'a> Parser<'a> {
                 let tag = if token_kind == TokenKind::Return { NodeTag::Return } else { NodeTag::Pass };
                 self.push_node(tag, return_value, U_NONE)
             },
+            TokenKind::LeftBrace
+                if self.is_anonymous_struct_instantiation() => { advance_after_match = false; self.parse_struct_instantiation(None)? },
             TokenKind::LeftBrace => { advance_after_match = false; self.parse_and_consume_block()? },
             TokenKind::If => { advance_after_match = false; self.parse_if_expression()? },
             TokenKind::While => { advance_after_match = false; self.parse_while_expression()? },
@@ -240,6 +242,7 @@ impl<'a> Parser<'a> {
                 self.push_extra(args.uindex_slice());
                 self.push_node(NodeTag::FuncCall, operand.0, extra_index.0).some()
             },
+            NodeTag::StructInstantiation => self.parse_struct_instantiation(operand.some()),
             NodeTag::Index => {
                 let safe = !self.if_matches_then_consume_bool(TokenKind::Bang);
                 let index = self.parse_expression()?;
@@ -446,7 +449,7 @@ impl<'a> Parser<'a> {
         let assignment = self.parse_expression()?;
         self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
         
-        let extra_pointer = self.push_one_extra(let_type.option());
+        let extra_pointer = self.push_one_extra(let_type.to_index_or_u_none());
         self.push_one_extra(assignment.0);
         self.push_node(NodeTag::Let, binding.0, extra_pointer.0).some()
     }
@@ -468,7 +471,7 @@ impl<'a> Parser<'a> {
             None
         };
         let extra_index = self.push_one_extra(then.0);
-        self.push_one_extra(else_.option());
+        self.push_one_extra(else_.to_index_or_u_none());
         self.push_node(NodeTag::If, condition.0, extra_index.0).some()
     }
 
@@ -525,6 +528,29 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::For, binding.0, extra_pointer.0).some()
     }
 
+    fn parse_struct_instantiation(&mut self, struct_name: Option<NodeIndex>) -> Option<NodeIndex> {
+        //this is because if struct is parsed within the operator loop AKA not in atom or prefix,
+        //the operator { is consumed. If its an atom its not
+        if struct_name.is_none() {
+            self.advance();
+        }
+        let field_instantiations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let field_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+            let assignment = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                p.parse_expression()?
+            } else {
+                p.push_node(NodeTag::Identifier, field_name.index.0, U_NONE)
+            };
+
+            p.push_node(NodeTag::StructFieldInstantiation, field_name.index.0, assignment.0).some()
+        });
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace)?;
+
+        let extra_pointer = self.push_one_extra(field_instantiations.len().uindex());
+        self.push_extra(field_instantiations.uindex_slice());
+        self.push_node(NodeTag::StructInstantiation, struct_name.to_index_or_u_none(), extra_pointer.0).some()
+    }
+
     fn parse_func_decleration_expression(&mut self) -> Option<NodeIndex> {
 
         // self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
@@ -551,9 +577,9 @@ impl<'a> Parser<'a> {
         self.peek_offset(0)
     }
 
-    // fn peek_next(&self) -> &'a Token {
-    //     self.peek_offset(1)
-    // }
+    fn peek_next(&self) -> TokenRef<'a> {
+        self.peek_offset(1)
+    }
 
     fn peek_offset(&self, offset: usize) -> TokenRef<'a> {
         let index = self.current + offset;
@@ -684,6 +710,7 @@ impl<'a> Parser<'a> {
             TokenKind::SlashEquals => NodeTag::DivideAssignment,
             TokenKind::PercentEquals => NodeTag::ModuloAssignment,
             TokenKind::LeftParen => NodeTag::FuncCall,
+            TokenKind::LeftBrace => NodeTag::StructInstantiation,
             _ => return None,
         })
     }
@@ -736,6 +763,17 @@ impl<'a> Parser<'a> {
         }
 
         nodes
+    }
+
+    fn is_anonymous_struct_instantiation(&self) -> bool {
+        debug_assert!(self.peek_current().kind == TokenKind::LeftBrace);
+        let next = self.peek_next().kind;
+        let third = self.peek_offset(2).kind;
+
+        next == TokenKind::Identifier &&
+            (third == TokenKind::Colon ||
+             // third == TokenKind::RightBrace || //decided to remove this, do {x,} for one field
+             third == TokenKind::Comma)
     }
 
     // DEAD CODE:
