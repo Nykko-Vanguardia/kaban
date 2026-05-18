@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
             TokenKind::For => { advance_after_match = false; self.parse_for_expression()? },
             TokenKind::Do => { advance_after_match = false; self.parse_do_while_expression()? },
             TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
-            TokenKind::Func => { advance_after_match = false; self.parse_func_decleration_expression()? },
+            TokenKind::Func => { advance_after_match = false; self.parse_anonymous_func_decleration_expression()? },
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -551,23 +551,31 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::StructInstantiation, struct_name.to_index_or_u_none(), extra_pointer.0).some()
     }
 
-    fn parse_func_decleration_expression(&mut self) -> Option<NodeIndex> {
+    fn parse_anonymous_func_decleration_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
+        let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
+            let identifier_binding = p.parse_identifier_or_destructure()?;
+            let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                p.parse_type_decleration()
+            } else {
+                None
+            };
 
-        // self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
-        // let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
-        //     p.parse_expression()
-        // });
-        // self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
-        // let return_type = if self.if_matches_then_consume_bool(TokenKind::SkinnyArrow) {
-        //     self.parse_type_decleration()?.some()
-        // } else {
-        //     None
-        // };
-        // let extra_pointer = self.push_one_extra(return_type.option());
-        // self.push_extra(param_types.uindex_slice());
-        //
-        // self.push_node(NodeTag::FuncExpressionDecl, param_types.len().uindex(), extra_pointer.0).some()
-        todo!()
+            p.push_node(NodeTag::Params, identifier_binding.0, type_.to_index_or_u_none()).some()
+        });
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        let return_type = if self.if_matches_then_consume_bool(TokenKind::SkinnyArrow) {
+            self.parse_type_decleration()?.some()
+        } else {
+            None
+        };
+        let block = self.parse_expression()?; //Still deciding if i force a block
+        let extra_pointer = self.push_one_extra(return_type.to_index_or_u_none());
+        self.push_one_extra(params.len().uindex());
+        self.push_extra(params.uindex_slice());
+
+        self.push_node(NodeTag::AnonymousFuncDecl, block.0, extra_pointer.0).some()
     }
 }
 

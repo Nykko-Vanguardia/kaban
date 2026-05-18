@@ -210,6 +210,20 @@ impl<'a> AST<'a> {
             field_instantiation: field_instantiation.node_index_slice(),
         }
     }
+
+    pub fn view_anonymous_func_decl(&'a self, index: NodeIndex) -> AnonymousFuncDecl<'a> {
+        debug_assert!(NodeTag::AnonymousFuncDecl == self.get_tag(index));
+        let (body, extra_pointer) = self.get_left_right(index);
+        let return_type = extra_pointer;
+        let param_count = extra_pointer + 1; 
+        let param_start = extra_pointer + 2; 
+        
+        AnonymousFuncDecl { 
+            params: self.get_extra_from_count(self.get_one_extra(param_count), param_start).node_index_slice(),
+            return_type: self.get_one_extra(return_type).node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -280,4 +294,10 @@ pub struct Match<'a> {
 pub struct StructInstantiation<'a> {
     pub struct_name: Option<NodeIndex>,
     pub field_instantiation: &'a[NodeIndex],
+}
+
+pub struct AnonymousFuncDecl<'a> {
+    pub params: &'a[NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
 }

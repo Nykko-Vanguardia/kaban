@@ -2,7 +2,7 @@ use std::fmt::{Debug, Result};
 use kaban_core::{ToBool, UIndex};
 use kaban_lexer::{TokenPrinter};
 
-use crate::{ast::{AST, StructInstantiation}, node::{NodeIndex, NodeTag, ToOption, TokenIndex, UIndexVec}};
+use crate::{ast::{AST, StructInstantiation}, node::{NodeIndex, NodeTag, ToOption, TokenIndex, U_NONE, UIndexVec}};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -156,6 +156,34 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("block", &self.child(for_loop.block.0))
                     .finish()
             },
+            NodeTag::AnonymousFuncDecl => {
+                let func = self.ast.view_anonymous_func_decl(index);
+                if let Some(return_type) = func.return_type {
+                    f.debug_struct("AnonymousFuncDecl")
+                        .field("params", &self.children(func.params.uindex_slice()))
+                        .field("return type", &self.child(return_type.0))
+                        .field("block", &self.child(func.block.0))
+                        .finish()
+                } else {
+                    f.debug_struct("AnonymousFuncDecl")
+                        .field("params", &self.children(func.params.uindex_slice()))
+                        .field("return type", &"NONE")
+                        .field("block", &self.child(func.block.0))
+                        .finish()
+                }
+            },
+            NodeTag::Params =>
+                if right != U_NONE {
+                    f.debug_struct("Param")
+                        .field("binding", &self.child(left))
+                        .field("type", &self.child(right))
+                        .finish()
+                } else {
+                    f.debug_struct("Param")
+                        .field("binding", &self.child(left))
+                        .field("type", &"NONE")
+                        .finish()
+                }
             NodeTag::IdentifierBinding =>
                 f.debug_struct("IdentifierBinding")
                 .field("name", &self.get_token(left))

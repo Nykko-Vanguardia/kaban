@@ -239,11 +239,12 @@ pub enum NodeTag {
     /// - extra\[right\]: UIndex = arms_count (N)
     /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = arms
     Match,
-    /// # left: UIndex = arg count (N)
-    /// # right: ExtraIndex -> \[return_type, args...\]
+    /// # left: NodeIndex = Body
+    /// # right: ExtraIndex -> \[return_type, param_count, args...\]
     /// - extra\[right\]: NodeIndex | U_NONE = return_type
-    /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = parameter types
-    FuncExpressionDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
+    /// - extra\[right + 1\]: NodeIndex = param_count
+    /// - extra\[right + 2 .. right + 2 + N\]: NodeIndex = parameters
+    AnonymousFuncDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     DoWhile, //dunno if i should keep this, do while like loop is safe to pass values because they
@@ -251,6 +252,8 @@ pub enum NodeTag {
     // AnonymousClassDecl, //Not sure yet
 
     //OTHERS-------------
+    /// # left: NodeIndex = Identifier Binding (Expression)
+    /// # right: NodeIndex = Type (Statement or Block)
     Params,
     /// # left: TokenIndex = Field Name (Identifier)
     /// # right: NodeIndex = Expression

@@ -268,3 +268,34 @@ fn anonymous_struct_instantiation_with_single_implicit_field_declarations() {
 fn anonymous_struct_instantiation_with_nested_implicit_and_explicit_field_declarations() {
     test_snapshot!("{x, y: {a: b, b, c: 20,}};");
 }
+
+
+#[test]
+fn anonymous_func_decl_with_explicit_types_and_braces() {
+    test_snapshot!("x = func(x: i32, y: f64) -> i32 { pass x; };");
+}
+
+#[test]
+fn anonymous_func_decl_with_explicit_types_without_braces() {
+    test_snapshot!("x = func(x: i32, y: f64) -> i32 pass x;");
+}
+
+#[test]
+fn anonymous_func_decl_with_implicit_types_and_braces() {
+    test_snapshot!("x = func(x, y) { pass x; };");
+}
+
+#[test]
+fn anonymous_func_decl_with_implicit_types_without_braces() {
+    test_snapshot!("x = func(x, y,) pass x;");
+}
+
+#[test]
+fn anonymous_func_decl_with_mut_and_implicit_and_explicit_types() {
+    test_snapshot!("x = func(mut  x, y: i32,) { let x = 20; pass x; };");
+}
+
+#[test]
+fn passing_a_callback_with_implicit_types() {
+    test_snapshot!("foo(func(a, b) pass a + b, 20);");
+}
