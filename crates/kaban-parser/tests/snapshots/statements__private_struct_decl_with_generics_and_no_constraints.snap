@@ -1,0 +1,33 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: struct Point<T> {pub x: T, pub y: T,}
+
+Block [
+    StructDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("Point"),
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: true,
+                field_name: Identifier("x"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            StructFieldDecleration {
+                is_pub: true,
+                field_name: Identifier("y"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+        ],
+    },
+]

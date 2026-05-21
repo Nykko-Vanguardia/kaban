@@ -217,6 +217,52 @@ impl<'a> Debug for NodePrinter<'a> {
                     f.debug_tuple(format!("{:?}", tag).as_str()).finish()
                 }
             },
+            NodeTag::StructDeclWithNoGeneric => {
+                let struct_decl = self.ast.view_struct_decl_with_no_generics(index);
+                f.debug_struct("StructDeclWithNoGeneric")
+                    .field("is_pub", &struct_decl.is_pub)
+                    .field("name", &self.get_token(struct_decl.struct_name.0))
+                    .field("field_decls", &self.children(struct_decl.field_decls.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::StructDeclWithGeneric => {
+                let struct_decl = self.ast.view_struct_decl_with_generics(index);
+                f.debug_struct("StructDeclWithGeneric")
+                    .field("is_pub", &struct_decl.is_pub)
+                    .field("name", &self.get_token(struct_decl.struct_name.0))
+                    .field("generic_params", &self.children(struct_decl.generic_params.uindex_slice()))
+                    .field("field_decls", &self.children(struct_decl.field_decls.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::StructFieldDecleration => {
+                let field_decl = self.ast.view_struct_field_decl(index);
+                f.debug_struct("StructFieldDecleration")
+                    .field("is_pub", &field_decl.is_pub)
+                    .field("field_name", &self.get_token(field_decl.field_name.0))
+                    .field("type", &self.child(field_decl.type_.0))
+                    .finish()
+            }
+            NodeTag::GenericParam =>
+                if right != U_NONE {
+                    f.debug_struct("GenericParam")
+                        .field("name", &self.get_token(left))
+                        .field("constraint", &self.child(right))
+                        .finish()
+                } else {
+                    f.debug_struct("GenericParam")
+                        .field("name", &self.get_token(left))
+                        .finish()
+                },
+            NodeTag::AndGenericConstaint | NodeTag::OrGenericConstaint => {
+                f.debug_struct(format!("{:?}", tag).as_str())
+                    .field("left", &self.child(left))
+                    .field("right", &self.child(right))
+                    .finish()
+            },
+            NodeTag::InterfaceConstraint => 
+                f.debug_tuple("InterfaceConstraint")
+                .field(&self.get_token(left))
+                .finish(),
             _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
         }
     }

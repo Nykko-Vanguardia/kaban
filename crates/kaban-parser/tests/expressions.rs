@@ -299,3 +299,13 @@ fn anonymous_func_decl_with_mut_and_implicit_and_explicit_types() {
 fn passing_a_callback_with_implicit_types() {
     test_snapshot!("foo(func(a, b) pass a + b, 20);");
 }
+//NOTE: REMOVED
+// #[test]
+// fn anonymous_func_decl_with_generics() {
+//     test_snapshot!("x = func<T>(x: T, y) -> T { pass x; };");
+// }
+//
+// #[test]
+// fn anonymous_func_decl_with_multiple_generics() {
+//     test_snapshot!("x = func<T, U,>(x: T, y: U) -> T { pass x; };");
+// }

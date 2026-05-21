@@ -25,4 +25,6 @@ pub enum ParseError {
     //TODO: Make this error actually coherent
     #[error("Mut expected to be after the : when binding not before")]
     StructMutBinding,
+    #[error("Expected a > symbol to close generics")]
+    MissingGreater,
 }

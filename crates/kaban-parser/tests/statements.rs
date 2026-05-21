@@ -68,3 +68,74 @@ fn let_with_struct_destructure_with_mutable_and_bindings() {
 fn let_with_nested_struct_destructure_with_mutable_and_bindings() {
     test_snapshot!("let {a: {ax: mut foo, mut ay}, b: buzz,} = foo();");
 }
+
+#[test]
+fn private_struct_decl_with_no_generics() {
+    test_snapshot!("struct Point {x: i32, y: i32}");
+}
+
+#[test]
+fn private_struct_decl_with_no_generics_and_public_fields() {
+    test_snapshot!("struct Point {pub x: i32, pub y: i32,}");
+}
+
+#[test]
+fn public_struct_decl_with_no_generics() {
+    test_snapshot!("pub struct Point {x: i32, y: i32}");
+}
+
+#[test]
+fn public_struct_decl_with_no_generics_and_public_fields() {
+    test_snapshot!("struct Point {x: i32, pub y: i32,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_no_constraints() {
+    test_snapshot!("struct Point<T> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_one_i32_constraint() {
+    test_snapshot!("struct Point<T: i32> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_one_i32_or_f64_constraint() {
+    test_snapshot!("struct Point<T: i32 | f64> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_or_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable | impl Debug> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_and_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable & impl Debug> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_and_and_or_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable & impl Debug | impl DebugSerializable> {pub x: T, pub y: T,}");
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_generics_and_parenthesis_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable & (impl Debug | impl DebugSerializable)> {pub x: T, pub y: T,}");
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_multiple_generics() {
+    test_snapshot!("struct Point<T, U,> {pub x: T, pub y: U,}");
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_multiple_generics_and_interface_constraints() {
+    test_snapshot!("struct Point<T: impl Serializable, U: impl Debug,> {pub x: T, pub y: U,}");
+}

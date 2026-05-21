@@ -58,10 +58,12 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> Option<NodeIndex> {
+        let is_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
         let current_token = self.peek_current();
 
         match current_token.kind {
             TokenKind::Let => self.parse_let_statement(),
+            TokenKind::Struct => self.parse_struct_decleration(is_pub),
             _ => { 
                 let expression = self.parse_expression()?; 
                 //Decided to remove expression statement wrapper for now
@@ -284,6 +286,12 @@ impl<'a> Parser<'a> {
         let current_token = self.peek_current();
         let mut advance_after_match = true;
         let mut type_ = match current_token.kind {
+            TokenKind::LeftParen => {
+                self.advance();
+                let type_ = self.parse_type_decleration()?;
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
+                type_
+            }
             TokenKind::I8 => self.push_node(NodeTag::I8, 0, 0),
             TokenKind::I16 => self.push_node(NodeTag::I16, 0, 0),
             TokenKind::I32 => self.push_node(NodeTag::I32, 0, 0),
@@ -352,6 +360,68 @@ impl<'a> Parser<'a> {
         }
 
         Some(type_)
+    }
+
+    fn if_angle_bracket_parse_generic_declerations_else_none(&mut self) -> Option<Vec<NodeIndex>> {
+        if self.if_matches_then_consume_bool(TokenKind::Less) {
+            let generic_list = self.parse_comma_seperated_nodes(TokenKind::Greater, |p| {
+                let name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                let constraint = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                    p.parse_generic_constraint()
+                } else {
+                    None
+                };
+
+                p.push_node(NodeTag::GenericParam, name.index.0, constraint.to_index_or_u_none()).some()
+            });
+            self.must_consume(TokenKind::Greater, ParseError::MissingGreater)?;
+
+            Some(generic_list)
+        } else {
+            None
+        }
+    }
+
+    fn parse_generic_constraint_atom(&mut self) -> Option<NodeIndex> {
+        match self.peek_current().kind {
+            TokenKind::LeftParen => {
+                self.advance();
+                let generic = self.parse_generic_constraint()?;
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                generic
+            }
+            TokenKind::Impl => {
+                self.advance();
+                let interface = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                self.push_node(NodeTag::InterfaceConstraint, interface.index.0, U_NONE)
+            }
+            _ => self.parse_type_decleration()?,
+        }.some()
+    }
+
+    //NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+    //or
+    fn parse_generic_constraint(&mut self) -> Option<NodeIndex> {
+        let mut left = self.parse_generic_constraint_atom()?;
+
+        loop {
+            let current = self.peek_current().kind;
+            match current {
+                TokenKind::Ampersand | TokenKind::Pipe => {
+                    self.advance();
+                    let right = self.parse_generic_constraint_atom()?;
+                    let tag = match current {
+                        TokenKind::Ampersand => NodeTag::AndGenericConstaint,
+                        TokenKind::Pipe => NodeTag::OrGenericConstaint,
+                        _ => unreachable!()
+                    };
+                    left = self.push_node(tag, left.0, right.0);
+                }
+                _ => break 
+            }
+        };
+
+        left.some()
     }
 
     fn parse_member_access_or_method(&mut self, parent: NodeIndex, child: NodeIndex, operator: NodeTag) -> Option<NodeIndex> {
@@ -452,6 +522,36 @@ impl<'a> Parser<'a> {
         let extra_pointer = self.push_one_extra(let_type.to_index_or_u_none());
         self.push_one_extra(assignment.0);
         self.push_node(NodeTag::Let, binding.0, extra_pointer.0).some()
+    }
+    
+    fn parse_struct_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
+
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        let field_declerations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let is_pub = p.if_matches_then_consume_bool(TokenKind::Pub);
+            let field_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+            p.must_consume(TokenKind::Colon, ParseError::ExpectedToken(TokenKind::Colon))?;
+            let type_ = p.parse_type_decleration()?;
+            let extra_pointer = p.push_one_extra(is_pub.uindex());
+            p.push_one_extra(type_.0);
+            p.push_node(NodeTag::StructFieldDecleration, field_name.index.0, extra_pointer.0).some()
+        });
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        if let Some(generics) = generics {
+            self.push_one_extra(generics.len().uindex());
+            self.push_one_extra(field_declerations.len().uindex());
+            self.push_extra(generics.uindex_slice());
+            self.push_extra(field_declerations.uindex_slice());
+            self.push_node(NodeTag::StructDeclWithGeneric, name.index.0, extra_pointer.0).some()
+        } else {
+            self.push_one_extra(field_declerations.len().uindex());
+            self.push_extra(field_declerations.uindex_slice());
+            self.push_node(NodeTag::StructDeclWithNoGeneric, name.index.0, extra_pointer.0).some()
+        }
     }
 
     fn parse_if_expression(&mut self) -> Option<NodeIndex> {

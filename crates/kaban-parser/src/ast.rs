@@ -224,6 +224,50 @@ impl<'a> AST<'a> {
             block: body.node_index(),
         }
     }
+
+    pub fn view_struct_decl_with_no_generics(&'a self, index: NodeIndex) -> StructDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::StructDeclWithNoGeneric == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let field_count = self.get_one_extra(extra_pointer + 1);
+        let field_decls = self.get_extra_from_count(field_count, extra_pointer + 2);
+
+        StructDeclWithNoGenerics {
+            struct_name: struct_name.token_index(),
+            is_pub: is_pub.bool(),
+            field_decls: field_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_struct_decl_with_generics(&'a self, index: NodeIndex) -> StructDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::StructDeclWithGeneric == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let generic_count = self.get_one_extra(extra_pointer + 1);
+        let field_count = self.get_one_extra(extra_pointer + 2);
+        let generic_params = self.get_extra_from_count(generic_count, extra_pointer + 3);
+        let field_decls = self.get_extra_from_count(field_count, extra_pointer + 3 + generic_count);
+
+        StructDeclWithGenerics {
+            struct_name: struct_name.token_index(),
+            is_pub: is_pub.bool(),
+            generic_params: generic_params.node_index_slice(),
+            field_decls: field_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_struct_field_decl(&'a self, index: NodeIndex) -> StructFieldDecl {
+        debug_assert!(NodeTag::StructFieldDecleration == self.get_tag(index));
+        let (field_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let type_ = self.get_one_extra(extra_pointer + 1);
+
+        StructFieldDecl {
+            is_pub: is_pub.bool(),
+            field_name: field_name.token_index(),
+            type_: type_.node_index(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -300,4 +344,23 @@ pub struct AnonymousFuncDecl<'a> {
     pub params: &'a[NodeIndex],
     pub return_type: Option<NodeIndex>,
     pub block: NodeIndex,
+}
+
+pub struct StructDeclWithNoGenerics<'a> {
+    pub struct_name: TokenIndex,
+    pub is_pub: bool,
+    pub field_decls: &'a [NodeIndex],
+}
+
+pub struct StructDeclWithGenerics<'a> {
+    pub struct_name: TokenIndex,
+    pub is_pub: bool,
+    pub generic_params: &'a [NodeIndex],
+    pub field_decls: &'a [NodeIndex],
+}
+
+pub struct StructFieldDecl {
+    pub is_pub: bool,
+    pub field_name: TokenIndex,
+    pub type_: NodeIndex,
 }

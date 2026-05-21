@@ -217,9 +217,20 @@ pub enum NodeTag {
     /// - extra\[right\]: NodeIndex = Iterator
     /// - extra\[right + 1\]: NodeIndex = Block
     For,
-    /// # left: NodeIndex = condition (expression)
-    /// # right: NodeIndex = block or expression (Block)
-    StructDecl,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, field_count, fields...\]
+    /// - extra\[right\]: 1 | 0 = is entire stuct pub?
+    /// - extra\[right + 1\]: UIndex = number of fields (N)
+    /// - extra\[right + 2..right + 2 + N\]: NodeIndex\[N\] = [StructFieldDecleration]
+    StructDeclWithNoGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> [Pub, generic_count, field_count, generics..., fields...]
+    /// - extra\[right\]: 1 | 0 = is entire struct pub?
+    /// - extra\[right + 1\]: UIndex = number of generic params (N)
+    /// - extra\[right + 2\]: UIndex = number of template fields (M)
+    /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 3 + N..right + 3 + N + M\]: NodeIndex\[M\] = \[StructFieldDecleration\]
+    StructDeclWithGeneric,
     ClassDecl,
     TypeAliasDecl,
     EnumDecl,
@@ -242,25 +253,25 @@ pub enum NodeTag {
     /// # left: NodeIndex = Body
     /// # right: ExtraIndex -> \[return_type, param_count, args...\]
     /// - extra\[right\]: NodeIndex | U_NONE = return_type
-    /// - extra\[right + 1\]: NodeIndex = param_count
+    /// - extra\[right + 1\]: UIndex = param_count
     /// - extra\[right + 2 .. right + 2 + N\]: NodeIndex = parameters
     AnonymousFuncDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
+    
+    //NOTE: THIS WAS REMOVED, blurry chance this gets added back
+    /// # left: NodeIndex = Body
+    /// # right: ExtraIndex -> [return_type, generic_count, param_count, generics..., parameters...]
+    /// - extra\[right\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 1\]: UIndex = number of generic params (N)
+    /// - extra\[right + 2\]: UIndex = number of parameters (M)
+    /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 3 + N..right + 3 + N + M\]: NodeIndex\[M\] = \[FuncParameterDeclaration\]
+    // AnonymousFuncDeclWithGenerics,
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     DoWhile, //dunno if i should keep this, do while like loop is safe to pass values because they
              //will always run
     // AnonymousClassDecl, //Not sure yet
 
-    //OTHERS-------------
-    /// # left: NodeIndex = Identifier Binding (Expression)
-    /// # right: NodeIndex = Type (Statement or Block)
-    Params,
-    /// # left: TokenIndex = Field Name (Identifier)
-    /// # right: NodeIndex = Expression
-    StructFieldInstantiation,
-    /// # left: NodeIndex = Match Target (Expression)
-    /// # right: NodeIndex = Then (Statement or Block)
-    MatchArms,
 
     //TYPES
     I8,
@@ -311,12 +322,49 @@ pub enum NodeTag {
     Union, // union(i32, f64)
     //TODO:
     Result,
+    
+    //Generic Constaints
+    /// # left: TokenIndex = Interface (Identifier)
+    /// eg. <T: impl Serializable>
+    InterfaceConstraint,
+    /// # left: NodeIndex = Interface Constaint or Type
+    /// # right: NodeIndex = Interface Constaint or Type
+    /// eg. <T: impl Serializable & impl Printable>
+    AndGenericConstaint,
+    /// # left: NodeIndex = Interface Constaint or Type
+    /// # right: NodeIndex = Interface Constaint or Type
+    /// eg. <T: impl Serializable | impl Printable>
+    OrGenericConstaint,
 
+    //OTHERS-------------
+    /// # left: NodeIndex = Identifier Binding (Expression)
+    /// # right: NodeIndex = Type (Statement or Block)
+    Params,
+    /// # left: TokenIndex = Identifier (like T)
+    /// # right: NodeIndex | U_NONE = GenericConstaint
+    GenericParam,
+    /// This is different from [StructFieldInstantiation], this is for struct
+    /// decleration (eg. struct Person {id: i32})
+    /// # left: TokenIndex = Field Name (Identifier)
+    /// # right: NodeIndex = Expression
+    /// # right: ExtraIndex -> \[is pub?, type\]
+    /// - extra\[right\]: 1 | 0 = is pub?
+    /// - extra\[right + 1\]: NodeIndex = type
+    StructFieldDecleration,
+    /// This is different from [StructFieldDecleration], this is for struct
+    /// decleration (eg. Person {id: i32})
+    /// # left: TokenIndex = Field Name (Identifier)
+    /// # right: NodeIndex = Expression
+    StructFieldInstantiation,
+    /// # left: NodeIndex = Match Target (Expression)
+    /// # right: NodeIndex = Then (Statement or Block)
+    MatchArms,
     ///SPECIAL -------------
     /// # left: TokenIndex = Identifier token
     /// # right: 1 | 0 = Mutable or not
     IdentifierBinding, //Decided to added this for binding identifiers let mut x; its also
                        //applicable to destructures such as let (mut x, mut y);
+
     /// # left: TokenIndex = Identifier token for the field name
     /// # right: NodeIndex = To [IdentifierBinding]
     /// this is for cases like let {mut x: new_name, y};
