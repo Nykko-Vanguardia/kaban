@@ -139,3 +139,28 @@ fn private_struct_decl_with_multiple_generics() {
 fn private_struct_decl_with_multiple_generics_and_interface_constraints() {
     test_snapshot!("struct Point<T: impl Serializable, U: impl Debug,> {pub x: T, pub y: U,}");
 }
+
+#[test]
+fn private_enum_decl_with_tags_only() {
+    test_snapshot!("enum Day {Sunday, Monday, Tuesday}");
+}
+
+#[test]
+fn public_enum_decl_with_tags_only() {
+    test_snapshot!("pub enum Day {Sunday, Monday, Tuesday}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments() {
+    test_snapshot!("enum Day {Sunday: i32, Monday: f64, Tuesday,}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments_and_generics() {
+    test_snapshot!("enum Day<T> {Sunday: i32, Monday: f64, Tuesday: T,}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments_and_struct_and_tuple_decl() {
+    test_snapshot!("enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}");
+}

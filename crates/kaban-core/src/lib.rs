@@ -42,6 +42,7 @@ pub trait ToUIndex {
 }
 
 impl ToUIndex for bool {
+    ///RETURNS 1 IF TRUE, 0 IF FALSE
     #[inline(always)]
     fn uindex(self) -> UIndex {
         if self == true {

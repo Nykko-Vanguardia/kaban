@@ -64,6 +64,7 @@ impl<'a> Parser<'a> {
         match current_token.kind {
             TokenKind::Let => self.parse_let_statement(),
             TokenKind::Struct => self.parse_struct_decleration(is_pub),
+            TokenKind::Enum => self.parse_enum_decleration(is_pub),
             _ => { 
                 let expression = self.parse_expression()?; 
                 //Decided to remove expression statement wrapper for now
@@ -287,10 +288,20 @@ impl<'a> Parser<'a> {
         let mut advance_after_match = true;
         let mut type_ = match current_token.kind {
             TokenKind::LeftParen => {
+                advance_after_match = false;
                 self.advance();
-                let type_ = self.parse_type_decleration()?;
-                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
-                type_
+                let first_type_ = self.parse_type_decleration()?;
+                if self.if_matches_then_consume_bool(TokenKind::Comma) {
+                    let the_rest_of_the_types = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| p.parse_type_decleration());
+                    self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                    const FIRST_TYPE_LEN: u32 = 1;
+                    let extra_pointer = self.push_one_extra(first_type_.0);
+                    self.push_extra(the_rest_of_the_types.uindex_slice());
+                    self.push_node(NodeTag::TupleType, the_rest_of_the_types.len().uindex() + FIRST_TYPE_LEN, extra_pointer.0)
+                } else {
+                    self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+                    first_type_
+                }
             }
             TokenKind::I8 => self.push_node(NodeTag::I8, 0, 0),
             TokenKind::I16 => self.push_node(NodeTag::I16, 0, 0),
@@ -321,6 +332,47 @@ impl<'a> Parser<'a> {
                 let extra = self.push_extra(types.uindex_slice());
                 self.push_node(NodeTag::Union, types.len().uindex(), extra.0)
             }
+            TokenKind::Struct => {
+                advance_after_match = false;
+                self.advance();
+                self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+                let field_declerations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+                    let field_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                    p.must_consume(TokenKind::Colon, ParseError::ExpectedToken(TokenKind::Colon))?;
+                    let type_ = p.parse_type_decleration()?;
+                    p.push_node(NodeTag::AnonymousStructFieldDecl, field_name.index.0, type_.0).some()
+                });
+                self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+                let extra_pointer = self.push_extra(field_declerations.uindex_slice());
+
+                self.push_node(NodeTag::AnonymousStructType, field_declerations.len().uindex(), extra_pointer.0)
+            }
+            TokenKind::Func => {
+                advance_after_match = false;
+                self.advance();
+                self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
+                let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
+                    let is_mut = p.if_matches_then_consume_bool(TokenKind::Mut).uindex();
+                    let identifier = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+                    let identifier_binding = p.push_node(NodeTag::IdentifierBinding, identifier.index.0, is_mut);
+
+                    p.must_consume(TokenKind::Colon, ParseError::MissingTypeDeclaration)?;
+                    let type_ = p.parse_type_decleration()?;
+
+                    p.push_node(NodeTag::Params, identifier_binding.0, type_.0).some()
+                });
+                self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+
+                let return_type = if self.if_matches_then_consume_bool(TokenKind::SkinnyArrow) {
+                    self.parse_type_decleration()?.some()
+                } else {
+                    None
+                };
+                let extra_pointer = self.push_one_extra(params.len().uindex());
+                self.push_extra(params.uindex_slice());
+
+                self.push_node(NodeTag::FuncType, return_type.to_index_or_u_none(), extra_pointer.0)
+            }
             _ => {
                 self.error_recovery(ParseError::MissingTypeDeclaration);
                 return None;
@@ -350,6 +402,15 @@ impl<'a> Parser<'a> {
                         self.must_consume(TokenKind::RightBracket, ParseError::MissingRightBracket)?;
                         self.push_node(NodeTag::FixedArrayType, type_.0, size.0)
                     }
+                }
+                TokenKind::Less => {
+                    advance_after_match = false;
+                    self.advance();
+                    let types = self.parse_comma_seperated_nodes(TokenKind::Greater, |p| p.parse_type_decleration());
+                    self.must_consume(TokenKind::Greater, ParseError::MissingGreater);
+                    let extra_pointer = self.push_one_extra(types.len().uindex());
+                    self.push_extra(types.uindex_slice());
+                    self.push_node(NodeTag::TypeWithGenerics, type_.0, extra_pointer.0)
                 }
                 _ => break,
             };
@@ -551,6 +612,37 @@ impl<'a> Parser<'a> {
             self.push_one_extra(field_declerations.len().uindex());
             self.push_extra(field_declerations.uindex_slice());
             self.push_node(NodeTag::StructDeclWithNoGeneric, name.index.0, extra_pointer.0).some()
+        }
+    }
+
+    fn parse_enum_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
+
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        let enum_variant_declerations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let variant_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+            let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                p.parse_type_decleration()
+            } else {
+                None
+            };
+
+            p.push_node(NodeTag::EnumVariantDecl, variant_name.index.0, type_.to_index_or_u_none()).some()
+        });
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        if let Some(generics) = generics {
+            self.push_one_extra(generics.len().uindex());
+            self.push_one_extra(enum_variant_declerations.len().uindex());
+            self.push_extra(generics.uindex_slice());
+            self.push_extra(enum_variant_declerations.uindex_slice());
+            self.push_node(NodeTag::EnumDeclWithGeneric, name.index.0, extra_pointer.0).some()
+        } else {
+            self.push_one_extra(enum_variant_declerations.len().uindex());
+            self.push_extra(enum_variant_declerations.uindex_slice());
+            self.push_node(NodeTag::EnumDeclWithNoGeneric, name.index.0, extra_pointer.0).some()
         }
     }
 

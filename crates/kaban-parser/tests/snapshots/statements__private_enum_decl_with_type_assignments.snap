@@ -1,0 +1,26 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: enum Day {Sunday: i32, Monday: f64, Tuesday,}
+
+Block [
+    EnumDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Day"),
+        variant_decls: [
+            EnumVariantDecl {
+                variant_name: Identifier("Sunday"),
+                type: Type(I32),
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Monday"),
+                type: Type(F64),
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Tuesday"),
+                type: "NONE",
+            },
+        ],
+    },
+]

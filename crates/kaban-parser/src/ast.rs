@@ -128,6 +128,29 @@ impl<'a> AST<'a> {
         }
     }
 
+    pub fn view_func_type(&'a self, index: NodeIndex) -> FuncType<'a> {
+        debug_assert!(NodeTag::FuncType == self.get_tag(index));
+        let (return_type, extra_pointer) = self.get_left_right(index);
+        let param_count = self.get_one_extra(extra_pointer); 
+        let params = self.get_extra_from_count(param_count, extra_pointer + 1);
+        
+        FuncType {
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+        }
+    }
+
+    pub fn view_type_with_generics(&'a self, index: NodeIndex) -> TypeWithGenerics<'a> {
+        debug_assert!(NodeTag::TypeWithGenerics == self.get_tag(index));
+        let (type_, extra) = self.get_left_right(index);
+        let generic_arg_count = self.get_one_extra(extra);
+        let generics_args = self.get_extra_from_count(generic_arg_count, extra + 1);
+        TypeWithGenerics {
+            type_: type_.node_index(),
+            generic_args: generics_args.node_index_slice(),
+        }
+    }
+
     pub fn view_block(&'a self, index: NodeIndex) -> Block<'a> {
         debug_assert!(NodeTag::Block == self.get_tag(index));
         let general_list = self.view_general_list(index);
@@ -268,6 +291,37 @@ impl<'a> AST<'a> {
             type_: type_.node_index(),
         }
     }
+
+    pub fn view_enum_decl_with_no_generics(&'a self, index: NodeIndex) -> EnumDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::EnumDeclWithNoGeneric == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let variant_count = self.get_one_extra(extra_pointer + 1);
+        let variant_decls = self.get_extra_from_count(variant_count, extra_pointer + 2);
+
+        EnumDeclWithNoGenerics {
+            name: struct_name.token_index(),
+            is_pub: is_pub.bool(),
+            variant_decls: variant_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_enum_decl_with_generics(&'a self, index: NodeIndex) -> EnumDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::EnumDeclWithGeneric == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let generic_count = self.get_one_extra(extra_pointer + 1);
+        let variant_count = self.get_one_extra(extra_pointer + 2);
+        let generic_params = self.get_extra_from_count(generic_count, extra_pointer + 3);
+        let variant_decls = self.get_extra_from_count(variant_count, extra_pointer + 3 + generic_count);
+
+        EnumDeclWithGenerics {
+            name: struct_name.token_index(),
+            is_pub: is_pub.bool(),
+            generic_params: generic_params.node_index_slice(),
+            variant_decls: variant_decls.node_index_slice(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -300,6 +354,16 @@ pub struct ArrayLit<'a> {
 pub struct Union<'a> {
     pub len: UIndex,
     pub types: &'a [NodeIndex],
+}
+
+pub struct FuncType<'a> {
+    pub params: &'a[NodeIndex],
+    pub return_type: Option<NodeIndex>,
+}
+
+pub struct TypeWithGenerics<'a> {
+    pub type_: NodeIndex,
+    pub generic_args: &'a[NodeIndex]
 }
 
 pub struct Block<'a> {
@@ -363,4 +427,17 @@ pub struct StructFieldDecl {
     pub is_pub: bool,
     pub field_name: TokenIndex,
     pub type_: NodeIndex,
+}
+
+pub struct EnumDeclWithNoGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub variant_decls: &'a [NodeIndex],
+}
+
+pub struct EnumDeclWithGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub generic_params: &'a [NodeIndex],
+    pub variant_decls: &'a [NodeIndex],
 }

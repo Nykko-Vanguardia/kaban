@@ -69,6 +69,11 @@ fn type_casting_with_nested_union_types() {
 }
 
 #[test]
+fn type_casting_with_types_with_generics() {
+    test_snapshot!("x as HashMap<String, i32>;");
+}
+
+#[test]
 fn bubble_up_on_undefined() {
     test_snapshot!("x?;");   
 }
@@ -293,6 +298,18 @@ fn anonymous_func_decl_with_implicit_types_without_braces() {
 #[test]
 fn anonymous_func_decl_with_mut_and_implicit_and_explicit_types() {
     test_snapshot!("x = func(mut  x, y: i32,) { let x = 20; pass x; };");
+}
+
+#[test]
+fn anonymous_func_decl_with_concrete_func_type() {
+    test_snapshot!("let x: func(x: i32, y: i32) -> i32 = func(x, y) pass x + y;");
+}
+
+///Decided it was a good idea to add mut to function types, you can explicitly say the function i
+///expect needs a mutable param x
+#[test]
+fn anonymous_func_decl_with_concrete_func_type_and_mut_params() {
+    test_snapshot!("let x: func(mut x: i32, y: i32) -> i32 = func(mut x, y) pass x + y;");
 }
 
 #[test]

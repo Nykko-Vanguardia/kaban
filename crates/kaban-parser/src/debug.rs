@@ -39,6 +39,8 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::TupleDestructure |
             NodeTag::StructDestructure |
             NodeTag::ArrayDestructure |
+            NodeTag::TupleType |
+            NodeTag::AnonymousStructType |
             NodeTag::TupleLit => {
                 let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;
@@ -98,6 +100,27 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_tuple("NamedType")
                     .field(&self.get_token(left))
                     .finish()
+            },
+            NodeTag::TypeWithGenerics => {
+                let type_with_generics = self.ast.view_type_with_generics(index);
+                f.debug_struct("TypeWithGenerics")
+                    .field("type", &self.child(type_with_generics.type_.0))
+                    .field("generic_args", &self.children(type_with_generics.generic_args.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::FuncType => {
+                let func_type = self.ast.view_func_type(index);
+                if let Some(return_type) = func_type.return_type {
+                    f.debug_struct("FuncType")
+                        .field("params", &self.children(func_type.params.uindex_slice()))
+                        .field("return type", &self.child(return_type.0))
+                        .finish()
+                } else {
+                    f.debug_struct("FuncType")
+                        .field("params", &self.children(func_type.params.uindex_slice()))
+                        .field("return type", &"NONE")
+                        .finish()
+                }
             },
             t if t.is_simple_modifier_type() => {
                 f.debug_tuple(format!("{:?}", t).as_str())
@@ -242,6 +265,40 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("type", &self.child(field_decl.type_.0))
                     .finish()
             }
+            NodeTag::AnonymousStructFieldDecl =>
+                f.debug_struct("AnonymousStructFieldDecl")
+                .field("field_name", &self.get_token(left))
+                .field("type", &self.child(right))
+                .finish(),
+            NodeTag::EnumDeclWithNoGeneric => {
+                let enum_decl = self.ast.view_enum_decl_with_no_generics(index);
+                f.debug_struct("EnumDeclWithNoGeneric")
+                    .field("is_pub", &enum_decl.is_pub)
+                    .field("name", &self.get_token(enum_decl.name.0))
+                    .field("variant_decls", &self.children(enum_decl.variant_decls.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::EnumDeclWithGeneric => {
+                let enum_decl = self.ast.view_enum_decl_with_generics(index);
+                f.debug_struct("EnumDeclWithGeneric")
+                    .field("is_pub", &enum_decl.is_pub)
+                    .field("name", &self.get_token(enum_decl.name.0))
+                    .field("generic_params", &self.children(enum_decl.generic_params.uindex_slice()))
+                    .field("variant_decls", &self.children(enum_decl.variant_decls.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::EnumVariantDecl =>
+                if right != U_NONE {
+                    f.debug_struct("EnumVariantDecl")
+                        .field("variant_name", &self.get_token(left))
+                        .field("type", &self.child(right))
+                        .finish()
+                } else {
+                    f.debug_struct("EnumVariantDecl")
+                        .field("variant_name", &self.get_token(left))
+                        .field("type", &"NONE")
+                        .finish()
+                },
             NodeTag::GenericParam =>
                 if right != U_NONE {
                     f.debug_struct("GenericParam")

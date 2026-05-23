@@ -231,6 +231,20 @@ pub enum NodeTag {
     /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = \[GenericParam\]
     /// - extra\[right + 3 + N..right + 3 + N + M\]: NodeIndex\[M\] = \[StructFieldDecleration\]
     StructDeclWithGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, enum_variant_count, enum_variants...\]
+    /// - extra\[right\]: 1 | 0 = is entire stuct pub?
+    /// - extra\[right + 1\]: UIndex = number of enum_variants (N)
+    /// - extra\[right + 2..right + 2 + N\]: NodeIndex\[N\] = [EnumVariantDecl]
+    EnumDeclWithNoGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> [Pub, generic_count, enum_variant_count, generics..., enum_variants...]
+    /// - extra\[right\]: 1 | 0 = is entire struct pub?
+    /// - extra\[right + 1\]: UIndex = number of generic params (N)
+    /// - extra\[right + 2\]: UIndex = number of enum_variants (M)
+    /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 3 + N..right + 3 + N + M\]: NodeIndex\[M\] = \[EnumVariantDecl\]
+    EnumDeclWithGeneric,
     ClassDecl,
     TypeAliasDecl,
     EnumDecl,
@@ -310,18 +324,39 @@ pub enum NodeTag {
     FixedArrayType, // T[N]
     /// # left: NodeIndex - Type(Recursive)
     DynArrayType, // T[]
+    /// T<i32, f64>
+    /// # left: NodeIndex - Type(Recursive)
+    /// # right: ExtraIndex -> \[arg_count, ...args\]
+    /// - extra\[right\]: u32 = arg count
+    /// - extra\[right + 1 .. right + 1 + N\] = NodeId\[N\] (Types)
+    TypeWithGenerics,
 
     //user defined
     /// # left: TokenIndex - Name(Recursive)
     NamedType, // Person, MyStruct etc
 
     //compound
-    /// # left: u32 = arg count
-    /// # right: ExtraIndex -> \[...args\]
+    /// # left: u32 = type count
+    /// # right: ExtraIndex -> \[...types\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] (Types)
     Union, // union(i32, f64)
     //TODO:
     Result,
+    /// # left: u32 = type count
+    /// # right: ExtraIndex -> \[...types\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (Types)
+    TupleType,
+    /// # left: u32 = field count (N)
+    /// # right: ExtraIndex -> \[...field\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (AnonymousStructFieldDecl)
+    AnonymousStructType,
+    /// # left: NodeIndex | U_NONE = return_type
+    /// # right: ExtraIndex -> \[param_count, args...\]
+    /// - extra\[right\]: UIndex = param_count
+    /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = parameters
+    /// NOTE: PARAM LEFT IS ALWAYS AN IDENTIFIER BINDING, NEVER DESTRUCTURS, ALWAYS IN THE FORM OF
+    /// MUT OR NOT MUT THEN IDENTIFIER
+    FuncType,
     
     //Generic Constaints
     /// # left: TokenIndex = Interface (Identifier)
@@ -346,16 +381,21 @@ pub enum NodeTag {
     /// This is different from [StructFieldInstantiation], this is for struct
     /// decleration (eg. struct Person {id: i32})
     /// # left: TokenIndex = Field Name (Identifier)
-    /// # right: NodeIndex = Expression
     /// # right: ExtraIndex -> \[is pub?, type\]
     /// - extra\[right\]: 1 | 0 = is pub?
     /// - extra\[right + 1\]: NodeIndex = type
     StructFieldDecleration,
+    /// # left: TokenIndex = Field Name (Identifier)
+    /// # right: NodeIndex = Type
+    AnonymousStructFieldDecl,
     /// This is different from [StructFieldDecleration], this is for struct
     /// decleration (eg. Person {id: i32})
     /// # left: TokenIndex = Field Name (Identifier)
     /// # right: NodeIndex = Expression
     StructFieldInstantiation,
+    /// # left: TokenIndex = Identifier
+    /// # right: NodeIndex | U_NONE = Type (could be none)
+    EnumVariantDecl,
     /// # left: NodeIndex = Match Target (Expression)
     /// # right: NodeIndex = Then (Statement or Block)
     MatchArms,
