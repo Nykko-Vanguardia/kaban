@@ -210,6 +210,20 @@ impl<'a> AST<'a> {
         }
     }
 
+    pub fn view_const_statement(&'a self, index: NodeIndex) -> Const {
+        debug_assert!(NodeTag::Const == self.get_tag(index));
+        let (identifier, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let type_ = self.get_one_extra(extra_pointer + 1);
+        let assignment = self.get_one_extra(extra_pointer + 2);
+        Const {
+            is_pub: is_pub.bool(),
+            identifier: identifier.token_index(),
+            type_: type_.node_index(),
+            assignment: assignment.node_index(),
+        }
+    }
+
     pub fn view_match_expression(&'a self, index: NodeIndex) -> Match<'a> {
         debug_assert!(NodeTag::Match == self.get_tag(index));
         let (target, extra_pointer) = self.get_left_right(index);
@@ -391,6 +405,13 @@ pub struct If {
 pub struct Let {
     pub name: NodeIndex,
     pub type_: Option<NodeIndex>,
+    pub assignment: NodeIndex,
+}
+
+pub struct Const {
+    pub is_pub: bool,
+    pub identifier: TokenIndex,
+    pub type_: NodeIndex,
     pub assignment: NodeIndex,
 }
 

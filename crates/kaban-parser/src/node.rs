@@ -201,6 +201,12 @@ pub enum NodeTag {
     /// - extra\[right\]: NodeIndex | U_NONE = Pointer to type
     /// - extra\[right + 1\] = Expression
     Let,
+    /// # left: TokenIndex = Identifier token
+    /// # right: ExtraIndex -> \[is_pub?, type, expression\]
+    /// - extra\[right\]: 1 | 0 = is public?
+    /// - extra\[right + 1\]: NodeIndex= Pointer to type
+    /// - extra\[right + 2\] = Expression
+    Const,
     FuncDecl,
     /// # left: NodeIndex | U_NONE = return value
     Return,

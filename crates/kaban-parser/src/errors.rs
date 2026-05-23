@@ -27,4 +27,6 @@ pub enum ParseError {
     StructMutBinding,
     #[error("Expected a > symbol to close generics")]
     MissingGreater,
+    #[error("Let statements can not be public, try using const at the top level")]
+    PubInLet,
 }

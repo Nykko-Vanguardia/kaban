@@ -232,6 +232,15 @@ impl<'a> Debug for NodePrinter<'a> {
                         .finish()
                 }
             },
+            NodeTag::Const => {
+                let const_ = self.ast.view_const_statement(index);
+                f.debug_struct("Const")
+                    .field("is_pub", &const_.is_pub)
+                    .field("name", &self.get_token(const_.identifier.0))
+                    .field("type", &self.child(const_.type_.0))
+                    .field("assignment", &self.child(const_.assignment.0))
+                    .finish()
+            },
             NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
             NodeTag::Return | NodeTag::Pass => {
                 if let Some(left) = left.to_option() {

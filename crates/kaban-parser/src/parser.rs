@@ -62,7 +62,11 @@ impl<'a> Parser<'a> {
         let current_token = self.peek_current();
 
         match current_token.kind {
-            TokenKind::Let => self.parse_let_statement(),
+            TokenKind::Let => { 
+                if is_pub { self.error_recovery(ParseError::PubInLet); }
+                self.parse_let_statement()
+            },
+            TokenKind::Const => self.parse_const_statement(is_pub),
             TokenKind::Struct => self.parse_struct_decleration(is_pub),
             TokenKind::Enum => self.parse_enum_decleration(is_pub),
             _ => { 
@@ -583,6 +587,22 @@ impl<'a> Parser<'a> {
         let extra_pointer = self.push_one_extra(let_type.to_index_or_u_none());
         self.push_one_extra(assignment.0);
         self.push_node(NodeTag::Let, binding.0, extra_pointer.0).some()
+    }
+
+    fn parse_const_statement(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let identifier = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        self.must_consume(TokenKind::Colon, ParseError::MissingTypeDeclaration)?;
+        let type_ = self.parse_type_decleration()?;
+
+        self.must_consume(TokenKind::Equals, ParseError::ExpectedToken(TokenKind::Equals))?;
+        let assignment = self.parse_expression()?;
+        self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        self.push_one_extra(type_.0);
+        self.push_one_extra(assignment.0);
+        self.push_node(NodeTag::Const, identifier.index.0, extra_pointer.0).some()
     }
     
     fn parse_struct_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {

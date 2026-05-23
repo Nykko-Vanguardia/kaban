@@ -70,6 +70,16 @@ fn let_with_nested_struct_destructure_with_mutable_and_bindings() {
 }
 
 #[test]
+fn private_const_statement() {
+    test_snapshot!("const MY_NUMBER: i32 = 10;");
+}
+
+#[test]
+fn public_const_statement() {
+    test_snapshot!("pub const MY_NUMBER: i32 = 10;");
+}
+
+#[test]
 fn private_struct_decl_with_no_generics() {
     test_snapshot!("struct Point {x: i32, y: i32}");
 }
