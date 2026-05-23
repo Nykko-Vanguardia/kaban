@@ -46,6 +46,7 @@ impl NodeTag {
             NodeTag::PanicIfErrOrNone => 14,
             NodeTag::BubbleIfErrOrNone => 14,
             NodeTag::FuncCall => 14,
+            NodeTag::GenericInstantiation => 14,
             NodeTag::StructInstantiation => 14,
             NodeTag::Index => 14,
 
@@ -106,6 +107,7 @@ impl NodeTag {
             NodeTag::PanicIfErrOrNone |
             NodeTag::BubbleIfErrOrNone |
             NodeTag::FuncCall |
+            NodeTag::GenericInstantiation |
             NodeTag::StructInstantiation |
             NodeTag::Index |
             NodeTag::MemberAccess |
@@ -128,6 +130,7 @@ impl NodeTag {
             NodeTag::PanicIfErrOrNone |
             NodeTag::BubbleIfErrOrNone |
             NodeTag::FuncCall |
+            NodeTag::GenericInstantiation |
             NodeTag::StructInstantiation |
             NodeTag::Index)
     }

@@ -1,0 +1,23 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: let x = if (x == 10) pass 20;
+
+Block [
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("x"),
+            mutable: false,
+        },
+        assignment: IfExpression {
+            condition: Equal {
+                left: Identifier("x"),
+                right: IntLit("10"),
+            },
+            then: Pass(
+                IntLit("20"),
+            ),
+        },
+    },
+]

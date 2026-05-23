@@ -83,20 +83,49 @@ impl<'a> AST<'a> {
     pub fn view_method_call(&'a self, index: NodeIndex) -> MethodCall<'a> {
         debug_assert!(NodeTag::MethodCall == self.get_tag(index));
         let (callee, extra) = self.get_left_right(index);
-        let method_name = extra;
-        let is_self_mut = extra + 1;
-        let arg_count = extra + 2;
-        let args = extra + 3;
+        let method_name = self.get_one_extra(extra);
+        let is_self_mut = self.get_one_extra(extra + 1);
+        let arg_count = self.get_one_extra(extra + 2);
+        let args = self.get_extra_from_count(arg_count, extra + 3);
 
-        let arg_count = self.get_one_extra(arg_count);
         MethodCall {
             callee: callee.node_index(),
-            method_name: self.get_one_extra(method_name).node_index(),
-            args: self.get_extra_from_count(arg_count, args).node_index_slice(),
-            is_self_mut: self.get_one_extra(is_self_mut).bool(),
+            method_name: method_name.node_index(),
+            args: args.node_index_slice(),
+            is_self_mut: is_self_mut.bool(),
         }
     }
 
+    pub fn view_method_call_with_generic_instantiation(&'a self, index: NodeIndex) -> MethodCallWithGenericInstantiation<'a> {
+        debug_assert!(NodeTag::MethodWithGenericInstantiation == self.get_tag(index));
+        let (callee, extra) = self.get_left_right(index);
+        let method_name = self.get_one_extra(extra);
+        let is_self_mut = self.get_one_extra(extra + 1);
+        let arg_count = self.get_one_extra(extra + 2);
+        let generic_arg_count = self.get_one_extra(extra + 3);
+        let args = self.get_extra_from_count(arg_count, extra + 4);
+        let generic_args = self.get_extra_from_count(generic_arg_count, extra + 4 + arg_count);
+
+        MethodCallWithGenericInstantiation {
+            callee: callee.node_index(),
+            method_name: method_name.node_index(),
+            args: args.node_index_slice(),
+            generic_args: generic_args.node_index_slice(),
+            is_self_mut: is_self_mut.bool(),
+        }
+    }
+
+    pub fn view_generic_instantiation(&'a self, index: NodeIndex) -> GenericInstantiation<'a> {
+        debug_assert!(NodeTag::GenericInstantiation == self.get_tag(index));
+        let (callee, extra) = self.get_left_right(index);
+        let arg_count = self.get_one_extra(extra);
+        let args_start = extra + 1;
+
+        GenericInstantiation {
+            callee: callee.node_index(),
+            args: self.get_extra_from_count(arg_count, args_start).node_index_slice(),
+        }
+    }
     pub fn view_index(&'a self, index: NodeIndex) -> Index {
         debug_assert!(NodeTag::Index == self.get_tag(index));
         let (callee, extra) = self.get_left_right(index);
@@ -262,6 +291,45 @@ impl<'a> AST<'a> {
         }
     }
 
+    pub fn view_func_decl_with_no_generics(&'a self, index: NodeIndex) -> FuncDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::FuncDeclWithNoGenerics == self.get_tag(index));
+        let (name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let return_type = self.get_one_extra(extra_pointer + 1);
+        let body = self.get_one_extra(extra_pointer + 2);
+        let param_count = self.get_one_extra(extra_pointer + 3);
+        let params = self.get_extra_from_count(param_count, extra_pointer + 4);
+
+        FuncDeclWithNoGenerics {
+            is_pub: is_pub.bool(),
+            name: name.token_index(),
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
+
+    pub fn view_func_decl_with_generics(&'a self, index: NodeIndex) -> FuncDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::FuncDeclWithGenerics == self.get_tag(index));
+        let (name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let return_type = self.get_one_extra(extra_pointer + 1);
+        let body = self.get_one_extra(extra_pointer + 2);
+        let generic_param_count = self.get_one_extra(extra_pointer + 3);
+        let param_count = self.get_one_extra(extra_pointer + 4);
+        let generic_params = self.get_extra_from_count(generic_param_count, extra_pointer + 5);
+        let params = self.get_extra_from_count(param_count, extra_pointer + 5 + generic_param_count);
+
+        FuncDeclWithGenerics {
+            is_pub: is_pub.bool(),
+            name: name.token_index(),
+            generic_params: generic_params.node_index_slice(),
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
+
     pub fn view_struct_decl_with_no_generics(&'a self, index: NodeIndex) -> StructDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::StructDeclWithNoGeneric == self.get_tag(index));
         let (struct_name, extra_pointer) = self.get_left_right(index);
@@ -354,6 +422,19 @@ pub struct MethodCall<'a> {
     pub is_self_mut: bool,
 }
 
+pub struct MethodCallWithGenericInstantiation<'a> {
+    pub callee: NodeIndex,
+    pub method_name: NodeIndex,
+    pub args: &'a [NodeIndex],
+    pub generic_args: &'a [NodeIndex],
+    pub is_self_mut: bool,
+}
+
+pub struct GenericInstantiation<'a> {
+    pub callee: NodeIndex,
+    pub args: &'a [NodeIndex]
+}
+
 pub struct Index {
     pub callee: NodeIndex,
     pub index_by: NodeIndex,
@@ -426,6 +507,23 @@ pub struct StructInstantiation<'a> {
 }
 
 pub struct AnonymousFuncDecl<'a> {
+    pub params: &'a[NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
+}
+
+pub struct FuncDeclWithNoGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub params: &'a[NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
+}
+
+pub struct FuncDeclWithGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub generic_params: &'a[NodeIndex],
     pub params: &'a[NodeIndex],
     pub return_type: Option<NodeIndex>,
     pub block: NodeIndex,

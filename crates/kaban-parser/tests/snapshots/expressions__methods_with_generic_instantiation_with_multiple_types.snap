@@ -1,0 +1,23 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo.buzz.bazz@<i32, f64,>(10);
+
+Block [
+    MethodWithGenericInstantiation {
+        callee: MemberAccess {
+            left: Identifier("foo"),
+            right: Identifier("buzz"),
+        },
+        method name: Identifier("bazz"),
+        is mutable: false,
+        generic_args: [
+            Type(I32),
+            Type(F64),
+        ],
+        args: [
+            IntLit("10"),
+        ],
+    },
+]

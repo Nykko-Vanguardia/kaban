@@ -1,0 +1,22 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: @ {foo(); pass 5 + 10;}
+
+Block [
+    CompTimeExpression(
+        Block [
+            FuncCall {
+                callee: Identifier("foo"),
+                args: [],
+            },
+            Pass(
+                Add {
+                    left: IntLit("5"),
+                    right: IntLit("10"),
+                },
+            ),
+        ],
+    ),
+]

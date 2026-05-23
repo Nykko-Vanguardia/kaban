@@ -54,16 +54,12 @@ impl ToUIndex for bool {
 }
 
 impl ToBool for UIndex {
-    ///Converts 1 if its true
+    ///Converts 1 to true
     ///Converts 0 to false
     #[inline(always)]
     fn bool(self) -> bool {
         debug_assert!(self == 1 || self == 0, "tried to convert a non 0 or 1 uindex to a bool");
-        if self == 1 {
-            true
-        } else {
-            false
-        }
+        self == 1
     }
 }
 

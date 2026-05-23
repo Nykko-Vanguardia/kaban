@@ -63,6 +63,13 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("args", &self.children(func_call.args.uindex_slice()))
                     .finish()
             }
+            NodeTag::GenericInstantiation => {
+                let generic_instantiation = self.ast.view_generic_instantiation(index);
+                f.debug_struct("GenericInstantiation")
+                    .field("callee", &self.child(left))
+                    .field("args", &self.children(generic_instantiation.args.uindex_slice()))
+                    .finish()
+            }
             NodeTag::StructInstantiation => {
                 let struct_instantiation: StructInstantiation<'_> = self.ast.view_struct_instantiation(index);
                 if let Some(struct_name) = struct_instantiation.struct_name {
@@ -133,6 +140,16 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("callee", &self.child(method.callee.0))
                     .field("method name", &self.child(method.method_name.0))
                     .field("is mutable", &method.is_self_mut)
+                    .field("args", &self.children(method.args.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::MethodWithGenericInstantiation => {
+                let method = self.ast.view_method_call_with_generic_instantiation(index);
+                f.debug_struct("MethodWithGenericInstantiation")
+                    .field("callee", &self.child(method.callee.0))
+                    .field("method name", &self.child(method.method_name.0))
+                    .field("is mutable", &method.is_self_mut)
+                    .field("generic_args", &self.children(method.generic_args.uindex_slice()))
                     .field("args", &self.children(method.args.uindex_slice()))
                     .finish()
             }
@@ -242,13 +259,55 @@ impl<'a> Debug for NodePrinter<'a> {
                     .finish()
             },
             NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
-            NodeTag::Return | NodeTag::Pass => {
+            NodeTag::Return | NodeTag::Pass | NodeTag::CompTimeExpression => {
                 if let Some(left) = left.to_option() {
                     f.debug_tuple(format!("{:?}", tag).as_str()).field(&self.child(left)).finish()
                 } else {
                     f.debug_tuple(format!("{:?}", tag).as_str()).finish()
                 }
             },
+            NodeTag::FuncDeclWithNoGenerics => {
+                let func_decl = self.ast.view_func_decl_with_no_generics(index);
+                if let Some(return_type) = func_decl.return_type {
+                    f.debug_struct("FuncDeclWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("return_type", &self.child(return_type.0))
+                        .field("body", &self.child(func_decl.block.0))
+                        .finish()
+                } else {
+                    f.debug_struct("FuncDeclWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("return_type", &"NONE")
+                        .field("body", &self.child(func_decl.block.0))
+                        .finish()
+                }
+            }
+            NodeTag::FuncDeclWithGenerics => {
+                let func_decl = self.ast.view_func_decl_with_generics(index);
+                if let Some(return_type) = func_decl.return_type {
+                    f.debug_struct("FuncDeclWithGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field("return_type", &self.child(return_type.0))
+                        .field("body", &self.child(func_decl.block.0))
+                        .finish()
+                } else {
+                    f.debug_struct("FuncDeclWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field("return_type", &"NONE")
+                        .field("body", &self.child(func_decl.block.0))
+                        .finish()
+                }
+            }
             NodeTag::StructDeclWithNoGeneric => {
                 let struct_decl = self.ast.view_struct_decl_with_no_generics(index);
                 f.debug_struct("StructDeclWithNoGeneric")
@@ -329,6 +388,19 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_tuple("InterfaceConstraint")
                 .field(&self.get_token(left))
                 .finish(),
+            NodeTag::SelfParam => if left != U_NONE {
+                if right.bool() {
+                    f.debug_tuple("MutSelfParam").field(&self.get_token(left)).finish()
+                } else {
+                    f.debug_tuple("SelfParam").field(&self.get_token(left)).finish()
+                }
+            } else {
+                if right.bool() {
+                    f.debug_tuple("MutSelfParam").finish()
+                } else {
+                    f.debug_tuple("SelfParam").finish()
+                }
+            }
             _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
         }
     }

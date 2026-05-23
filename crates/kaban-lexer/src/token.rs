@@ -33,11 +33,11 @@ pub enum TokenKind {
     // Alloc,
     // Kalloc,
     // Realloc,
-    Free,
+    // Free,
     Struct,
     Interface,
     Impl,
-    Class,
+    // Class,
     Pub,
     Constructor,
     Destructor,
@@ -77,7 +77,7 @@ pub enum TokenKind {
     Bnot,
     Comptime,
     Write,
-    Hash,
+    // Hash,
     Unsafe,
     ASM,
 
@@ -132,6 +132,9 @@ pub enum TokenKind {
     LessLess, // << bitwise
     GreaterGreater, // >> bit wise
     GreaterGreaterGreater,
+    ///@ symbol
+    At,
+
     //types
     I8,
     I16,

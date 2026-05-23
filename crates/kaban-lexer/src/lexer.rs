@@ -68,11 +68,11 @@ impl<'a> Lexer<'a> {
             // b"alloc" => TokenKind::Alloc,
             // b"kalloc" => TokenKind::Kalloc, //might not need this
             // b"realloc" => TokenKind::Realloc,
-            b"free" => TokenKind::Free,
+            // b"free" => TokenKind::Free,
             b"struct" => TokenKind::Struct,
             b"interface" => TokenKind::Interface,
             b"impl" => TokenKind::Impl,
-            b"class" => TokenKind::Class,
+            // b"class" => TokenKind::Class,
             b"pub" => TokenKind::Pub,
             b"constructor" => TokenKind::Constructor,
             b"destructor" => TokenKind::Destructor,
@@ -290,7 +290,8 @@ impl<'a> Lexer<'a> {
             b'[' => { self.advance_current(); TokenKind::LeftBracket }
             b']' => { self.advance_current(); TokenKind::RightBracket },
             b'^' => { self.advance_current(); TokenKind::Caret },
-            b'#' => { self.advance_current(); TokenKind::Hash },
+            b'@' => { self.advance_current(); TokenKind::At },
+            // b'#' => { self.advance_current(); TokenKind::Hash },
             _ => self.error_recovery(LexError::UnexpectedCharacter),
         }
     }

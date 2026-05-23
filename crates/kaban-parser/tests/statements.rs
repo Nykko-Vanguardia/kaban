@@ -8,9 +8,15 @@ macro_rules! test_snapshot {
         let source = input.to_source();
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize(); 
-        let ast = Parser::new(&tokens, source).parse_program();
+        let mut parser = Parser::new(&tokens, source);
+        let ast = parser.parse_program();
+        let print = if parser.errors.len() > 0 {
+            format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
+        } else {
+            format!("input: {}\n\n{:#?}", input, ast.to_debugger())
+        };
         
-        insta::assert_snapshot!(format!("input: {}\n\n{:#?}", input, ast.to_debugger()));
+        insta::assert_snapshot!(print);
     };
 }
 
@@ -67,6 +73,11 @@ fn let_with_struct_destructure_with_mutable_and_bindings() {
 #[test]
 fn let_with_nested_struct_destructure_with_mutable_and_bindings() {
     test_snapshot!("let {a: {ax: mut foo, mut ay}, b: buzz,} = foo();");
+}
+
+#[test]
+fn let_statement_with_if_expression() {
+    test_snapshot!("let x = if (x == 10) pass 20;");
 }
 
 #[test]
@@ -173,4 +184,69 @@ fn private_enum_decl_with_type_assignments_and_generics() {
 #[test]
 fn private_enum_decl_with_type_assignments_and_struct_and_tuple_decl() {
     test_snapshot!("enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}");
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_no_return_type() {
+    test_snapshot!("func foo(x: i32, y: f64) { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_with_return_type() {
+    test_snapshot!("func foo(x: i32, y: f64) -> f64 { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo(mut x: i32, y: f64,) -> f64 { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo<T,>(mut x: T, y: f64,) -> T { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_multiple_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo<T, U>(mut x: T, y: U,) -> T { let z = x + y; return z; }");
+}
+
+#[test]
+fn public_func_decl_with_generic_constaint_interface_sugar() {
+    test_snapshot!("pub func foo(mut x: impl Serializable, y: impl Debug & impl Clone) -> T { let z = x + y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_param() {
+    test_snapshot!("func foo(self, x: i32) -> i32 { let z = x; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_param_only() {
+    test_snapshot!("func foo(self) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_read_reference() {
+    test_snapshot!("func foo(self&) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_mut_reference() {
+    test_snapshot!("func foo(self&mut,) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_pointer() {
+    test_snapshot!("func foo(self*, x: i32) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_mut_self() {
+    test_snapshot!("func foo(mut self, x: i32) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_param_only_and_generics() {
+    test_snapshot!("func foo<T>(self, y: T) -> i32 { let z = self.y; return z; }");
 }

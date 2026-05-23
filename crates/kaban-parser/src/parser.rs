@@ -67,6 +67,7 @@ impl<'a> Parser<'a> {
                 self.parse_let_statement()
             },
             TokenKind::Const => self.parse_const_statement(is_pub),
+            TokenKind::Func => self.parse_func_decleration(is_pub),
             TokenKind::Struct => self.parse_struct_decleration(is_pub),
             TokenKind::Enum => self.parse_enum_decleration(is_pub),
             _ => { 
@@ -216,6 +217,7 @@ impl<'a> Parser<'a> {
             TokenKind::Do => { advance_after_match = false; self.parse_do_while_expression()? },
             TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
             TokenKind::Func => { advance_after_match = false; self.parse_anonymous_func_decleration_expression()? },
+            TokenKind::At => { advance_after_match = false; self.parse_comptime_expression()? },
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -248,6 +250,15 @@ impl<'a> Parser<'a> {
                 let extra_index = self.push_one_extra(args.len().uindex());
                 self.push_extra(args.uindex_slice());
                 self.push_node(NodeTag::FuncCall, operand.0, extra_index.0).some()
+            },
+            NodeTag::GenericInstantiation => {
+                self.must_consume(TokenKind::Less, ParseError::ExpectedToken(TokenKind::Less))?;
+                let args = self.parse_comma_seperated_nodes(TokenKind::Greater, |p| p.parse_type_decleration());
+                self.must_consume(TokenKind::Greater, ParseError::MissingGreater)?;
+
+                let extra_index = self.push_one_extra(args.len().uindex());
+                self.push_extra(args.uindex_slice());
+                self.push_node(NodeTag::GenericInstantiation, operand.0, extra_index.0).some()
             },
             NodeTag::StructInstantiation => self.parse_struct_instantiation(operand.some()),
             NodeTag::Index => {
@@ -501,11 +512,42 @@ impl<'a> Parser<'a> {
                     self.push_one_extra(args.len().uindex());
                     self.push_extra(args.uindex_slice());
                     self.push_node(NodeTag::MethodCall, parent.0, extra_pointer.0).some()
+                } else if self.if_matches_then_consume_bool(TokenKind::At) {
+                    self.parse_generic_instantiated_member_access_or_method(parent, child, operator)
                 } else {
+                    if operator == NodeTag::Colon {self.error_recovery(ParseError::ExpectedMethod);}
                     self.push_node(operator, parent.0, child.0).some()
                 }
             }
-            _ => self.push_node(operator, parent.0, child.0).some()
+            NodeTag::UndefinedChainingAccess => self.push_node(operator, parent.0, child.0).some(),
+            _ => unreachable!(),
+        }
+
+    }
+
+    fn parse_generic_instantiated_member_access_or_method(&mut self, parent: NodeIndex, child: NodeIndex, operator: NodeTag) -> Option<NodeIndex> {
+        self.must_consume(TokenKind::Less, ParseError::ExpectedToken(TokenKind::Less))?;
+        let generic_args = self.parse_comma_seperated_nodes(TokenKind::Greater, |p| p.parse_type_decleration());
+        self.must_consume(TokenKind::Greater, ParseError::MissingGreater)?;
+
+        if self.if_matches_then_consume_bool(TokenKind::LeftParen) {
+            let args  = self.parse_comma_seperated_expressions(TokenKind::RightParen);
+            self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+            let is_mutable_self = operator == NodeTag::Colon;
+            let extra_pointer = self.push_one_extra(child.0);
+            self.push_one_extra(is_mutable_self.uindex());
+            self.push_one_extra(args.len().uindex());
+            self.push_one_extra(generic_args.len().uindex());
+            self.push_extra(args.uindex_slice());
+            self.push_extra(generic_args.uindex_slice());
+            self.push_node(NodeTag::MethodWithGenericInstantiation, parent.0, extra_pointer.0).some()
+        } else {
+            if operator == NodeTag::Colon {self.error_recovery(ParseError::ExpectedMethod);}
+            let member_access = self.push_node(operator, parent.0, child.0);
+
+            let extra_index = self.push_one_extra(generic_args.len().uindex());
+            self.push_extra(generic_args.uindex_slice());
+            self.push_node(NodeTag::GenericInstantiation,member_access.0 , extra_index.0).some()
         }
     }
 
@@ -582,7 +624,9 @@ impl<'a> Parser<'a> {
         };
         self.must_consume(TokenKind::Equals, ParseError::ExpectedToken(TokenKind::Equals))?;
         let assignment = self.parse_expression()?;
-        self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        if !self.node_tags[assignment.0.usize()].doesnt_require_semicolon() {
+            self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        }
         
         let extra_pointer = self.push_one_extra(let_type.to_index_or_u_none());
         self.push_one_extra(assignment.0);
@@ -597,7 +641,9 @@ impl<'a> Parser<'a> {
 
         self.must_consume(TokenKind::Equals, ParseError::ExpectedToken(TokenKind::Equals))?;
         let assignment = self.parse_expression()?;
-        self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        if !self.node_tags[assignment.0.usize()].doesnt_require_semicolon() {
+            self.must_consume(TokenKind::Semicolon, ParseError::MissingSemicolon)?;
+        }
         
         let extra_pointer = self.push_one_extra(is_pub.uindex());
         self.push_one_extra(type_.0);
@@ -605,6 +651,85 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::Const, identifier.index.0, extra_pointer.0).some()
     }
     
+    fn parse_func_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
+
+        self.must_consume(TokenKind::LeftParen, ParseError::ExpectedToken(TokenKind::LeftParen))?;
+        let self_ = self.parse_self_param();
+        let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
+            let identifier_binding = p.parse_identifier_or_destructure()?;
+            p.must_consume(TokenKind::Colon, ParseError::MissingTypeDeclaration)?;
+            let type_ = if p.check_bool(TokenKind::Impl) {
+                p.parse_generic_constraint()?
+            } else {
+                p.parse_type_decleration()?
+            };
+
+            p.push_node(NodeTag::Params, identifier_binding.0, type_.0).some()
+        });
+        self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen)?;
+        let return_type = if self.if_matches_then_consume_bool(TokenKind::SkinnyArrow) {
+            self.parse_type_decleration()?.some()
+        } else {
+            None
+        };
+        let block = self.parse_and_consume_block()?;
+
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        self.push_one_extra(return_type.to_index_or_u_none());
+        self.push_one_extra(block.0);
+
+        let add_self_to_param_len = if self_.is_some() { 1 } else { 0 };
+        if let Some(generics) = generics {
+            self.push_one_extra(generics.len().uindex());
+            self.push_one_extra(params.len().uindex() + add_self_to_param_len);
+            self.push_extra(generics.uindex_slice());
+            if let Some(self_) = self_ {
+                self.push_one_extra(self_.0);
+            }
+            self.push_extra(params.uindex_slice());
+            self.push_node(NodeTag::FuncDeclWithGenerics, name.index.0, extra_pointer.0).some()
+        } else {
+            self.push_one_extra(params.len().uindex() + add_self_to_param_len);
+            if let Some(self_) = self_ {
+                self.push_one_extra(self_.0);
+            }
+            self.push_extra(params.uindex_slice());
+            self.push_node(NodeTag::FuncDeclWithNoGenerics, name.index.0, extra_pointer.0).some()
+        }
+    }
+
+    fn parse_self_param(&mut self) -> Option<NodeIndex> {
+        //NOTE: MIGHT REMOVE THIS
+        let mut_self = self.check_bool(TokenKind::Mut) && self.peek_next().kind == TokenKind::Self_;
+        if self.if_matches_then_consume_bool(TokenKind::Self_) || mut_self {
+            //NOTE: MIGHT REMOVE THIS
+            if mut_self {
+                self.advance();
+                self.advance();
+            }
+            let current = self.peek_current();
+            let self_ = match current.kind {
+                TokenKind::Ampersand |
+                TokenKind::AmpersandMut |
+                TokenKind::Star => {
+                    self.advance();
+                    self.push_node(NodeTag::SelfParam, current.index.0, mut_self.uindex()).some()
+                }
+                //NOTE: MIGHT REMOVE THIS
+                _ => self.push_node(NodeTag::SelfParam, U_NONE, mut_self.uindex()).some()
+            };
+            if !self.check_bool(TokenKind::RightParen) {
+                self.must_consume(TokenKind::Comma, ParseError::ExpectedToken(TokenKind::Comma))?;
+            }
+            self_
+        } else {
+            None
+        }
+    }
+
     fn parse_struct_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
         self.advance();
         let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
@@ -789,6 +914,12 @@ impl<'a> Parser<'a> {
 
         self.push_node(NodeTag::AnonymousFuncDecl, block.0, extra_pointer.0).some()
     }
+
+    fn parse_comptime_expression(&mut self) -> Option<NodeIndex> {
+        self.advance();
+        let expression = self.parse_block_or_semicolon_terminated_expression()?;
+        self.push_node(NodeTag::CompTimeExpression, expression.0, U_NONE).some()
+    }
 }
 
 //helper
@@ -930,6 +1061,7 @@ impl<'a> Parser<'a> {
             TokenKind::SlashEquals => NodeTag::DivideAssignment,
             TokenKind::PercentEquals => NodeTag::ModuloAssignment,
             TokenKind::LeftParen => NodeTag::FuncCall,
+            TokenKind::At => NodeTag::GenericInstantiation,
             TokenKind::LeftBrace => NodeTag::StructInstantiation,
             _ => return None,
         })

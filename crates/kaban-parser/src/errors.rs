@@ -29,4 +29,8 @@ pub enum ParseError {
     MissingGreater,
     #[error("Let statements can not be public, try using const at the top level")]
     PubInLet,
+    #[error("Expected a method after : access")]
+    ExpectedMethod,
+    #[error("Invalid type modifier after self")]
+    InvalidModifierAfterSelf,
 }

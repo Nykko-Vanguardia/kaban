@@ -148,6 +148,11 @@ pub enum NodeTag {
     /// - extra\[right\]: u32 = arg count
     /// - extra\[right + 1 .. right + 1 + N\] = NodeId\[N\] (arguments)
     FuncCall,
+    /// # left: NodeIndex = identifier (expression)
+    /// # right: ExtraIndex -> \[arg_count, ...args\]
+    /// - extra\[right\]: u32 = arg count
+    /// - extra\[right + 1 .. right + 1 + N\] = NodeId\[N\] (arguments)
+    GenericInstantiation,
     /// # left: NodeIndex | U_NONE = identifier/struct name (expression)
     /// # right: ExtraIndex -> \[field_instantiation_count, ...field_instantiation\]
     /// - extra\[right\]: u32 = field instantiation count
@@ -176,6 +181,15 @@ pub enum NodeTag {
     /// - extra\[right + 2\]: u32 = arg count (N)
     /// - extra\[right + 3 .. right + 3 + N\] = NodeId\[N\] (arguments)
     MethodCall,
+    /// # left: NodeIndex = parent
+    /// # right: ExtraIndex -> \[method_name_id, is_mutable, arg_count, generic_arg_count, ...args, ...generic_args\]
+    /// - extra\[right\]: NodeIndex = name
+    /// - extra\[right + 1\]: 0 | 1 = 1 if mutable (: operator) 0 if not (. operator)
+    /// - extra\[right + 2\]: u32 = arg count (N)
+    /// - extra\[right + 3\]: u32 = generic arg count (M)
+    /// - extra\[right + 4 .. right + 4 + N\] = NodeId\[N\] (arguments)
+    /// - extra\[right + 4 + N .. right + 4 + N + M\] = NodeId\[M\] (arguments)
+    MethodWithGenericInstantiation,
 
     //Special
     /// # left: NodeIndex - Expression
@@ -207,7 +221,24 @@ pub enum NodeTag {
     /// - extra\[right + 1\]: NodeIndex= Pointer to type
     /// - extra\[right + 2\] = Expression
     Const,
-    FuncDecl,
+    /// # left: NodeIndex = Name
+    /// # right: ExtraIndex -> \[is_pub, return_type, body, param_count, params...\]
+    /// - extra\[right\]: 1 | 0 = is pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 2\]: NodeIndex = body
+    /// - extra\[right + 3\]: UIndex = param_count
+    /// - extra\[right + 4 .. right + 4 + N\]: NodeIndex = parameters
+    FuncDeclWithNoGenerics,
+    /// # left: NodeIndex = Name
+    /// # right: ExtraIndex -> \[is_pub, return_type, body, param_count, params...\]
+    /// - extra\[right\]: 1 | 0 = is pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 2\]: NodeIndex = body
+    /// - extra\[right + 3\]: UIndex = generic_param_count (N)
+    /// - extra\[right + 4\]: UIndex = param_count (M)
+    /// - extra\[right + 5 .. right + 5 + N\]: NodeIndex = generic parameters
+    /// - extra\[right + 5 + N .. right + 5 + N + M\]: NodeIndex = parameters
+    FuncDeclWithGenerics,
     /// # left: NodeIndex | U_NONE = return value
     Return,
     /// # left: NodeIndex | U_NONE = pass value
@@ -381,8 +412,17 @@ pub enum NodeTag {
     /// # left: NodeIndex = Identifier Binding (Expression)
     /// # right: NodeIndex = Type (Statement or Block)
     Params,
+    //NOTE:
+    ///NOTE: I might get rid of the right data. If you want to pass a copy of self, the dot
+    ///operator is invalid. You must pass it explicitly. I also might change this to always have a
+    ///modifier token. Self must be a pointer to the original object. Otherwise explicitly pass the
+    ///copy
+    ///
+    /// # left: TokenIndex = modifier token index (the & or &mut or * token)
+    /// # right: 1 | 0 = Is mutable
+    SelfParam,
     /// # left: TokenIndex = Identifier (like T)
-    /// # right: NodeIndex | U_NONE = GenericConstaint
+    /// # right: NodeIndex | U_NONE = GenericConstaint //NOTE: MIGHT REMOVE THIS
     GenericParam,
     /// This is different from [StructFieldInstantiation], this is for struct
     /// decleration (eg. struct Person {id: i32})
@@ -429,6 +469,9 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...args\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] (Identifiers)
     ArrayDestructure,
+
+    /// # left: u32 = Expression
+    CompTimeExpression,
 }
 
 impl NodeTag {
@@ -539,7 +582,8 @@ impl NodeTag {
             NodeTag::Match |
             NodeTag::Block |
             NodeTag::While |
-            NodeTag::For
+            NodeTag::For |
+            NodeTag::CompTimeExpression
             // NodeTag::DoWhile // you need a semicolon here
         )
     }

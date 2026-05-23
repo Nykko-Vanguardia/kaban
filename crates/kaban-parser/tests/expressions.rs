@@ -326,3 +326,49 @@ fn passing_a_callback_with_implicit_types() {
 // fn anonymous_func_decl_with_multiple_generics() {
 //     test_snapshot!("x = func<T, U,>(x: T, y: U) -> T { pass x; };");
 // }
+
+#[test]
+fn generic_instantiation_function() {
+    test_snapshot!("foo@<i32>(10);");
+}
+
+#[test]
+fn generic_instantiation_function_with_multiple_types() {
+    test_snapshot!("foo@<i32, f64,>(10);");
+}
+
+#[test]
+fn methods_with_generic_instantiation() {
+    test_snapshot!("foo.buzz@<i32,>(10);");
+}
+
+#[test]
+fn methods_with_generic_instantiation_with_multiple_types() {
+    test_snapshot!("foo.buzz.bazz@<i32, f64,>(10);");
+}
+
+#[test]
+fn mutable_self_methods_with_generic_instantiation_with_multiple_types() {
+    test_snapshot!("foo:bazz@<i32, f64,>(10);");
+}
+
+#[test]
+fn mutable_self_methods_with_generic_instantiation_with_multiple_types_from_array_indexed_obj() {
+    test_snapshot!("foos[0]:bazz@<i32, f64,>(10);");
+}
+
+#[test]
+fn member_access_generic_instantiation() {
+    test_snapshot!("Person.Obj@<i32>;");
+}
+
+#[test]
+fn comptime_func_call() {
+    test_snapshot!("@foo();");
+}
+
+#[test]
+fn comptime_block() {
+    test_snapshot!("@ {foo(); pass 5 + 10;}");
+}
+

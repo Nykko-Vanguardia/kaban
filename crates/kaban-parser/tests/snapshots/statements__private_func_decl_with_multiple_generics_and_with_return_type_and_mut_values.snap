@@ -1,0 +1,58 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo<T, U>(mut x: T, y: U,) -> T { let z = x + y; return z; }
+
+Block [
+    FuncDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: true,
+                },
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("y"),
+                    mutable: false,
+                },
+                type: NamedType(
+                    Identifier("U"),
+                ),
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        return_type: NamedType(
+            Identifier("T"),
+        ),
+        body: Block [
+            Let {
+                name: IdentifierBinding {
+                    name: Identifier("z"),
+                    mutable: false,
+                },
+                assignment: Add {
+                    left: Identifier("x"),
+                    right: Identifier("y"),
+                },
+            },
+            Return(
+                Identifier("z"),
+            ),
+        ],
+    },
+]
