@@ -52,6 +52,7 @@ impl NodeTag {
 
             //MemberAccess
             NodeTag::MemberAccess => 14,
+            NodeTag::ImplAccess => 14,
             NodeTag::UndefinedChainingAccess => 14,
             NodeTag::Colon => 14,
 
@@ -111,6 +112,7 @@ impl NodeTag {
             NodeTag::StructInstantiation |
             NodeTag::Index |
             NodeTag::MemberAccess |
+            NodeTag::ImplAccess |
             NodeTag::UndefinedChainingAccess |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |
@@ -147,6 +149,7 @@ impl NodeTag {
     pub fn is_member_access(&self) -> bool {
         match self {
             NodeTag::MemberAccess |
+            NodeTag::ImplAccess |
             NodeTag::UndefinedChainingAccess |
             NodeTag::Colon => true,
             _ => false,
@@ -180,6 +183,7 @@ impl NodeTag {
             NodeTag::InclusiveRange |
             NodeTag::ExclusiveRange |
             NodeTag::MemberAccess |
+            NodeTag::ImplAccess |
             NodeTag::UndefinedChainingAccess |
             NodeTag::Colon |
             NodeTag::UndefinedCoalescing |

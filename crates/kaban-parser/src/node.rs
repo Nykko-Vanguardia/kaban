@@ -170,6 +170,9 @@ pub enum NodeTag {
     MemberAccess,
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
+    ImplAccess,
+    /// # left: NodeIndex - Expression
+    /// # right: NodeIndex - Expression
     UndefinedChainingAccess,
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
@@ -239,6 +242,22 @@ pub enum NodeTag {
     /// - extra\[right + 5 .. right + 5 + N\]: NodeIndex = generic parameters
     /// - extra\[right + 5 + N .. right + 5 + N + M\]: NodeIndex = parameters
     FuncDeclWithGenerics,
+    /// # left: NodeIndex = Name
+    /// # right: ExtraIndex -> \[is_pub, return_type, body, param_count, params...\]
+    /// - extra\[right\]: 1 | 0 = is pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 2\]: UIndex = param_count
+    /// - extra\[right + 3 .. right + 3 + N\]: NodeIndex = parameters
+    FuncNoBodyWithNoGenerics,
+    /// # left: NodeIndex = Name
+    /// # right: ExtraIndex -> \[is_pub, return_type, body, param_count, params...\]
+    /// - extra\[right\]: 1 | 0 = is pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = return_type
+    /// - extra\[right + 2\]: UIndex = generic_param_count (N)
+    /// - extra\[right + 3\]: UIndex = param_count (M)
+    /// - extra\[right + 4 .. right + 4 + N\]: NodeIndex = generic parameters
+    /// - extra\[right + 4 + N .. right + 4 + N + M\]: NodeIndex = parameters
+    FuncNoBodyWithGenerics,
     /// # left: NodeIndex | U_NONE = return value
     Return,
     /// # left: NodeIndex | U_NONE = pass value
@@ -282,7 +301,57 @@ pub enum NodeTag {
     /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = \[GenericParam\]
     /// - extra\[right + 3 + N..right + 3 + N + M\]: NodeIndex\[M\] = \[EnumVariantDecl\]
     EnumDeclWithGeneric,
-    ClassDecl,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, self_type, statement_counts, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex = self type
+    /// - extra\[right + 2\]: UIndex = number of statements (N)
+    /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = Statements
+    ImplDeclWithNoGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, self_type, generic_count, statement_counts, ...generics, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex = self type (N)
+    /// - extra\[right + 2\]: UIndex = number of generics (M)
+    /// - extra\[right + 3\]: UIndex = number of statements (M)
+    /// - extra\[right + 4..right + 4 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 4 + N..right + 4 + N + M\]: NodeIndex\[M\] = Statements
+    ImplDeclWithGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, self_type, interface, statement_counts, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex = self type
+    /// - extra\[right + 2\]: NodeIndex = interface
+    /// - extra\[right + 3\]: UIndex = number of statements (N)
+    /// - extra\[right + 4..right + 4 + N\]: NodeIndex\[N\] = Statements
+    ImplForDeclWithNoGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, self_type, interface, generic_count, statement_counts, ...generics, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex = self type
+    /// - extra\[right + 2\]: NodeIndex = inteface
+    /// - extra\[right + 3\]: UIndex = number of generics (N)
+    /// - extra\[right + 4\]: UIndex = number of statements (M)
+    /// - extra\[right + 5..right + 5 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 5 + N..right + 5 + N + M\]: NodeIndex\[M\] = Statements
+    ImplForDeclWithGeneric,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, statement_counts, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = shape
+    /// - extra\[right + 2\]: UIndex = number of statements (N)
+    /// - extra\[right + 3..right + 3 + N\]: NodeIndex\[N\] = Statements
+    InterfaceDeclWithNoGenerics,
+    /// # left: TokenIndex = Name (Token)
+    /// # right: ExtraIndex -> \[Pub, generic_count, statement_counts, ...generics, ...statements\]
+    /// - extra\[right\]: 1 | 0 = is entire impl pub?
+    /// - extra\[right + 1\]: NodeIndex | U_NONE = shape
+    /// - extra\[right + 2\]: UIndex = number of generics (N)
+    /// - extra\[right + 3\]: UIndex = number of statements (M)
+    /// - extra\[right + 4..right + 4 + N\]: NodeIndex\[N\] = \[GenericParam\]
+    /// - extra\[right + 4 + N..right + 4 + N + M\]: NodeIndex\[M\] = Statements
+    InterfaceDeclWithGenerics,
+
     TypeAliasDecl,
     EnumDecl,
 

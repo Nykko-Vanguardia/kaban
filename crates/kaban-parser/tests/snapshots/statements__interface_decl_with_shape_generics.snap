@@ -1,0 +1,82 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    pub interface Talks<T> {
+        shape: struct { x: i32, y: i32 }
+
+        func step(step: T) -> T {
+            return self.x;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    
+
+Block [
+    InterfaceDeclWithGeneric {
+        is_pub: true,
+        interface_name: Identifier("Talks"),
+        shape: AnonymousStructType [
+            AnonymousStructFieldDecl {
+                field_name: Identifier("x"),
+                type: Type(I32),
+            },
+            AnonymousStructFieldDecl {
+                field_name: Identifier("y"),
+                type: Type(I32),
+            },
+        ],
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("step"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("step"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("T"),
+                        ),
+                    },
+                ],
+                return_type: NamedType(
+                    Identifier("T"),
+                ),
+                body: Block [
+                    Return(
+                        MemberAccess {
+                            left: Self_,
+                            right: Identifier("x"),
+                        },
+                    ),
+                ],
+            },
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("default_talk"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("message"),
+                            mutable: false,
+                        },
+                        type: Type(C8),
+                    },
+                ],
+                return_type: "NONE",
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+    },
+]

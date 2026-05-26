@@ -281,7 +281,14 @@ impl<'a> Lexer<'a> {
                 }
             },
             b';' => { self.advance_current(); TokenKind::Semicolon },
-            b':' => { self.advance_current(); TokenKind::Colon },
+            b':' => {
+                if self.match_and_consume("::") {
+                    TokenKind::ColonColon
+                } else {
+                  self.advance_current(); 
+                  TokenKind::Colon
+                }
+            },
             b',' => { self.advance_current(); TokenKind::Comma },
             b'{' => { self.advance_current(); TokenKind::LeftBrace },
             b'}' => { self.advance_current(); TokenKind::RightBrace },

@@ -1,0 +1,32 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: destruct Person@<i32>::Core@<i32, f64>.from_id(10);
+
+Block [
+    Destruct(
+        MethodCall {
+            callee: GenericInstantiation {
+                callee: ImplAccess {
+                    left: GenericInstantiation {
+                        callee: Identifier("Person"),
+                        args: [
+                            Type(I32),
+                        ],
+                    },
+                    right: Identifier("Core"),
+                },
+                args: [
+                    Type(I32),
+                    Type(F64),
+                ],
+            },
+            method name: Identifier("from_id"),
+            is mutable: false,
+            args: [
+                IntLit("10"),
+            ],
+        },
+    ),
+]

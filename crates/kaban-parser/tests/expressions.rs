@@ -104,6 +104,11 @@ fn  undefined_chaining_member_access() {
 }
 
 #[test]
+fn  implementation_access() {
+    test_snapshot!("Person::Core;");
+}
+
+#[test]
 fn chaining_method_and_member_access_calls() {
     test_snapshot!("items.iter().enumerate();");
 }
@@ -372,3 +377,13 @@ fn comptime_block() {
     test_snapshot!("@ {foo(); pass 5 + 10;}");
 }
 
+// #[test]
+// fn new_method_call() {
+//     test_snapshot!("new Person@<i32>::Core@<i32, f64>.from_id(10);");
+// }
+//
+// #[test]
+// fn destruct_method_call() {
+//     test_snapshot!("destruct Person@<i32>::Core@<i32, f64>.from_id(10);");
+// }
+//

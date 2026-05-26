@@ -250,3 +250,142 @@ fn func_decl_with_mut_self() {
 fn func_decl_with_self_param_only_and_generics() {
     test_snapshot!("func foo<T>(self, y: T) -> i32 { let z = self.y; return z; }");
 }
+
+#[test]
+fn impl_decl_with_no_generics() {
+    test_snapshot!("
+    impl Person::Core {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+    }
+    ");
+}
+
+#[test]
+fn impl_decl_with_generics() {
+    test_snapshot!("
+    impl Person<T>::Core<T> {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+    }
+    ");
+}
+
+#[test]
+fn impl_decl_with_generics_and_constaint() {
+    test_snapshot!("
+    impl Talks for Person<T>::Core<T> {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+#[test]
+fn impl_decl_with_no_generics_and_constaint() {
+    test_snapshot!("
+    impl Talks for Person::Core {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+#[test]
+fn interface_decl_with_no_shape_no_generics() {
+    test_snapshot!("
+    pub interface Talks {
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+#[test]
+fn interface_decl_with_shape_no_generics() {
+    test_snapshot!("
+    pub interface Talks {
+        shape: struct { x: i32, y: i32 }
+        func step(step: i32) -> i32 {
+            return self.x;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+#[test]
+fn interface_decl_with_no_shape_generics() {
+    test_snapshot!("
+    pub interface Talks<T> {
+        func step(step: T) -> T {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+#[test]
+fn interface_decl_with_shape_generics() {
+    test_snapshot!("
+    pub interface Talks<T> {
+        shape: struct { x: i32, y: i32 }
+
+        func step(step: T) -> T {
+            return self.x;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    ");
+}
+
+// impl Person::Core {
+//     pub const NUMBER: u8 = 10;
+//
+//     pub func walk(self&, steps: i32) {
+//         self.step(steps);
+//     }
+//
+//     func step(step: i32) -> i32 {
+//         return step;
+//     }
+// }

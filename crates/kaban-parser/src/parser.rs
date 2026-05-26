@@ -47,7 +47,6 @@ impl<'a> Parser<'a> {
     }
     
     pub fn reset(&mut self, tokens: &'a [Token], source: Source<'a>) {
-        //these should be clear via mem take but its better to be safe
         self.node_tags.clear();
         self.node_data.clear();
         self.extra.clear();
@@ -70,6 +69,8 @@ impl<'a> Parser<'a> {
             TokenKind::Func => self.parse_func_decleration(is_pub),
             TokenKind::Struct => self.parse_struct_decleration(is_pub),
             TokenKind::Enum => self.parse_enum_decleration(is_pub),
+            TokenKind::Impl => self.parse_impl_decleration(is_pub),
+            TokenKind::Interface => self.parse_interface_decleration(is_pub),
             _ => { 
                 let expression = self.parse_expression()?; 
                 //Decided to remove expression statement wrapper for now
@@ -233,8 +234,11 @@ impl<'a> Parser<'a> {
     fn parse_prefix_unary_expression(&mut self, prefix_unary: NodeTag) -> Option<NodeIndex> {
         let operand = self.parse_expression()?;
         match prefix_unary {
-            NodeTag::New => todo!(),
-            NodeTag::Destruct => todo!(),
+            // NodeTag::New | NodeTag::Destruct => {
+            //     // self.advance();
+            //     let method_call = self.parse_expression()?;
+            //     self.push_node(prefix_unary, method_call.0, U_NONE).some()
+            // },
             _ => self.push_node(prefix_unary, operand.0, 0).some(),
         }
     }
@@ -519,7 +523,8 @@ impl<'a> Parser<'a> {
                     self.push_node(operator, parent.0, child.0).some()
                 }
             }
-            NodeTag::UndefinedChainingAccess => self.push_node(operator, parent.0, child.0).some(),
+            NodeTag::UndefinedChainingAccess |
+                NodeTag::ImplAccess => self.push_node(operator, parent.0, child.0).some(),
             _ => unreachable!(),
         }
 
@@ -651,7 +656,7 @@ impl<'a> Parser<'a> {
         self.push_node(NodeTag::Const, identifier.index.0, extra_pointer.0).some()
     }
     
-    fn parse_func_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+    fn parse_func_decleration_or_header(&mut self, is_pub: bool) -> Option<NodeIndex> {
         self.advance();
         let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
@@ -675,11 +680,17 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let block = self.parse_and_consume_block()?;
+        let block = if self.peek_current().kind == TokenKind::LeftBrace {
+            self.parse_and_consume_block()
+        } else {
+            self.must_consume(TokenKind::Semicolon, ParseError::MissingBlockOrSemicolon);
+            None
+        };
+        let has_block = block.is_some();
 
         let extra_pointer = self.push_one_extra(is_pub.uindex());
         self.push_one_extra(return_type.to_index_or_u_none());
-        self.push_one_extra(block.0);
+        if let Some(block) = block { self.push_one_extra(block.0); }
 
         let add_self_to_param_len = if self_.is_some() { 1 } else { 0 };
         if let Some(generics) = generics {
@@ -690,15 +701,27 @@ impl<'a> Parser<'a> {
                 self.push_one_extra(self_.0);
             }
             self.push_extra(params.uindex_slice());
-            self.push_node(NodeTag::FuncDeclWithGenerics, name.index.0, extra_pointer.0).some()
+            let tag = if has_block { NodeTag::FuncDeclWithGenerics } else { NodeTag::FuncNoBodyWithGenerics };
+            self.push_node(tag, name.index.0, extra_pointer.0).some()
         } else {
             self.push_one_extra(params.len().uindex() + add_self_to_param_len);
             if let Some(self_) = self_ {
                 self.push_one_extra(self_.0);
             }
             self.push_extra(params.uindex_slice());
-            self.push_node(NodeTag::FuncDeclWithNoGenerics, name.index.0, extra_pointer.0).some()
+            let tag = if has_block { NodeTag::FuncDeclWithNoGenerics } else { NodeTag::FuncNoBodyWithNoGenerics };
+            self.push_node(tag, name.index.0, extra_pointer.0).some()
         }
+    }
+
+    fn parse_func_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        let func = self.parse_func_decleration_or_header(is_pub)?;
+        if self.node_tags[func.0.usize()] == NodeTag::FuncNoBodyWithNoGenerics || self.node_tags[func.0.usize()] == NodeTag::FuncNoBodyWithGenerics  {
+            self.error_recovery(ParseError::MissingBlock);
+            return None;
+        }
+
+        func.some()
     }
 
     fn parse_self_param(&mut self) -> Option<NodeIndex> {
@@ -788,6 +811,97 @@ impl<'a> Parser<'a> {
             self.push_one_extra(enum_variant_declerations.len().uindex());
             self.push_extra(enum_variant_declerations.uindex_slice());
             self.push_node(NodeTag::EnumDeclWithNoGeneric, name.index.0, extra_pointer.0).some()
+        }
+    }
+
+    fn parse_impl_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let type_or_interface = self.parse_type_decleration()?;
+        let (type_, interface) = if self.if_matches_then_consume_bool(TokenKind::For) {
+            let type_ = self.parse_type_decleration()?;
+            (type_, type_or_interface.some())
+        } else {
+            (type_or_interface, None)
+        };
+        self.must_consume(TokenKind::ColonColon, ParseError::ExpectedToken(TokenKind::ColonColon))?;
+        let impl_name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
+
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock)?;
+        let mut statements = Vec::new();
+        while !self.is_at_end() && self.peek_current().kind != TokenKind::RightBrace {
+            let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
+            let statement = match self.peek_current().kind {
+                TokenKind::Func => self.parse_func_decleration_or_header(is_inside_pub),
+                TokenKind::Const => self.parse_const_statement(is_inside_pub),
+                TokenKind::At => self.parse_comptime_expression(),
+                _ => {
+                    self.error_recovery(ParseError::InvalidImplItem);
+                    return None;
+                }
+            };
+            statements.push(statement?);
+        }
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace)?;
+
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        self.push_one_extra(type_.0);
+        if let Some(interface) = interface { self.push_one_extra(interface.0); };
+
+        if let Some(generics) = generics {
+            self.push_one_extra(generics.len().uindex());
+            self.push_one_extra(statements.len().uindex());
+            self.push_extra(generics.uindex_slice());
+            self.push_extra(statements.uindex_slice());
+            let tag = if interface.is_some() { NodeTag::ImplForDeclWithGeneric } else { NodeTag::ImplDeclWithGeneric };
+            self.push_node(tag, impl_name.index.0, extra_pointer.0).some()
+        } else {
+            self.push_one_extra(statements.len().uindex());
+            self.push_extra(statements.uindex_slice());
+            let tag = if interface.is_some() { NodeTag::ImplForDeclWithNoGeneric } else { NodeTag::ImplDeclWithNoGeneric };
+            self.push_node(tag, impl_name.index.0, extra_pointer.0).some()
+        }
+    }
+    fn parse_interface_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
+        self.advance();
+        let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+        let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock)?;
+        let shape = if self.if_identifier_says_shape_consume_bool() {
+            self.must_consume(TokenKind::Colon, ParseError::MissingTypeDeclaration);
+            self.parse_generic_constraint()
+        } else {
+            None
+        };
+
+        let mut statements = Vec::new();
+        while !self.is_at_end() && self.peek_current().kind != TokenKind::RightBrace {
+            let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
+            let statement = match self.peek_current().kind {
+                TokenKind::Func => self.parse_func_decleration_or_header(is_inside_pub),
+                // TokenKind::Const => self.parse_const_statement(is_inside_pub),
+                TokenKind::At => self.parse_comptime_expression(),
+                _ => {
+                    self.error_recovery(ParseError::InvalidImplItem);
+                    return None;
+                }
+            };
+            statements.push(statement?);
+        }
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace)?;
+
+        let extra_pointer = self.push_one_extra(is_pub.uindex());
+        self.push_one_extra(shape.to_index_or_u_none());
+        if let Some(generics) = generics {
+            self.push_one_extra(generics.len().uindex());
+            self.push_one_extra(statements.len().uindex());
+            self.push_extra(generics.uindex_slice());
+            self.push_extra(statements.uindex_slice());
+            self.push_node(NodeTag::InterfaceDeclWithGenerics, name.index.0, extra_pointer.0).some()
+        } else {
+            self.push_one_extra(statements.len().uindex());
+            self.push_extra(statements.uindex_slice());
+            self.push_node(NodeTag::InterfaceDeclWithNoGenerics, name.index.0, extra_pointer.0).some()
         }
     }
 
@@ -1049,6 +1163,7 @@ impl<'a> Parser<'a> {
             TokenKind::Bang => NodeTag::PanicIfErrOrNone,
             TokenKind::Question => NodeTag::BubbleIfErrOrNone,
             TokenKind::Dot => NodeTag::MemberAccess,
+            TokenKind::ColonColon => NodeTag::ImplAccess,
             TokenKind::Colon => NodeTag::Colon,
             TokenKind::QuestionQuestionDot => NodeTag::UndefinedChainingAccess,
             TokenKind::LeftBracket => NodeTag::Index,
@@ -1079,8 +1194,8 @@ impl<'a> Parser<'a> {
             TokenKind::Minus => NodeTag::Negative,
             TokenKind::Bang => NodeTag::Not,
             TokenKind::Bnot => NodeTag::BNot,
-            TokenKind::New => NodeTag::New,
-            TokenKind::Destruct => NodeTag::Destruct,
+            // TokenKind::New => NodeTag::New,
+            // TokenKind::Destruct => NodeTag::Destruct,
             _ => return None,
         };
         self.advance();
@@ -1126,6 +1241,16 @@ impl<'a> Parser<'a> {
             (third == TokenKind::Colon ||
              // third == TokenKind::RightBrace || //decided to remove this, do {x,} for one field
              third == TokenKind::Comma)
+    }
+
+    fn if_identifier_says_shape_consume_bool(&mut self) -> bool {
+        let current = self.peek_current();
+        if current.kind == TokenKind::Identifier && self.source.matches(current.span(), "shape") {
+            self.advance();
+            true
+        } else {
+            false
+        }
     }
 
     // DEAD CODE:

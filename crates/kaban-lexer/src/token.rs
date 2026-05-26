@@ -87,6 +87,7 @@ pub enum TokenKind {
     //symbols
     Semicolon,
     Colon,
+    ColonColon,
     Comma,
     Equals,
     LeftBrace,

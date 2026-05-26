@@ -1,0 +1,58 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    pub interface Talks {
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    
+
+Block [
+    InterfaceDeclWithNoGeneric {
+        is_pub: true,
+        interface_name: Identifier("Talks"),
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("step"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("step"),
+                            mutable: false,
+                        },
+                        type: Type(I32),
+                    },
+                ],
+                return_type: Type(I32),
+                body: Block [
+                    Return(
+                        Identifier("step"),
+                    ),
+                ],
+            },
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("default_talk"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("message"),
+                            mutable: false,
+                        },
+                        type: Type(C8),
+                    },
+                ],
+                return_type: "NONE",
+            },
+        ],
+    },
+]

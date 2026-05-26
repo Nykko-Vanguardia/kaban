@@ -33,4 +33,10 @@ pub enum ParseError {
     ExpectedMethod,
     #[error("Invalid type modifier after self")]
     InvalidModifierAfterSelf,
+    #[error("Expected a for or colon colon here")]
+    ExpectedForOrColonColon,
+    #[error("Invalid statement inside this impl or trait block")]
+    InvalidImplItem,
+    #[error("Expected either a block implementation or semicolon here")]
+    MissingBlockOrSemicolon,
 }

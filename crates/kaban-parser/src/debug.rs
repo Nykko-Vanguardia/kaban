@@ -90,7 +90,6 @@ impl<'a> Debug for NodePrinter<'a> {
                 .field("name", &self.get_token(left))
                 .field("assignment", &self.child(right))
                 .finish(),
-            NodeTag::New | NodeTag::Destruct => todo!(),
             t if t.is_postfix() || t.is_prefix() => {
                 f.debug_tuple(format!("{:?}", t).as_str())
                     .field(&self.child(left))
@@ -259,7 +258,11 @@ impl<'a> Debug for NodePrinter<'a> {
                     .finish()
             },
             NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
-            NodeTag::Return | NodeTag::Pass | NodeTag::CompTimeExpression => {
+            NodeTag::Return | 
+                NodeTag::Pass |
+                NodeTag::New |
+                NodeTag::Destruct |
+                NodeTag::CompTimeExpression => {
                 if let Some(left) = left.to_option() {
                     f.debug_tuple(format!("{:?}", tag).as_str()).field(&self.child(left)).finish()
                 } else {
@@ -305,6 +308,44 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
                         .field("return_type", &"NONE")
                         .field("body", &self.child(func_decl.block.0))
+                        .finish()
+                }
+            }
+            NodeTag::FuncNoBodyWithNoGenerics => {
+                let func_decl = self.ast.view_func_no_body_with_no_generics(index);
+                if let Some(return_type) = func_decl.return_type {
+                    f.debug_struct("FuncNoBodyWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("return_type", &self.child(return_type.0))
+                        .finish()
+                } else {
+                    f.debug_struct("FuncNoBodyWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("return_type", &"NONE")
+                        .finish()
+                }
+            }
+            NodeTag::FuncNoBodyWithGenerics => {
+                let func_decl = self.ast.view_func_no_body_with_generics(index);
+                if let Some(return_type) = func_decl.return_type {
+                    f.debug_struct("FuncNoBodyWithGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field("return_type", &self.child(return_type.0))
+                        .finish()
+                } else {
+                    f.debug_struct("FuncNoBodyWithNoGeneric")
+                        .field("is_pub", &func_decl.is_pub)
+                        .field("name", &self.get_token(func_decl.name.0))
+                        .field("params", &self.children(func_decl.params.uindex_slice()))
+                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field("return_type", &"NONE")
                         .finish()
                 }
             }
@@ -354,6 +395,82 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("generic_params", &self.children(enum_decl.generic_params.uindex_slice()))
                     .field("variant_decls", &self.children(enum_decl.variant_decls.uindex_slice()))
                     .finish()
+            }
+            NodeTag::ImplDeclWithNoGeneric => {
+                let impl_decl = self.ast.view_impl_decl_with_no_generics(index);
+                f.debug_struct("ImplDeclWithNoGeneric")
+                    .field("is_pub", &impl_decl.is_pub)
+                    .field("impl_name", &self.get_token(impl_decl.impl_name.0))
+                    .field("self_type", &self.child(impl_decl.self_type.0))
+                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::ImplDeclWithGeneric => {
+                let impl_decl = self.ast.view_impl_decl_with_generics(index);
+                f.debug_struct("ImplDeclWithGeneric")
+                    .field("is_pub", &impl_decl.is_pub)
+                    .field("impl_name", &self.get_token(impl_decl.impl_name.0))
+                    .field("self_type", &self.child(impl_decl.self_type.0))
+                    .field("generic_params", &self.children(impl_decl.generic_params.uindex_slice()))
+                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::ImplForDeclWithNoGeneric => {
+                let impl_decl = self.ast.view_impl_for_decl_with_no_generics(index);
+                f.debug_struct("ImplForDeclWithNoGeneric")
+                    .field("is_pub", &impl_decl.is_pub)
+                    .field("impl_name", &self.get_token(impl_decl.impl_name.0))
+                    .field("self_type", &self.child(impl_decl.self_type.0))
+                    .field("interface", &self.child(impl_decl.interface.0))
+                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::ImplForDeclWithGeneric => {
+                let impl_decl = self.ast.view_impl_for_decl_with_generics(index);
+                f.debug_struct("ImplForDeclWithGeneric")
+                    .field("is_pub", &impl_decl.is_pub)
+                    .field("impl_name", &self.get_token(impl_decl.impl_name.0))
+                    .field("self_type", &self.child(impl_decl.self_type.0))
+                    .field("interface", &self.child(impl_decl.interface.0))
+                    .field("generic_params", &self.children(impl_decl.generic_params.uindex_slice()))
+                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .finish()
+            }
+            NodeTag::InterfaceDeclWithNoGenerics => {
+                let interface_decl = self.ast.view_interface_decl_with_no_generics(index);
+                if let Some(shape) = interface_decl.shape {
+                    f.debug_struct("InterfaceDeclWithNoGeneric")
+                        .field("is_pub", &interface_decl.is_pub)
+                        .field("interface_name", &self.get_token(interface_decl.name.0))
+                        .field("shape", &self.child(shape.0))
+                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .finish()
+                } else {
+                    f.debug_struct("InterfaceDeclWithNoGeneric")
+                        .field("is_pub", &interface_decl.is_pub)
+                        .field("interface_name", &self.get_token(interface_decl.name.0))
+                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .finish()
+                }
+            }
+            NodeTag::InterfaceDeclWithGenerics => {
+                let interface_decl = self.ast.view_interface_decl_with_generics(index);
+                if let Some(shape) = interface_decl.shape {
+                    f.debug_struct("InterfaceDeclWithGeneric")
+                        .field("is_pub", &interface_decl.is_pub)
+                        .field("interface_name", &self.get_token(interface_decl.name.0))
+                        .field("shape", &self.child(shape.0))
+                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .field("generic_params", &self.children(interface_decl.generic_params.uindex_slice()))
+                        .finish()
+                } else {
+                    f.debug_struct("InterfaceDeclWithGeneric")
+                        .field("is_pub", &interface_decl.is_pub)
+                        .field("interface_name", &self.get_token(interface_decl.name.0))
+                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .field("generic_params", &self.children(interface_decl.generic_params.uindex_slice()))
+                        .finish()
+                }
             }
             NodeTag::EnumVariantDecl =>
                 if right != U_NONE {

@@ -1,0 +1,93 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Person<T>::Core<T> {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Person"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        statements: [
+            Const {
+                is_pub: true,
+                name: Identifier("NUMBER"),
+                type: Type(U8),
+                assignment: IntLit("10"),
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: true,
+                name: Identifier("walk"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("steps"),
+                            mutable: false,
+                        },
+                        type: Type(I32),
+                    },
+                ],
+                return_type: "NONE",
+                body: Block [
+                    MethodCall {
+                        callee: Self_,
+                        method name: Identifier("step"),
+                        is mutable: false,
+                        args: [
+                            Identifier("steps"),
+                        ],
+                    },
+                ],
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("step"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("step"),
+                            mutable: false,
+                        },
+                        type: Type(I32),
+                    },
+                ],
+                return_type: Type(I32),
+                body: Block [
+                    Return(
+                        Identifier("step"),
+                    ),
+                ],
+            },
+        ],
+    },
+]
