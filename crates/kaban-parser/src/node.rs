@@ -525,6 +525,11 @@ pub enum NodeTag {
     /// # left: NodeIndex = Match Target (Expression)
     /// # right: NodeIndex = Then (Statement or Block)
     MatchArms,
+    /// # left: u32 = match target count
+    /// # right: ExtraIndex -> \[...match targets\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] (Match Targets)
+    MultipleMatchTargets,
+
     ///SPECIAL -------------
     /// # left: TokenIndex = Identifier token
     /// # right: 1 | 0 = Mutable or not

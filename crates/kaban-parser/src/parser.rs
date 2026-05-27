@@ -947,16 +947,33 @@ impl<'a> Parser<'a> {
         let target = self.parse_expression()?;
         self.must_consume(TokenKind::RightParen, ParseError::MissingRightParen);
         self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
-        let arms = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
-            let left = p.parse_expression()?.0;
-            p.must_consume(TokenKind::FatArrow, ParseError::ExpectedToken(TokenKind::FatArrow))?;
-            let right = p.parse_expression()?.0;
-            p.push_node(NodeTag::MatchArms, left, right).some()
-        });
+        let arms = self.parse_match_arms();
         self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
         let extra_index = self.push_one_extra(arms.len().uindex());
         self.push_extra(arms.uindex_slice());
         self.push_node(NodeTag::Match, target.0, extra_index.0).some()
+    }
+
+    fn parse_match_arms(&mut self) -> Vec<NodeIndex> {
+        self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let left = p.parse_expression()?;
+            let left = if p.check_bool(TokenKind::Pipe) {
+                let mut match_targets = Vec::new();
+                while !p.is_at_end() && p.if_matches_then_consume_bool(TokenKind::Pipe) {
+                    match_targets.push(p.parse_expression()?);
+                };
+                let extra_pointer = p.push_one_extra(left.0);
+                p.push_extra(match_targets.uindex_slice());
+                const ORIGINAL_LEFT: UIndex = 1;
+                let len = match_targets.len().uindex() + ORIGINAL_LEFT;
+                p.push_node(NodeTag::MultipleMatchTargets, len, extra_pointer.0)
+            } else {
+                left
+            };
+            p.must_consume(TokenKind::FatArrow, ParseError::ExpectedToken(TokenKind::FatArrow))?;
+            let right = p.parse_expression()?;
+            p.push_node(NodeTag::MatchArms, left.0, right.0).some()
+        })
     }
 
     fn parse_while_expression(&mut self) -> Option<NodeIndex> {

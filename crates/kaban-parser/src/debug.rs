@@ -37,6 +37,7 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::ArrayLit |
             NodeTag::Block |
             NodeTag::Union |
+            NodeTag::MultipleMatchTargets |
             NodeTag::TupleDestructure |
             NodeTag::StructDestructure |
             NodeTag::ArrayDestructure |

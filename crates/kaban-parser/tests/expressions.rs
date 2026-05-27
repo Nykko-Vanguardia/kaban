@@ -205,6 +205,20 @@ fn match_statement_with_brace_and_no_brace() {
 }
 
 #[test]
+fn match_statement_with_brace_and_no_brace_and_pipe() {
+    test_snapshot!("
+        match (foo()) {
+            10 | 30 | 40 => 20,
+            20 => buzz(),
+            _ => {
+                bazz();
+                fizz();
+            },
+        }
+    ");
+}
+
+#[test]
 fn while_condition_with_bool_condition_and_braces() {
     test_snapshot!("while (x == 10) { x += 1; }");
 }
