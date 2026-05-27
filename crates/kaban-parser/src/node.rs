@@ -44,6 +44,8 @@ pub enum NodeTag {
     // Undefined,
     // Garbage,
     Self_,
+    /// eg. enum.Day
+    AnonymousEnumlit,
 
     //OPERATORS-----------------------------
 
@@ -135,6 +137,12 @@ pub enum NodeTag {
     /// - extra\[right + 1\] = arg count (N)
     /// - extra\[right + 2 .. right + 2 + N\] = NodeId\[N\] (arguments)
     Destruct,
+    /// #left: NodeIndex = Expression
+    ReferenceOf,
+    /// #left: NodeIndex = Expression
+    MutReferenceOf,
+    /// #left: NodeIndex = Expression
+    OwnershipOf,
 
     //PostfixUnary
     /// # left: NodeIndex - Expression
@@ -446,8 +454,7 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...types\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] (Types)
     Union, // union(i32, f64)
-    //TODO:
-    Result,
+    // Result,
     /// # left: u32 = type count
     /// # right: ExtraIndex -> \[...types\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] (Types)
@@ -463,6 +470,10 @@ pub enum NodeTag {
     /// NOTE: PARAM LEFT IS ALWAYS AN IDENTIFIER BINDING, NEVER DESTRUCTURS, ALWAYS IN THE FORM OF
     /// MUT OR NOT MUT THEN IDENTIFIER
     FuncType,
+    /// # left: u32 = variant count
+    /// # right: ExtraIndex -> \[...variants\]
+    /// - extra\[right.. right + N\] = NodeIndex\[N\] \(variants\)
+    AnonymousEnumType,
     
     //Generic Constaints
     /// # left: TokenIndex = Interface (Identifier)
@@ -603,7 +614,11 @@ impl NodeTag {
             NodeTag::FixedArrayType |
             NodeTag::DynArrayType |
             NodeTag::Union |
-            NodeTag::Result
+            // NodeTag::Result
+            NodeTag::TupleType |
+            NodeTag::AnonymousStructType |
+            NodeTag::FuncType |
+            NodeTag::AnonymousEnumType
         )
     }
 

@@ -219,6 +219,8 @@ impl<'a> Parser<'a> {
             TokenKind::Match => { advance_after_match = false; self.parse_match_expression()? },
             TokenKind::Func => { advance_after_match = false; self.parse_anonymous_func_decleration_expression()? },
             TokenKind::At => { advance_after_match = false; self.parse_comptime_expression()? },
+            TokenKind::Enum if self.peek_next().kind == TokenKind::Dot
+                => self.push_node(NodeTag::AnonymousEnumlit, U_NONE, U_NONE),
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -391,6 +393,13 @@ impl<'a> Parser<'a> {
                 self.push_extra(params.uindex_slice());
 
                 self.push_node(NodeTag::FuncType, return_type.to_index_or_u_none(), extra_pointer.0)
+            }
+            TokenKind::Enum if self.peek_next().kind == TokenKind::LeftBrace => {
+                advance_after_match = false;
+                self.advance();
+                let enum_variant_declerations = self.parse_enum_block();
+                let extra_pointer = self.push_extra(enum_variant_declerations.uindex_slice());
+                self.push_node(NodeTag::AnonymousEnumType, enum_variant_declerations.len().uindex(), extra_pointer.0)
             }
             _ => {
                 self.error_recovery(ParseError::MissingTypeDeclaration);
@@ -788,18 +797,8 @@ impl<'a> Parser<'a> {
         let name = self.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
-        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
-        let enum_variant_declerations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
-            let variant_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
-            let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
-                p.parse_type_decleration()
-            } else {
-                None
-            };
+        let enum_variant_declerations = self.parse_enum_block();
 
-            p.push_node(NodeTag::EnumVariantDecl, variant_name.index.0, type_.to_index_or_u_none()).some()
-        });
-        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
         let extra_pointer = self.push_one_extra(is_pub.uindex());
         if let Some(generics) = generics {
             self.push_one_extra(generics.len().uindex());
@@ -812,6 +811,22 @@ impl<'a> Parser<'a> {
             self.push_extra(enum_variant_declerations.uindex_slice());
             self.push_node(NodeTag::EnumDeclWithNoGeneric, name.index.0, extra_pointer.0).some()
         }
+    }
+
+    fn parse_enum_block(&mut self) -> Vec<NodeIndex> {
+        self.must_consume(TokenKind::LeftBrace, ParseError::MissingBlock);
+        let enum_variants = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
+            let variant_name = p.must_consume(TokenKind::Identifier, ParseError::MissingIdentifier)?;
+            let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
+                p.parse_type_decleration()
+            } else {
+                None
+            };
+
+            p.push_node(NodeTag::EnumVariantDecl, variant_name.index.0, type_.to_index_or_u_none()).some()
+        });
+        self.must_consume(TokenKind::RightBrace, ParseError::MissingRightBrace);
+        enum_variants
     }
 
     fn parse_impl_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
@@ -1194,6 +1209,9 @@ impl<'a> Parser<'a> {
             TokenKind::Minus => NodeTag::Negative,
             TokenKind::Bang => NodeTag::Not,
             TokenKind::Bnot => NodeTag::BNot,
+            TokenKind::Ampersand => NodeTag::ReferenceOf,
+            TokenKind::AmpersandMut => NodeTag::MutReferenceOf,
+            TokenKind::Star => NodeTag::OwnershipOf,
             // TokenKind::New => NodeTag::New,
             // TokenKind::Destruct => NodeTag::Destruct,
             _ => return None,

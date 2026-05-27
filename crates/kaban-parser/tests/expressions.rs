@@ -377,6 +377,21 @@ fn comptime_block() {
     test_snapshot!("@ {foo(); pass 5 + 10;}");
 }
 
+#[test]
+fn reference_mut_ref_and_ownership_of() {
+    test_snapshot!("let x = &y; let z = &mut w; let u = *v;");
+}
+
+#[test]
+fn anonymous_enum_type() {
+    test_snapshot!("x as enum { Default, Fast, Clean: i32, };");
+}
+
+#[test]
+fn anonymous_enum_access() {
+    test_snapshot!("return enum.Day;");
+}
+
 // #[test]
 // fn new_method_call() {
 //     test_snapshot!("new Person@<i32>::Core@<i32, f64>.from_id(10);");

@@ -18,6 +18,7 @@ impl<'a> Debug for NodePrinter<'a> {
 
         match tag {
             NodeTag::Self_ => write!(f, "{:?}", tag),
+            NodeTag::AnonymousEnumlit => write!(f, "{:?}", tag),
             t if t.is_token_leaf() => self.write_token(f, left),
             NodeTag::BoolLit => { write!(f, "{}", left.bool()) },
             NodeTag::ExpressionStatement => {
@@ -41,7 +42,8 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::ArrayDestructure |
             NodeTag::TupleType |
             NodeTag::AnonymousStructType |
-            NodeTag::TupleLit => {
+            NodeTag::TupleLit |
+            NodeTag::AnonymousEnumType => {
                 let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;
                 f.debug_list()

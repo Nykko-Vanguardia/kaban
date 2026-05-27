@@ -40,6 +40,9 @@ impl NodeTag {
             NodeTag::BNot => 13,
             NodeTag::New => 13,
             NodeTag::Destruct => 13,
+            NodeTag::ReferenceOf => 13,
+            NodeTag::MutReferenceOf => 13,
+            NodeTag::OwnershipOf => 13,
 
             //PostfixUnary
             NodeTag::Deref => 14,
@@ -104,6 +107,9 @@ impl NodeTag {
             NodeTag::BNot |
             NodeTag::New |
             NodeTag::Destruct |
+            NodeTag::ReferenceOf |
+            NodeTag::MutReferenceOf |
+            NodeTag::OwnershipOf |
             NodeTag::Deref |
             NodeTag::PanicIfErrOrNone |
             NodeTag::BubbleIfErrOrNone |
@@ -143,7 +149,11 @@ impl NodeTag {
             NodeTag::Not |
             NodeTag::BNot |
             NodeTag::New |
-            NodeTag::Destruct)
+            NodeTag::Destruct |
+            NodeTag::ReferenceOf |
+            NodeTag::MutReferenceOf |
+            NodeTag::OwnershipOf
+        )
     }
 
     pub fn is_member_access(&self) -> bool {
