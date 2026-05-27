@@ -39,4 +39,6 @@ pub enum ParseError {
     InvalidImplItem,
     #[error("Expected either a block implementation or semicolon here")]
     MissingBlockOrSemicolon,
+    #[error("Self must be a pointer, to send a copy you must explicitly declare the type. Did you mean to write self& or self &mut, or self*?")]
+    MissingSelfReferenceModifier,
 }

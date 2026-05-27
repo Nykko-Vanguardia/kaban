@@ -734,24 +734,28 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_self_param(&mut self) -> Option<NodeIndex> {
-        //NOTE: MIGHT REMOVE THIS
-        let mut_self = self.check_bool(TokenKind::Mut) && self.peek_next().kind == TokenKind::Self_;
-        if self.if_matches_then_consume_bool(TokenKind::Self_) || mut_self {
-            //NOTE: MIGHT REMOVE THIS
-            if mut_self {
-                self.advance();
-                self.advance();
-            }
+        //NOTE: REMOVED THIS, COPIES MUST BE SENT EXPLICITLY
+        // let mut_self = self.check_bool(TokenKind::Mut) && self.peek_next().kind == TokenKind::Self_;
+        if self.if_matches_then_consume_bool(TokenKind::Self_) /* || mut_self */ {
+            //NOTE: REMOVED THIS, COPIES MUST BE SENT EXPLICITLY
+            // if mut_self {
+            //     self.advance();
+            //     self.advance();
+            // }
             let current = self.peek_current();
             let self_ = match current.kind {
                 TokenKind::Ampersand |
                 TokenKind::AmpersandMut |
                 TokenKind::Star => {
                     self.advance();
-                    self.push_node(NodeTag::SelfParam, current.index.0, mut_self.uindex()).some()
+                    self.push_node(NodeTag::SelfParam, current.index.0, U_NONE).some()
                 }
-                //NOTE: MIGHT REMOVE THIS
-                _ => self.push_node(NodeTag::SelfParam, U_NONE, mut_self.uindex()).some()
+                //NOTE: REMOVED THIS, COPIES MUST BE SENT EXPLICITLY
+                // _ => self.push_node(NodeTag::SelfParam, U_NONE, mut_self.uindex()).some()
+                _ => {
+                    self.error_recovery(ParseError::MissingSelfReferenceModifier);
+                    None
+                }
             };
             if !self.check_bool(TokenKind::RightParen) {
                 self.must_consume(TokenKind::Comma, ParseError::ExpectedToken(TokenKind::Comma))?;

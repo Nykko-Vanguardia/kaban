@@ -508,18 +508,23 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_tuple("InterfaceConstraint")
                 .field(&self.get_token(left))
                 .finish(),
+            // NodeTag::SelfParam => if left != U_NONE {
+            //     if right.bool() {
+            //         f.debug_tuple("MutSelfParam").field(&self.get_token(left)).finish()
+            //     } else {
+            //         f.debug_tuple("SelfParam").field(&self.get_token(left)).finish()
+            //     }
+            // } else {
+            //     if right.bool() {
+            //         f.debug_tuple("MutSelfParam").finish()
+            //     } else {
+            //         f.debug_tuple("SelfParam").finish()
+            //     }
+            // }
             NodeTag::SelfParam => if left != U_NONE {
-                if right.bool() {
-                    f.debug_tuple("MutSelfParam").field(&self.get_token(left)).finish()
-                } else {
-                    f.debug_tuple("SelfParam").field(&self.get_token(left)).finish()
-                }
+                f.debug_tuple("SelfParam").field(&self.get_token(left)).finish()
             } else {
-                if right.bool() {
-                    f.debug_tuple("MutSelfParam").finish()
-                } else {
-                    f.debug_tuple("SelfParam").finish()
-                }
+                f.debug_tuple("SelfParam").finish()
             }
             _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
         }

@@ -216,15 +216,16 @@ fn public_func_decl_with_generic_constaint_interface_sugar() {
     test_snapshot!("pub func foo(mut x: impl Serializable, y: impl Debug & impl Clone) -> T { let z = x + y; return z; }");
 }
 
-#[test]
-fn func_decl_with_self_param() {
-    test_snapshot!("func foo(self, x: i32) -> i32 { let z = x; return z; }");
-}
-
-#[test]
-fn func_decl_with_self_param_only() {
-    test_snapshot!("func foo(self) -> i32 { let z = self.y; return z; }");
-}
+// REMOVED
+// #[test]
+// fn func_decl_with_self_param() {
+//     test_snapshot!("func foo(self, x: i32) -> i32 { let z = x; return z; }");
+// }
+//
+// #[test]
+// fn func_decl_with_self_param_only() {
+//     test_snapshot!("func foo(self) -> i32 { let z = self.y; return z; }");
+// }
 
 #[test]
 fn func_decl_with_self_read_reference() {
@@ -241,15 +242,16 @@ fn func_decl_with_self_pointer() {
     test_snapshot!("func foo(self*, x: i32) -> i32 { let z = self.y; return z; }");
 }
 
-#[test]
-fn func_decl_with_mut_self() {
-    test_snapshot!("func foo(mut self, x: i32) -> i32 { let z = self.y; return z; }");
-}
+// REMOVED
+// #[test]
+// fn func_decl_with_mut_self() {
+//     test_snapshot!("func foo(mut self, x: i32) -> i32 { let z = self.y; return z; }");
+// }
 
-#[test]
-fn func_decl_with_self_param_only_and_generics() {
-    test_snapshot!("func foo<T>(self, y: T) -> i32 { let z = self.y; return z; }");
-}
+// #[test]
+// fn func_decl_with_self_param_only_and_generics() {
+//     test_snapshot!("func foo<T>(self, y: T) -> i32 { let z = self.y; return z; }");
+// }
 
 #[test]
 fn impl_decl_with_no_generics() {
