@@ -46,6 +46,11 @@ impl<'a> Source<'a> {
     pub fn as_str_start_end(&self, start: UIndex, end: UIndex) -> &str {
         self.as_str(SourceSpan { start, end })
     }
+
+    #[inline(always)]
+    pub fn get_source_as_str(&self) -> &str {
+        self.as_str_start_end(0, self.source.len().uindex())
+    }
 }
 
 impl<'a> IsSource<'a> for &str {

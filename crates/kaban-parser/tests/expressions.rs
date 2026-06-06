@@ -1,24 +1,7 @@
 use kaban_core::source::{IsSource};
 use kaban_lexer::Lexer;
 use kaban_parser::Parser;
-
-macro_rules! test_snapshot {
-    ($input:expr) => {
-        let input = $input;
-        let source = input.to_source();
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize(); 
-        let mut parser = Parser::new(&tokens, source);
-        let ast = parser.parse_program();
-        let print = if parser.errors.len() > 0 {
-            format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
-        } else {
-            format!("input: {}\n\n{:#?}", input, ast.to_debugger())
-        };
-        
-        insta::assert_snapshot!(print);
-    };
-}
+mod test_macro;
 
 #[test]
 fn addition_is_left_associative() {
@@ -59,9 +42,25 @@ fn parentheses_override_precedence() {
 }
 
 #[test]
+fn type_casting_with_i32() {
+    test_snapshot!("x as i32;");
+}
+
+#[test]
+fn type_casting_with_dynamic_array() {
+    test_snapshot!("x as i32[];");
+}
+
+#[test]
 fn type_casting_with_complex_pointer_type() {
     test_snapshot!("x as i32*?[CONSTANT + 1]*;");
 }
+
+#[test]
+fn type_casting_with_simple_union_type() {
+    test_snapshot!("x as union(i32*, f64, Person);");
+}
+
 
 #[test]
 fn type_casting_with_nested_union_types() {
@@ -335,16 +334,6 @@ fn anonymous_func_decl_with_concrete_func_type_and_mut_params() {
 fn passing_a_callback_with_implicit_types() {
     test_snapshot!("foo(func(a, b) pass a + b, 20);");
 }
-//NOTE: REMOVED
-// #[test]
-// fn anonymous_func_decl_with_generics() {
-//     test_snapshot!("x = func<T>(x: T, y) -> T { pass x; };");
-// }
-//
-// #[test]
-// fn anonymous_func_decl_with_multiple_generics() {
-//     test_snapshot!("x = func<T, U,>(x: T, y: U) -> T { pass x; };");
-// }
 
 #[test]
 fn generic_instantiation_function() {
@@ -406,6 +395,127 @@ fn anonymous_enum_access() {
     test_snapshot!("return enum.Day;");
 }
 
+#[test]
+fn true_literal() {
+    test_snapshot!("x == true;");
+}
+
+#[test]
+fn string_literal_expression() {
+    test_snapshot!(r#""hello";"#);
+}
+
+#[test]
+fn unary_minus() {
+    test_snapshot!("-10;");
+}
+
+//NOTE: Subject to change might have to include ;
+#[test]
+fn empty_block_expression() {
+    test_snapshot!("{}");
+}
+
+//NOTE: Subject to change might have to include ;
+#[test]
+fn nested_block_expression() {
+    test_snapshot!("{ let x = { let y = 10; pass y + 1; } pass x; }");
+}
+
+#[test]
+fn member_access_assignment() {
+    test_snapshot!("a.b = 10;");
+}
+
+#[test]
+fn index_assignment() {
+    test_snapshot!("a[i] = 10;");
+}
+
+#[test]
+fn nested_struct_instantiation() {
+    test_snapshot!("Foo { x: Bar { y: 10 }, z: 20 };");
+}
+
+#[test]
+fn long_member_access_chain() {
+    test_snapshot!("a.b.c.d;");
+}
+
+#[test]
+fn mixed_member_and_method_chain() {
+    test_snapshot!("a.b().c.d();");
+}
+
+#[test]
+fn impl_access_method_call() {
+    test_snapshot!("Person::Core.new();");
+}
+
+#[test]
+fn do_while_with_compound_condition() {
+    test_snapshot!("do { x += 1; } while (x < 10 && y > 0);");
+}
+
+#[test]
+fn for_loop_with_mut_binding() {
+    test_snapshot!("for (mut i in 1..10) { x += i; }");
+}
+
+#[test]
+fn nested_match_expression() {
+    test_snapshot!("
+        match (x) {
+            10 => match (y) {
+                20 => foo(),
+                _ => bazz(),
+            },
+            _ => bar(),
+        }
+    ");
+}
+
+#[test]
+fn nested_function_calls() {
+    test_snapshot!("foo(bar(baz(10)));");
+}
+
+#[test]
+fn mutable_impl_access_method_call() {
+    test_snapshot!("Person::Core.new():set_name(\"foo\");");
+}
+
+#[test]
+fn assignment_to_nested_member() {
+    test_snapshot!("a.b.c = 10;");
+}
+
+#[test]
+fn chained_index_and_method() {
+    test_snapshot!("arr[0].method();");
+}
+
+#[test]
+fn if_expression_as_argument() {
+    test_snapshot!("foo(if (x > 0) pass x; else pass y;);");
+}
+
+#[test]
+fn block_expression_as_argument() {
+    test_snapshot!("foo({ let x = 10; pass x + 1; });");
+}
+
+//NOTE: REMOVED
+// #[test]
+// fn anonymous_func_decl_with_generics() {
+//     test_snapshot!("x = func<T>(x: T, y) -> T { pass x; };");
+// }
+//
+// #[test]
+// fn anonymous_func_decl_with_multiple_generics() {
+//     test_snapshot!("x = func<T, U,>(x: T, y: U) -> T { pass x; };");
+// }
+//
 // #[test]
 // fn new_method_call() {
 //     test_snapshot!("new Person@<i32>::Core@<i32, f64>.from_id(10);");

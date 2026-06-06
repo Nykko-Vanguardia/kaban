@@ -1,0 +1,20 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: pub const FOO: i32 = 10 + 5 * 2;
+
+Block [
+    Const {
+        is_pub: true,
+        name: Identifier("FOO"),
+        type: Type(I32),
+        assignment: Add {
+            left: IntLit("10"),
+            right: Multiply {
+                left: IntLit("5"),
+                right: IntLit("2"),
+            },
+        },
+    },
+]

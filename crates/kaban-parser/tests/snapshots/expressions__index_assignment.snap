@@ -1,0 +1,16 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: a[i] = 10;
+
+Block [
+    Assignment {
+        left: Index {
+            callee: Identifier("a"),
+            index: Identifier("i"),
+            is_safe: true,
+        },
+        right: IntLit("10"),
+    },
+]

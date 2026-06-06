@@ -43,8 +43,8 @@ pub enum TokenKind {
     Destructor,
     Disposer,
     Dispose,
-    New,
-    Destruct,
+    // New, //REMOVED FOR NOW, USE .new()
+    // Destruct,
     Self_,
     Shape,
     Namespace,

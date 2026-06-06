@@ -1,0 +1,18 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: a.b.c.d;
+
+Block [
+    MemberAccess {
+        left: MemberAccess {
+            left: MemberAccess {
+                left: Identifier("a"),
+                right: Identifier("b"),
+            },
+            right: Identifier("c"),
+        },
+        right: Identifier("d"),
+    },
+]

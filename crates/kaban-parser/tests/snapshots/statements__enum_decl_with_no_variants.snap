@@ -1,0 +1,13 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: enum Empty {}
+
+Block [
+    EnumDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Empty"),
+        variant_decls: [],
+    },
+]

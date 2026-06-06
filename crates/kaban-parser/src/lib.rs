@@ -6,3 +6,4 @@ mod debug;
 mod node;
 
 pub use parser::Parser;
+pub use ast::AST;

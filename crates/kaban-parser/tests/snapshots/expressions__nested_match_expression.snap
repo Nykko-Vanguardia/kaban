@@ -1,0 +1,50 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: 
+        match (x) {
+            10 => match (y) {
+                20 => foo(),
+                _ => bazz(),
+            },
+            _ => bar(),
+        }
+    
+
+Block [
+    Match {
+        target: Identifier("x"),
+        arms: [
+            Arm {
+                left: IntLit("10"),
+                right: Match {
+                    target: Identifier("y"),
+                    arms: [
+                        Arm {
+                            left: IntLit("20"),
+                            right: FuncCall {
+                                callee: Identifier("foo"),
+                                args: [],
+                            },
+                        },
+                        Arm {
+                            left: Identifier("_"),
+                            right: FuncCall {
+                                callee: Identifier("bazz"),
+                                args: [],
+                            },
+                        },
+                    ],
+                },
+            },
+            Arm {
+                left: Identifier("_"),
+                right: FuncCall {
+                    callee: Identifier("bar"),
+                    args: [],
+                },
+            },
+        ],
+    },
+]

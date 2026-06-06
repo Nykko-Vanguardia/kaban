@@ -1,0 +1,17 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: Person::Core.new();
+
+Block [
+    MethodCall {
+        callee: ImplAccess {
+            left: Identifier("Person"),
+            right: Identifier("Core"),
+        },
+        method name: Identifier("new"),
+        is mutable: false,
+        args: [],
+    },
+]

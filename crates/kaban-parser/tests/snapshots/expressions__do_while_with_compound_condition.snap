@@ -1,0 +1,26 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: do { x += 1; } while (x < 10 && y > 0);
+
+Block [
+    DoWhile {
+        block: Block [
+            PlusAssignment {
+                left: Identifier("x"),
+                right: IntLit("1"),
+            },
+        ],
+        condition: And {
+            left: Less {
+                left: Identifier("x"),
+                right: IntLit("10"),
+            },
+            right: Greater {
+                left: Identifier("y"),
+                right: IntLit("0"),
+            },
+        },
+    },
+]

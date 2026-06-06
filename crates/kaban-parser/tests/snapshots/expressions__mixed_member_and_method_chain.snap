@@ -1,0 +1,22 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: a.b().c.d();
+
+Block [
+    MethodCall {
+        callee: MemberAccess {
+            left: MethodCall {
+                callee: Identifier("a"),
+                method name: Identifier("b"),
+                is mutable: false,
+                args: [],
+            },
+            right: Identifier("c"),
+        },
+        method name: Identifier("d"),
+        is mutable: false,
+        args: [],
+    },
+]

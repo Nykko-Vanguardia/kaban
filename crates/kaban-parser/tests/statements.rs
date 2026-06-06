@@ -1,24 +1,8 @@
 use kaban_core::source::{IsSource};
 use kaban_lexer::Lexer;
 use kaban_parser::Parser;
-
-macro_rules! test_snapshot {
-    ($input:expr) => {
-        let input = $input;
-        let source = input.to_source();
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize(); 
-        let mut parser = Parser::new(&tokens, source);
-        let ast = parser.parse_program();
-        let print = if parser.errors.len() > 0 {
-            format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
-        } else {
-            format!("input: {}\n\n{:#?}", input, ast.to_debugger())
-        };
-        
-        insta::assert_snapshot!(print);
-    };
-}
+// use kaban_parser::AST;
+mod test_macro;
 
 #[test]
 fn let_statement_with_no_type() {
@@ -380,14 +364,116 @@ fn interface_decl_with_shape_generics() {
     ");
 }
 
-// impl Person::Core {
-//     pub const NUMBER: u8 = 10;
-//
-//     pub func walk(self&, steps: i32) {
-//         self.step(steps);
-//     }
-//
-//     func step(step: i32) -> i32 {
-//         return step;
-//     }
-// }
+#[test]
+fn func_decl_with_no_params() {
+    test_snapshot!("func foo() -> i32 { return 5; }");
+}
+
+#[test]
+fn pub_func_decl_with_no_params() {
+    test_snapshot!("pub func foo() -> i32 { return 5; }");
+}
+
+#[test]
+fn func_decl_with_self_and_multiple_params() {
+    test_snapshot!("func foo(self&, x: i32, y: f64) -> i32 { return x; }");
+}
+
+#[test]
+fn func_decl_with_self_mut_and_multiple_params() {
+    test_snapshot!("func foo(self&mut, x: i32) -> i32 { return x; }");
+}
+
+#[test]
+fn func_decl_with_generic_and_self_param() {
+    test_snapshot!("func foo<T>(self&, x: T) -> T { return x; }");
+}
+
+#[test]
+fn let_with_true_literal() {
+    test_snapshot!("let x = true;");
+}
+
+#[test]
+fn let_with_string_literal() {
+    test_snapshot!(r#"let x = "hello";"#);
+}
+
+#[test]
+fn struct_decl_single_field() {
+    test_snapshot!("struct Foo { x: i32 }");
+}
+
+#[test]
+fn struct_field_with_generic_type() {
+    test_snapshot!("struct Foo { x: HashMap<String, i32>, }");
+}
+
+#[test]
+fn struct_field_with_pointer_type() {
+    test_snapshot!("struct Foo { x: i32*, y: String&, }");
+}
+
+#[test]
+fn impl_decl_with_anonymous_constructor_only() {
+    test_snapshot!("impl Person::Core { pub func new() -> self { } }");
+}
+
+#[test]
+fn impl_decl_with_named_constructor() {
+    test_snapshot!("impl Person::Factory { pub func from_str(s: String&) -> self { } }");
+}
+
+#[test]
+fn impl_decl_with_constructor_and_methods() {
+    test_snapshot!("
+        impl Person::Core {
+            pub func new(name: String*, age: i32) -> self { }
+            func get_name(self&) -> String& { return self.name; }
+        }
+    ");
+}
+
+#[test]
+fn multiple_sequential_func_decls() {
+    test_snapshot!("
+        func foo() -> i32 { return 1; }
+        func bar() -> i32 { return 2; }
+        func baz() -> i32 { return 3; }
+    ");
+}
+
+#[test]
+fn pub_const_with_binary_expression() {
+    test_snapshot!("pub const FOO: i32 = 10 + 5 * 2;");
+}
+
+#[test]
+fn enum_decl_with_no_variants() {
+    test_snapshot!("enum Empty {}");
+}
+
+#[test]
+fn private_func_decl_with_no_params_and_no_return_type() {
+    test_snapshot!("func foo() { }");
+}
+
+#[test]
+fn struct_and_impl_sequential() {
+    test_snapshot!("
+        struct Point { x: i32, y: i32 }
+        impl Point::Core {
+            func distance(self&) -> f64 { return 0.0; }
+        }
+    ");
+}
+
+#[allow(dead_code)]
+fn panic_print(source: &str) {
+    let source = source.to_source();
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize(); 
+    let mut parser = Parser::new(&tokens, source);
+    let ast = parser.parse_program();
+    ast.panic_print();
+}

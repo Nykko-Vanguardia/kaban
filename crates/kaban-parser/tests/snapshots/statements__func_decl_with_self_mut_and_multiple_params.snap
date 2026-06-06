@@ -1,0 +1,30 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo(self&mut, x: i32) -> i32 { return x; }
+
+Block [
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            SelfParam(
+                AmpersandMut("&mut"),
+            ),
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                type: Type(I32),
+            },
+        ],
+        return_type: Type(I32),
+        body: Block [
+            Return(
+                Identifier("x"),
+            ),
+        ],
+    },
+]

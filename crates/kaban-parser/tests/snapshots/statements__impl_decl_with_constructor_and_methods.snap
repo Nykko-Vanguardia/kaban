@@ -1,0 +1,70 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+        impl Person::Core {
+            pub func new(name: String*, age: i32) -> self { }
+            func get_name(self&) -> String& { return self.name; }
+        }
+    
+
+Block [
+    ImplDeclWithNoGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: NamedType(
+            Identifier("Person"),
+        ),
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: true,
+                name: Identifier("new"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("name"),
+                            mutable: false,
+                        },
+                        type: Pointer(
+                            NamedType(
+                                Identifier("String"),
+                            ),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("age"),
+                            mutable: false,
+                        },
+                        type: Type(I32),
+                    },
+                ],
+                return_type: Self_,
+                body: Block [],
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("get_name"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: Borrow(
+                    NamedType(
+                        Identifier("String"),
+                    ),
+                ),
+                body: Block [
+                    Return(
+                        MemberAccess {
+                            left: Self_,
+                            right: Identifier("name"),
+                        },
+                    ),
+                ],
+            },
+        ],
+    },
+]

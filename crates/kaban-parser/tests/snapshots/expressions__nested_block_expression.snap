@@ -1,0 +1,34 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: { let x = { let y = 10; pass y + 1; } pass x; }
+
+Block [
+    Block [
+        Let {
+            name: IdentifierBinding {
+                name: Identifier("x"),
+                mutable: false,
+            },
+            assignment: Block [
+                Let {
+                    name: IdentifierBinding {
+                        name: Identifier("y"),
+                        mutable: false,
+                    },
+                    assignment: IntLit("10"),
+                },
+                Pass(
+                    Add {
+                        left: Identifier("y"),
+                        right: IntLit("1"),
+                    },
+                ),
+            ],
+        },
+        Pass(
+            Identifier("x"),
+        ),
+    ],
+]
