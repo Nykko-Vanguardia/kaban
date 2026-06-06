@@ -1,5 +1,5 @@
 use kaban_core::{ToBool, ToUsize, UIndex, source::Source};
-use kaban_lexer::{Token};
+use kaban_lexer::Token;
 
 use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToOption, ToWrapper, TokenIndex};
 
@@ -23,7 +23,15 @@ impl<'a> AST<'a> {
         source: Source<'a>,
         root: NodeIndex,
     ) -> Self {
-        Self { tokens, node_tags, node_data, main_token, extra, source, root }
+        Self {
+            tokens,
+            node_tags,
+            node_data,
+            main_token,
+            extra,
+            source,
+            root,
+        }
     }
 
     #[inline(always)]
@@ -40,7 +48,6 @@ impl<'a> AST<'a> {
     pub fn get_data(&self, index: NodeIndex) -> NodeData {
         self.node_data[index.0.usize()]
     }
-
 
     #[inline(always)]
     pub fn get_left_right(&self, index: NodeIndex) -> (UIndex, UIndex) {
@@ -84,7 +91,10 @@ impl<'a> AST<'a> {
         let sep = "─".repeat(70);
 
         eprintln!("\n=== AST ({n} nodes) ===");
-        eprintln!("{:>4}  {:<36}  {:>5}  {:>8}  {:>8}", "idx", "tag", "main", "lhs", "rhs");
+        eprintln!(
+            "{:>4}  {:<36}  {:>5}  {:>8}  {:>8}",
+            "idx", "tag", "main", "lhs", "rhs"
+        );
         eprintln!("{sep}");
 
         for i in 0..n {
@@ -111,13 +121,12 @@ impl<'a> AST<'a> {
         eprintln!();
     }
 
-#[inline(always)]
+    #[inline(always)]
     pub fn panic_print(&self) {
         self.debug_print();
         panic!("AST dump above");
     }
 }
-
 
 ///VIEWS
 impl<'a> AST<'a> {
@@ -128,7 +137,9 @@ impl<'a> AST<'a> {
         let args_start = extra + 1;
         FuncCall {
             callee: callee.node_index(),
-            args: self.get_extra_from_count(arg_count, args_start).node_index_slice(),
+            args: self
+                .get_extra_from_count(arg_count, args_start)
+                .node_index_slice(),
         }
     }
 
@@ -148,7 +159,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_method_call_with_generic_instantiation(&'a self, index: NodeIndex) -> MethodCallWithGenericInstantiation<'a> {
+    pub fn view_method_call_with_generic_instantiation(
+        &'a self,
+        index: NodeIndex,
+    ) -> MethodCallWithGenericInstantiation<'a> {
         debug_assert!(NodeTag::MethodWithGenericInstantiation == self.get_tag(index));
         let (callee, extra) = self.get_left_right(index);
         let main_token = self.get_main_token_index(index);
@@ -175,14 +189,16 @@ impl<'a> AST<'a> {
 
         GenericInstantiation {
             callee: callee.node_index(),
-            args: self.get_extra_from_count(arg_count, args_start).node_index_slice(),
+            args: self
+                .get_extra_from_count(arg_count, args_start)
+                .node_index_slice(),
         }
     }
     pub fn view_index(&'a self, index: NodeIndex) -> Index {
         debug_assert!(NodeTag::Index == self.get_tag(index));
         let (callee, extra) = self.get_left_right(index);
         let is_safe_index = extra;
-        let index_by= extra + 1;
+        let index_by = extra + 1;
         Index {
             callee: callee.node_index(),
             is_safe_index: self.get_one_extra(is_safe_index).bool(),
@@ -190,7 +206,6 @@ impl<'a> AST<'a> {
         }
     }
 
-        
     pub fn view_array_lit(&'a self, index: NodeIndex) -> ArrayLit<'a> {
         debug_assert!(NodeTag::ArrayLit == self.get_tag(index));
         let general_list = self.view_general_list(index);
@@ -212,9 +227,9 @@ impl<'a> AST<'a> {
     pub fn view_func_type(&'a self, index: NodeIndex) -> FuncType<'a> {
         debug_assert!(NodeTag::FuncType == self.get_tag(index));
         let (return_type, extra_pointer) = self.get_left_right(index);
-        let param_count = self.get_one_extra(extra_pointer); 
+        let param_count = self.get_one_extra(extra_pointer);
         let params = self.get_extra_from_count(param_count, extra_pointer + 1);
-        
+
         FuncType {
             params: params.node_index_slice(),
             return_type: return_type.node_index().to_option(),
@@ -271,19 +286,19 @@ impl<'a> AST<'a> {
         let (condition, extra_pointer) = self.get_left_right(index);
         let then_pointer = extra_pointer;
         let else_pointer = extra_pointer + 1;
-        let else_ = self.get_one_extra(else_pointer).node_index(); 
+        let else_ = self.get_one_extra(else_pointer).node_index();
         If {
             condition: condition.node_index(),
             then: self.get_one_extra(then_pointer).node_index(),
             else_: else_.to_option(),
         }
     }
-    
+
     pub fn view_let_statement(&'a self, index: NodeIndex) -> Let {
         debug_assert!(NodeTag::Let == self.get_tag(index));
         let (name, extra_pointer) = self.get_left_right(index);
         let type_ = extra_pointer;
-        let assignment = extra_pointer + 1; 
+        let assignment = extra_pointer + 1;
         Let {
             name: name.node_index(),
             type_: self.get_one_extra(type_).node_index().to_option(),
@@ -309,7 +324,7 @@ impl<'a> AST<'a> {
         debug_assert!(NodeTag::Match == self.get_tag(index));
         let (target, extra_pointer) = self.get_left_right(index);
         let arm_count = self.get_one_extra(extra_pointer);
-        let arm_list_start = extra_pointer + 1; 
+        let arm_list_start = extra_pointer + 1;
         let arms = self.get_extra_from_count(arm_count, arm_list_start);
         Match {
             target: target.node_index(),
@@ -333,17 +348,22 @@ impl<'a> AST<'a> {
         debug_assert!(NodeTag::AnonymousFuncDecl == self.get_tag(index));
         let (body, extra_pointer) = self.get_left_right(index);
         let return_type = extra_pointer;
-        let param_count = extra_pointer + 1; 
-        let param_start = extra_pointer + 2; 
-        
-        AnonymousFuncDecl { 
-            params: self.get_extra_from_count(self.get_one_extra(param_count), param_start).node_index_slice(),
+        let param_count = extra_pointer + 1;
+        let param_start = extra_pointer + 2;
+
+        AnonymousFuncDecl {
+            params: self
+                .get_extra_from_count(self.get_one_extra(param_count), param_start)
+                .node_index_slice(),
             return_type: self.get_one_extra(return_type).node_index().to_option(),
             block: body.node_index(),
         }
     }
 
-    pub fn view_func_decl_with_no_generics(&'a self, index: NodeIndex) -> FuncDeclWithNoGenerics<'a> {
+    pub fn view_func_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::FuncDeclWithNoGenerics == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -370,7 +390,8 @@ impl<'a> AST<'a> {
         let generic_param_count = self.get_one_extra(extra_pointer + 2);
         let param_count = self.get_one_extra(extra_pointer + 3);
         let generic_params = self.get_extra_from_count(generic_param_count, extra_pointer + 4);
-        let params = self.get_extra_from_count(param_count, extra_pointer + 4 + generic_param_count);
+        let params =
+            self.get_extra_from_count(param_count, extra_pointer + 4 + generic_param_count);
 
         FuncDeclWithGenerics {
             is_pub: is_pub.bool(),
@@ -382,7 +403,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_func_no_body_with_no_generics(&'a self, index: NodeIndex) -> FuncNoBodyWithNoGenerics<'a> {
+    pub fn view_func_no_body_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncNoBodyWithNoGenerics<'a> {
         debug_assert!(NodeTag::FuncNoBodyWithNoGenerics == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -398,7 +422,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_func_no_body_with_generics(&'a self, index: NodeIndex) -> FuncNoBodyWithGenerics<'a> {
+    pub fn view_func_no_body_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncNoBodyWithGenerics<'a> {
         debug_assert!(NodeTag::FuncNoBodyWithGenerics == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -406,7 +433,8 @@ impl<'a> AST<'a> {
         let generic_param_count = self.get_one_extra(extra_pointer + 1);
         let param_count = self.get_one_extra(extra_pointer + 2);
         let generic_params = self.get_extra_from_count(generic_param_count, extra_pointer + 3);
-        let params = self.get_extra_from_count(param_count, extra_pointer + 3 + generic_param_count);
+        let params =
+            self.get_extra_from_count(param_count, extra_pointer + 3 + generic_param_count);
 
         FuncNoBodyWithGenerics {
             is_pub: is_pub.bool(),
@@ -417,7 +445,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_struct_decl_with_no_generics(&'a self, index: NodeIndex) -> StructDeclWithNoGenerics<'a> {
+    pub fn view_struct_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> StructDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::StructDeclWithNoGeneric == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -431,7 +462,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_struct_decl_with_generics(&'a self, index: NodeIndex) -> StructDeclWithGenerics<'a> {
+    pub fn view_struct_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> StructDeclWithGenerics<'a> {
         debug_assert!(NodeTag::StructDeclWithGeneric == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -460,7 +494,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_enum_decl_with_no_generics(&'a self, index: NodeIndex) -> EnumDeclWithNoGenerics<'a> {
+    pub fn view_enum_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> EnumDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::EnumDeclWithNoGeneric == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -481,7 +518,8 @@ impl<'a> AST<'a> {
         let generic_count = self.get_one_extra(extra_pointer + 0);
         let variant_count = self.get_one_extra(extra_pointer + 1);
         let generic_params = self.get_extra_from_count(generic_count, extra_pointer + 2);
-        let variant_decls = self.get_extra_from_count(variant_count, extra_pointer + 2 + generic_count);
+        let variant_decls =
+            self.get_extra_from_count(variant_count, extra_pointer + 2 + generic_count);
 
         EnumDeclWithGenerics {
             name: main_token + 1,
@@ -491,7 +529,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_impl_decl_with_no_generics(&'a self, index: NodeIndex) -> ImplDeclWithNoGenerics<'a> {
+    pub fn view_impl_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::ImplDeclWithNoGeneric == self.get_tag(index));
         let (impl_name, extra_pointer) = self.get_left_right(index);
         let is_pub = self.get_one_extra(extra_pointer);
@@ -515,7 +556,8 @@ impl<'a> AST<'a> {
         let generic_count = self.get_one_extra(extra_pointer + 2);
         let statement_count = self.get_one_extra(extra_pointer + 3);
         let generics = self.get_extra_from_count(generic_count, extra_pointer + 4);
-        let statements = self.get_extra_from_count(statement_count, extra_pointer + 4 + generic_count);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 4 + generic_count);
 
         ImplDeclWithGenerics {
             impl_name: impl_name.token_index(),
@@ -526,7 +568,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_impl_for_decl_with_no_generics(&'a self, index: NodeIndex) -> ImplForDeclWithNoGenerics<'a> {
+    pub fn view_impl_for_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplForDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::ImplForDeclWithNoGeneric == self.get_tag(index));
         let (impl_name, extra_pointer) = self.get_left_right(index);
         let is_pub = self.get_one_extra(extra_pointer);
@@ -544,7 +589,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_impl_for_decl_with_generics(&'a self, index: NodeIndex) -> ImplForDeclWithGenerics<'a> {
+    pub fn view_impl_for_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplForDeclWithGenerics<'a> {
         debug_assert!(NodeTag::ImplForDeclWithGeneric == self.get_tag(index));
         let (impl_name, extra_pointer) = self.get_left_right(index);
         let is_pub = self.get_one_extra(extra_pointer);
@@ -553,7 +601,8 @@ impl<'a> AST<'a> {
         let generic_count = self.get_one_extra(extra_pointer + 3);
         let statement_count = self.get_one_extra(extra_pointer + 4);
         let generics = self.get_extra_from_count(generic_count, extra_pointer + 5);
-        let statements = self.get_extra_from_count(statement_count, extra_pointer + 5 + generic_count);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 5 + generic_count);
 
         ImplForDeclWithGenerics {
             impl_name: impl_name.token_index(),
@@ -565,7 +614,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_interface_decl_with_no_generics(&'a self, index: NodeIndex) -> InterfaceDeclWithNoGenerics<'a> {
+    pub fn view_interface_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> InterfaceDeclWithNoGenerics<'a> {
         debug_assert!(NodeTag::InterfaceDeclWithNoGenerics == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -581,7 +633,10 @@ impl<'a> AST<'a> {
         }
     }
 
-    pub fn view_interface_decl_with_generics(&'a self, index: NodeIndex) -> InterfaceDeclWithGenerics<'a> {
+    pub fn view_interface_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> InterfaceDeclWithGenerics<'a> {
         debug_assert!(NodeTag::InterfaceDeclWithGenerics == self.get_tag(index));
         let main_token = self.get_main_token_index(index);
         let (is_pub, extra_pointer) = self.get_left_right(index);
@@ -589,7 +644,8 @@ impl<'a> AST<'a> {
         let generic_count = self.get_one_extra(extra_pointer + 1);
         let statement_count = self.get_one_extra(extra_pointer + 2);
         let generics = self.get_extra_from_count(generic_count, extra_pointer + 3);
-        let statements = self.get_extra_from_count(statement_count, extra_pointer + 3 + generic_count);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 3 + generic_count);
 
         InterfaceDeclWithGenerics {
             name: main_token + 1,
@@ -597,7 +653,6 @@ impl<'a> AST<'a> {
             shape: shape.node_index().to_option(),
             generic_params: generics.node_index_slice(),
             statements: statements.node_index_slice(),
-            
         }
     }
 }
@@ -608,7 +663,7 @@ impl<'a> AST<'a> {
 
 pub struct FuncCall<'a> {
     pub callee: NodeIndex,
-    pub args: &'a [NodeIndex]
+    pub args: &'a [NodeIndex],
 }
 
 pub struct MethodCall<'a> {
@@ -628,7 +683,7 @@ pub struct MethodCallWithGenericInstantiation<'a> {
 
 pub struct GenericInstantiation<'a> {
     pub callee: NodeIndex,
-    pub args: &'a [NodeIndex]
+    pub args: &'a [NodeIndex],
 }
 
 pub struct Index {
@@ -648,13 +703,13 @@ pub struct Union<'a> {
 }
 
 pub struct FuncType<'a> {
-    pub params: &'a[NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
 }
 
 pub struct TypeWithGenerics<'a> {
     pub type_: NodeIndex,
-    pub generic_args: &'a[NodeIndex]
+    pub generic_args: &'a [NodeIndex],
 }
 
 pub struct Block<'a> {
@@ -694,16 +749,16 @@ pub struct Const {
 
 pub struct Match<'a> {
     pub target: NodeIndex,
-    pub arms: &'a[NodeIndex],
+    pub arms: &'a [NodeIndex],
 }
 
 pub struct StructInstantiation<'a> {
     pub struct_name: Option<NodeIndex>,
-    pub field_instantiation: &'a[NodeIndex],
+    pub field_instantiation: &'a [NodeIndex],
 }
 
 pub struct AnonymousFuncDecl<'a> {
-    pub params: &'a[NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
     pub block: NodeIndex,
 }
@@ -711,7 +766,7 @@ pub struct AnonymousFuncDecl<'a> {
 pub struct FuncDeclWithNoGenerics<'a> {
     pub is_pub: bool,
     pub name: TokenIndex,
-    pub params: &'a[NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
     pub block: NodeIndex,
 }
@@ -719,8 +774,8 @@ pub struct FuncDeclWithNoGenerics<'a> {
 pub struct FuncDeclWithGenerics<'a> {
     pub is_pub: bool,
     pub name: TokenIndex,
-    pub generic_params: &'a[NodeIndex],
-    pub params: &'a[NodeIndex],
+    pub generic_params: &'a [NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
     pub block: NodeIndex,
 }
@@ -728,15 +783,15 @@ pub struct FuncDeclWithGenerics<'a> {
 pub struct FuncNoBodyWithNoGenerics<'a> {
     pub is_pub: bool,
     pub name: TokenIndex,
-    pub params: &'a[NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
 }
 
 pub struct FuncNoBodyWithGenerics<'a> {
     pub is_pub: bool,
     pub name: TokenIndex,
-    pub generic_params: &'a[NodeIndex],
-    pub params: &'a[NodeIndex],
+    pub generic_params: &'a [NodeIndex],
+    pub params: &'a [NodeIndex],
     pub return_type: Option<NodeIndex>,
 }
 
@@ -776,7 +831,7 @@ pub struct ImplDeclWithNoGenerics<'a> {
     pub impl_name: TokenIndex,
     pub is_pub: bool,
     pub self_type: NodeIndex,
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }
 
 pub struct ImplDeclWithGenerics<'a> {
@@ -784,7 +839,7 @@ pub struct ImplDeclWithGenerics<'a> {
     pub is_pub: bool,
     pub self_type: NodeIndex,
     pub generic_params: &'a [NodeIndex],
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }
 
 pub struct ImplForDeclWithNoGenerics<'a> {
@@ -792,7 +847,7 @@ pub struct ImplForDeclWithNoGenerics<'a> {
     pub is_pub: bool,
     pub self_type: NodeIndex,
     pub interface: NodeIndex,
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }
 
 pub struct ImplForDeclWithGenerics<'a> {
@@ -801,14 +856,14 @@ pub struct ImplForDeclWithGenerics<'a> {
     pub self_type: NodeIndex,
     pub interface: NodeIndex,
     pub generic_params: &'a [NodeIndex],
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }
 
 pub struct InterfaceDeclWithNoGenerics<'a> {
     pub name: TokenIndex,
     pub is_pub: bool,
     pub shape: Option<NodeIndex>,
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }
 
 pub struct InterfaceDeclWithGenerics<'a> {
@@ -816,5 +871,5 @@ pub struct InterfaceDeclWithGenerics<'a> {
     pub is_pub: bool,
     pub shape: Option<NodeIndex>,
     pub generic_params: &'a [NodeIndex],
-    pub statements: &'a[NodeIndex],
+    pub statements: &'a [NodeIndex],
 }

@@ -64,104 +64,111 @@ impl NodeTag {
             NodeTag::As => 14,
 
             //Assignment
-            NodeTag::Assignment  => 1,
-            NodeTag::PlusAssignment  => 1,
-            NodeTag::MinusAssignment  => 1,
-            NodeTag::MultiplyAssignment  => 1,
-            NodeTag::DivideAssignment  => 1,
+            NodeTag::Assignment => 1,
+            NodeTag::PlusAssignment => 1,
+            NodeTag::MinusAssignment => 1,
+            NodeTag::MultiplyAssignment => 1,
+            NodeTag::DivideAssignment => 1,
             NodeTag::ModuloAssignment => 1,
             _ => {
-                debug_assert!(self.is_operator(), 
-                    "Tried to get a precedence of a non error node tag: {:?}", self);
+                debug_assert!(
+                    self.is_operator(),
+                    "Tried to get a precedence of a non error node tag: {:?}",
+                    self
+                );
                 0
-            }        
+            }
         }
     }
 
     pub fn is_operator(&self) -> bool {
-        matches!(self, 
+        matches!(
+            self,
             //Arithmetic
-            NodeTag::Add |
-            NodeTag::Subtract |
-            NodeTag::Multiply |
-            NodeTag::Divide |
-            NodeTag::Modulo |
-            NodeTag::Equal |
-            NodeTag::NotEqual |
-            NodeTag::Less |
-            NodeTag::Greater |
-            NodeTag::LessEqual |
-            NodeTag::GreaterEqual |
-            NodeTag::And |
-            NodeTag::Or |
-            NodeTag::BAnd |
-            NodeTag::BOr |
-            NodeTag::XOr |
-            NodeTag::LeftShift |
-            NodeTag::RightShift |
-            NodeTag::UnsignedRightShift |
-            NodeTag::InclusiveRange |
-            NodeTag::ExclusiveRange |
-            NodeTag::Negative |
-            NodeTag::Not |
-            NodeTag::BNot |
-            NodeTag::New |
-            NodeTag::Destruct |
-            NodeTag::ReferenceOf |
-            NodeTag::MutReferenceOf |
-            NodeTag::OwnershipOf |
-            NodeTag::Deref |
-            NodeTag::PanicIfErrOrNone |
-            NodeTag::BubbleIfErrOrNone |
-            NodeTag::FuncCall |
-            NodeTag::GenericInstantiation |
-            NodeTag::StructInstantiation |
-            NodeTag::Index |
-            NodeTag::MemberAccess |
-            NodeTag::ImplAccess |
-            NodeTag::UndefinedChainingAccess |
-            NodeTag::Colon |
-            NodeTag::UndefinedCoalescing |
-            NodeTag::As |
-            NodeTag::Assignment |
-            NodeTag::PlusAssignment |
-            NodeTag::MinusAssignment |
-            NodeTag::MultiplyAssignment |
-            NodeTag::DivideAssignment |
-            NodeTag::ModuloAssignment
+            NodeTag::Add
+                | NodeTag::Subtract
+                | NodeTag::Multiply
+                | NodeTag::Divide
+                | NodeTag::Modulo
+                | NodeTag::Equal
+                | NodeTag::NotEqual
+                | NodeTag::Less
+                | NodeTag::Greater
+                | NodeTag::LessEqual
+                | NodeTag::GreaterEqual
+                | NodeTag::And
+                | NodeTag::Or
+                | NodeTag::BAnd
+                | NodeTag::BOr
+                | NodeTag::XOr
+                | NodeTag::LeftShift
+                | NodeTag::RightShift
+                | NodeTag::UnsignedRightShift
+                | NodeTag::InclusiveRange
+                | NodeTag::ExclusiveRange
+                | NodeTag::Negative
+                | NodeTag::Not
+                | NodeTag::BNot
+                | NodeTag::New
+                | NodeTag::Destruct
+                | NodeTag::ReferenceOf
+                | NodeTag::MutReferenceOf
+                | NodeTag::OwnershipOf
+                | NodeTag::Deref
+                | NodeTag::PanicIfErrOrNone
+                | NodeTag::BubbleIfErrOrNone
+                | NodeTag::FuncCall
+                | NodeTag::GenericInstantiation
+                | NodeTag::StructInstantiation
+                | NodeTag::Index
+                | NodeTag::MemberAccess
+                | NodeTag::ImplAccess
+                | NodeTag::UndefinedChainingAccess
+                | NodeTag::Colon
+                | NodeTag::UndefinedCoalescing
+                | NodeTag::As
+                | NodeTag::Assignment
+                | NodeTag::PlusAssignment
+                | NodeTag::MinusAssignment
+                | NodeTag::MultiplyAssignment
+                | NodeTag::DivideAssignment
+                | NodeTag::ModuloAssignment
         )
     }
 
     pub fn is_postfix(&self) -> bool {
-        matches!(self, 
-            NodeTag::Deref |
-            NodeTag::PanicIfErrOrNone |
-            NodeTag::BubbleIfErrOrNone |
-            NodeTag::FuncCall |
-            NodeTag::GenericInstantiation |
-            NodeTag::StructInstantiation |
-            NodeTag::Index)
+        matches!(
+            self,
+            NodeTag::Deref
+                | NodeTag::PanicIfErrOrNone
+                | NodeTag::BubbleIfErrOrNone
+                | NodeTag::FuncCall
+                | NodeTag::GenericInstantiation
+                | NodeTag::StructInstantiation
+                | NodeTag::Index
+        )
     }
 
     pub fn is_prefix(&self) -> bool {
-        matches!(self,
-            NodeTag::Negative |
-            NodeTag::Not |
-            NodeTag::BNot |
-            NodeTag::New |
-            NodeTag::Destruct |
-            NodeTag::ReferenceOf |
-            NodeTag::MutReferenceOf |
-            NodeTag::OwnershipOf
+        matches!(
+            self,
+            NodeTag::Negative
+                | NodeTag::Not
+                | NodeTag::BNot
+                | NodeTag::New
+                | NodeTag::Destruct
+                | NodeTag::ReferenceOf
+                | NodeTag::MutReferenceOf
+                | NodeTag::OwnershipOf
         )
     }
 
     pub fn is_member_access(&self) -> bool {
         match self {
-            NodeTag::MemberAccess |
-            NodeTag::ImplAccess |
-            NodeTag::UndefinedChainingAccess |
-            NodeTag::Colon => true,
+            NodeTag::MemberAccess
+            | NodeTag::ImplAccess
+            | NodeTag::UndefinedChainingAccess
+            | NodeTag::Colon => true,
             _ => false,
         }
     }
@@ -170,52 +177,54 @@ impl NodeTag {
      * Binary here is defined as this has a left and right side pointing to expressions
      */
     pub fn is_binary_expression(&self) -> bool {
-        matches!(self, 
-            NodeTag::Add |
-            NodeTag::Subtract |
-            NodeTag::Multiply |
-            NodeTag::Divide |
-            NodeTag::Modulo |
-            NodeTag::Equal |
-            NodeTag::NotEqual |
-            NodeTag::Less |
-            NodeTag::Greater |
-            NodeTag::LessEqual |
-            NodeTag::GreaterEqual |
-            NodeTag::And |
-            NodeTag::Or |
-            NodeTag::BAnd |
-            NodeTag::BOr |
-            NodeTag::XOr |
-            NodeTag::LeftShift |
-            NodeTag::RightShift |
-            NodeTag::UnsignedRightShift |
-            NodeTag::InclusiveRange |
-            NodeTag::ExclusiveRange |
-            NodeTag::MemberAccess |
-            NodeTag::ImplAccess |
-            NodeTag::UndefinedChainingAccess |
-            NodeTag::Colon |
-            NodeTag::UndefinedCoalescing |
-            NodeTag::As |
-            NodeTag::Assignment |
-            NodeTag::PlusAssignment |
-            NodeTag::MinusAssignment |
-            NodeTag::MultiplyAssignment |
-            NodeTag::DivideAssignment |
-            NodeTag::ModuloAssignment
+        matches!(
+            self,
+            NodeTag::Add
+                | NodeTag::Subtract
+                | NodeTag::Multiply
+                | NodeTag::Divide
+                | NodeTag::Modulo
+                | NodeTag::Equal
+                | NodeTag::NotEqual
+                | NodeTag::Less
+                | NodeTag::Greater
+                | NodeTag::LessEqual
+                | NodeTag::GreaterEqual
+                | NodeTag::And
+                | NodeTag::Or
+                | NodeTag::BAnd
+                | NodeTag::BOr
+                | NodeTag::XOr
+                | NodeTag::LeftShift
+                | NodeTag::RightShift
+                | NodeTag::UnsignedRightShift
+                | NodeTag::InclusiveRange
+                | NodeTag::ExclusiveRange
+                | NodeTag::MemberAccess
+                | NodeTag::ImplAccess
+                | NodeTag::UndefinedChainingAccess
+                | NodeTag::Colon
+                | NodeTag::UndefinedCoalescing
+                | NodeTag::As
+                | NodeTag::Assignment
+                | NodeTag::PlusAssignment
+                | NodeTag::MinusAssignment
+                | NodeTag::MultiplyAssignment
+                | NodeTag::DivideAssignment
+                | NodeTag::ModuloAssignment
         )
     }
 
     #[allow(dead_code)]
     fn is_assignment(&self) -> bool {
-        matches!(self, 
-            NodeTag::Assignment |
-            NodeTag::PlusAssignment |
-            NodeTag::MinusAssignment |
-            NodeTag::MultiplyAssignment |
-            NodeTag::DivideAssignment |
-            NodeTag::ModuloAssignment
+        matches!(
+            self,
+            NodeTag::Assignment
+                | NodeTag::PlusAssignment
+                | NodeTag::MinusAssignment
+                | NodeTag::MultiplyAssignment
+                | NodeTag::DivideAssignment
+                | NodeTag::ModuloAssignment
         )
     }
 }

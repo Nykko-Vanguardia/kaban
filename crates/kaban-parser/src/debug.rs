@@ -1,8 +1,11 @@
-use std::fmt::{Debug, Result};
 use kaban_core::{ToBool, UIndex};
-use kaban_lexer::{TokenPrinter};
+use kaban_lexer::TokenPrinter;
+use std::fmt::{Debug, Result};
 
-use crate::{ast::{AST, StructInstantiation}, node::{NodeIndex, NodeTag, ToOption, TokenIndex, U_NONE, UIndexVec}};
+use crate::{
+    ast::{AST, StructInstantiation},
+    node::{NodeIndex, NodeTag, ToOption, TokenIndex, U_NONE, UIndexVec},
+};
 
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
@@ -21,37 +24,40 @@ impl<'a> Debug for NodePrinter<'a> {
             NodeTag::Self_ => write!(f, "{:?}", tag),
             NodeTag::AnonymousEnumlit => write!(f, "{:?}", tag),
             t if t.is_token_leaf() => self.write_token(f, main_token.0),
-            NodeTag::BoolLit => { write!(f, "{}", left.bool()) },
+            NodeTag::BoolLit => {
+                write!(f, "{}", left.bool())
+            }
             NodeTag::ExpressionStatement => {
                 if self.skip_expression_statement_indent {
                     write!(f, "{:#?}", &self.child(left))
                 } else {
-                    f.debug_tuple("ExpressionStatement").field(&self.child(left)).finish()
+                    f.debug_tuple("ExpressionStatement")
+                        .field(&self.child(left))
+                        .finish()
                 }
-            },
-            t if t.is_binary_expression() => {
-                f.debug_struct(format!("{:?}", t).as_str())
-                    .field("left", &self.child(left))
-                    .field("right", &self.child(right))
-                    .finish()
-            },
-            NodeTag::ArrayLit |
-            NodeTag::Block |
-            NodeTag::Union |
-            NodeTag::MultipleMatchTargets |
-            NodeTag::TupleDestructure |
-            NodeTag::StructDestructure |
-            NodeTag::ArrayDestructure |
-            NodeTag::TupleType |
-            NodeTag::AnonymousStructType |
-            NodeTag::TupleLit |
-            NodeTag::AnonymousEnumType => {
+            }
+            t if t.is_binary_expression() => f
+                .debug_struct(format!("{:?}", t).as_str())
+                .field("left", &self.child(left))
+                .field("right", &self.child(right))
+                .finish(),
+            NodeTag::ArrayLit
+            | NodeTag::Block
+            | NodeTag::Union
+            | NodeTag::MultipleMatchTargets
+            | NodeTag::TupleDestructure
+            | NodeTag::StructDestructure
+            | NodeTag::ArrayDestructure
+            | NodeTag::TupleType
+            | NodeTag::AnonymousStructType
+            | NodeTag::TupleLit
+            | NodeTag::AnonymousEnumType => {
                 let general_list = self.ast.view_general_list(index);
                 write!(f, "{:?} ", tag)?;
                 f.debug_list()
                     .entries(self.children(general_list.indices).iter())
                     .finish()
-            },
+            }
             NodeTag::Index => {
                 let index = self.ast.view_index(index);
                 f.debug_struct("Index")
@@ -59,7 +65,7 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("index", &self.child(index.index_by.0))
                     .field("is_safe", &index.is_safe_index)
                     .finish()
-            },
+            }
             NodeTag::FuncCall => {
                 let func_call = self.ast.view_func_call(index);
                 f.debug_struct("FuncCall")
@@ -71,51 +77,60 @@ impl<'a> Debug for NodePrinter<'a> {
                 let generic_instantiation = self.ast.view_generic_instantiation(index);
                 f.debug_struct("GenericInstantiation")
                     .field("callee", &self.child(left))
-                    .field("args", &self.children(generic_instantiation.args.uindex_slice()))
+                    .field(
+                        "args",
+                        &self.children(generic_instantiation.args.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::StructInstantiation => {
-                let struct_instantiation: StructInstantiation<'_> = self.ast.view_struct_instantiation(index);
+                let struct_instantiation: StructInstantiation<'_> =
+                    self.ast.view_struct_instantiation(index);
                 if let Some(struct_name) = struct_instantiation.struct_name {
                     f.debug_struct("StructInstantiation")
                         .field("name", &self.child(struct_name.0))
-                        .field("fields", &self.children(struct_instantiation.field_instantiation.uindex_slice()))
+                        .field(
+                            "fields",
+                            &self.children(struct_instantiation.field_instantiation.uindex_slice()),
+                        )
                         // .field("fields", &struct_instantiation.field_instantiation)
                         .finish()
                 } else {
                     f.debug_struct("StructInstantiation")
                         .field("name", &"NONE")
-                        .field("fields", &self.children(struct_instantiation.field_instantiation.uindex_slice()))
+                        .field(
+                            "fields",
+                            &self.children(struct_instantiation.field_instantiation.uindex_slice()),
+                        )
                         .finish()
                 }
-            },
-            NodeTag::StructFieldInstantiation => 
-                f.debug_struct("Struct Field")
+            }
+            NodeTag::StructFieldInstantiation => f
+                .debug_struct("Struct Field")
                 .field("name", &self.get_token(main_token.0))
                 .field("assignment", &self.child(left))
                 .finish(),
-            t if t.is_postfix() || t.is_prefix() => {
-                f.debug_tuple(format!("{:?}", t).as_str())
-                    .field(&self.child(left))
-                    .finish()
-            }
-            NodeTag::FixedArrayType => {
-                f.debug_struct("FixedArrayType")
-                    .field("type", &self.child(left))
-                    .field("size", &self.child(right))
-                    .finish()
-
-            },
-            NodeTag::NamedType => {
-                f.debug_tuple("NamedType")
-                    .field(&self.get_token(main_token.0))
-                    .finish()
-            },
+            t if t.is_postfix() || t.is_prefix() => f
+                .debug_tuple(format!("{:?}", t).as_str())
+                .field(&self.child(left))
+                .finish(),
+            NodeTag::FixedArrayType => f
+                .debug_struct("FixedArrayType")
+                .field("type", &self.child(left))
+                .field("size", &self.child(right))
+                .finish(),
+            NodeTag::NamedType => f
+                .debug_tuple("NamedType")
+                .field(&self.get_token(main_token.0))
+                .finish(),
             NodeTag::TypeWithGenerics => {
                 let type_with_generics = self.ast.view_type_with_generics(index);
                 f.debug_struct("TypeWithGenerics")
                     .field("type", &self.child(type_with_generics.type_.0))
-                    .field("generic_args", &self.children(type_with_generics.generic_args.uindex_slice()))
+                    .field(
+                        "generic_args",
+                        &self.children(type_with_generics.generic_args.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::FuncType => {
@@ -131,12 +146,11 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("return type", &"NONE")
                         .finish()
                 }
-            },
-            t if t.is_simple_modifier_type() => {
-                f.debug_tuple(format!("{:?}", t).as_str())
-                    .field(&self.child(left))
-                    .finish()
-            },
+            }
+            t if t.is_simple_modifier_type() => f
+                .debug_tuple(format!("{:?}", t).as_str())
+                .field(&self.child(left))
+                .finish(),
             NodeTag::MethodCall => {
                 let method = self.ast.view_method_call(index);
                 f.debug_struct("MethodCall")
@@ -152,7 +166,10 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("callee", &self.child(method.callee.0))
                     .field("method name", &self.get_token(method.method_name.0))
                     .field("is mutable", &method.is_self_mut)
-                    .field("generic_args", &self.children(method.generic_args.uindex_slice()))
+                    .field(
+                        "generic_args",
+                        &self.children(method.generic_args.uindex_slice()),
+                    )
                     .field("args", &self.children(method.args.uindex_slice()))
                     .finish()
             }
@@ -171,26 +188,24 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("then", &self.child(if_.then.0))
                         .finish()
                 }
-            },
+            }
             NodeTag::Match => {
                 let match_ = self.ast.view_match_expression(index);
                 f.debug_struct("Match")
                     .field("target", &self.child(match_.target.0))
                     .field("arms", &self.children(match_.arms.uindex_slice()))
                     .finish()
-            },
-            NodeTag::MatchArms => {
-                f.debug_struct("Arm")
-                    .field("left", &self.child(left))
-                    .field("right", &self.child(right))
-                    .finish()
-            },
-            NodeTag::DoWhile | NodeTag::While => {
-                f.debug_struct(format!("{:?}", tag).as_str())
-                    .field("block", &self.child(right))
-                    .field("condition", &self.child(left))
-                    .finish()
-            },
+            }
+            NodeTag::MatchArms => f
+                .debug_struct("Arm")
+                .field("left", &self.child(left))
+                .field("right", &self.child(right))
+                .finish(),
+            NodeTag::DoWhile | NodeTag::While => f
+                .debug_struct(format!("{:?}", tag).as_str())
+                .field("block", &self.child(right))
+                .field("condition", &self.child(left))
+                .finish(),
             NodeTag::For => {
                 let for_loop = self.ast.view_for_expression(index);
                 f.debug_struct("For")
@@ -198,7 +213,7 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("iterator", &self.child(for_loop.iterator.0))
                     .field("block", &self.child(for_loop.block.0))
                     .finish()
-            },
+            }
             NodeTag::AnonymousFuncDecl => {
                 let func = self.ast.view_anonymous_func_decl(index);
                 if let Some(return_type) = func.return_type {
@@ -214,8 +229,8 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("block", &self.child(func.block.0))
                         .finish()
                 }
-            },
-            NodeTag::Params =>
+            }
+            NodeTag::Params => {
                 if right != U_NONE {
                     f.debug_struct("Param")
                         .field("binding", &self.child(left))
@@ -227,13 +242,14 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("type", &"NONE")
                         .finish()
                 }
-            NodeTag::IdentifierBinding =>
-                f.debug_struct("IdentifierBinding")
+            }
+            NodeTag::IdentifierBinding => f
+                .debug_struct("IdentifierBinding")
                 .field("name", &self.get_token(main_token.0))
                 .field("mutable", &left.bool())
                 .finish(),
-            NodeTag::StructDestructureBinding =>
-                f.debug_struct("StructDestructureBinding")
+            NodeTag::StructDestructureBinding => f
+                .debug_struct("StructDestructureBinding")
                 .field("field_name", &self.get_token(main_token.0))
                 .field("binding", &self.child(left))
                 .finish(),
@@ -251,7 +267,7 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("assignment", &self.child(let_.assignment.0))
                         .finish()
                 }
-            },
+            }
             NodeTag::Const => {
                 let const_ = self.ast.view_const_statement(index);
                 f.debug_struct("Const")
@@ -260,19 +276,21 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("type", &self.child(const_.type_.0))
                     .field("assignment", &self.child(const_.assignment.0))
                     .finish()
-            },
+            }
             NodeTag::Continue | NodeTag::Break => write!(f, "{:?}", tag),
-            NodeTag::Return | 
-                NodeTag::Pass |
-                NodeTag::New |
-                NodeTag::Destruct |
-                NodeTag::CompTimeExpression => {
+            NodeTag::Return
+            | NodeTag::Pass
+            | NodeTag::New
+            | NodeTag::Destruct
+            | NodeTag::CompTimeExpression => {
                 if let Some(left) = left.to_option() {
-                    f.debug_tuple(format!("{:?}", tag).as_str()).field(&self.child(left)).finish()
+                    f.debug_tuple(format!("{:?}", tag).as_str())
+                        .field(&self.child(left))
+                        .finish()
                 } else {
                     f.debug_tuple(format!("{:?}", tag).as_str()).finish()
                 }
-            },
+            }
             NodeTag::FuncDeclWithNoGenerics => {
                 let func_decl = self.ast.view_func_decl_with_no_generics(index);
                 if let Some(return_type) = func_decl.return_type {
@@ -300,7 +318,10 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &func_decl.is_pub)
                         .field("name", &self.get_token(func_decl.name.0))
                         .field("params", &self.children(func_decl.params.uindex_slice()))
-                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field(
+                            "generic_params",
+                            &self.children(func_decl.generic_params.uindex_slice()),
+                        )
                         .field("return_type", &self.child(return_type.0))
                         .field("body", &self.child(func_decl.block.0))
                         .finish()
@@ -309,7 +330,10 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &func_decl.is_pub)
                         .field("name", &self.get_token(func_decl.name.0))
                         .field("params", &self.children(func_decl.params.uindex_slice()))
-                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field(
+                            "generic_params",
+                            &self.children(func_decl.generic_params.uindex_slice()),
+                        )
                         .field("return_type", &"NONE")
                         .field("body", &self.child(func_decl.block.0))
                         .finish()
@@ -340,7 +364,10 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &func_decl.is_pub)
                         .field("name", &self.get_token(func_decl.name.0))
                         .field("params", &self.children(func_decl.params.uindex_slice()))
-                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field(
+                            "generic_params",
+                            &self.children(func_decl.generic_params.uindex_slice()),
+                        )
                         .field("return_type", &self.child(return_type.0))
                         .finish()
                 } else {
@@ -348,7 +375,10 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &func_decl.is_pub)
                         .field("name", &self.get_token(func_decl.name.0))
                         .field("params", &self.children(func_decl.params.uindex_slice()))
-                        .field("generic_params", &self.children(func_decl.generic_params.uindex_slice()))
+                        .field(
+                            "generic_params",
+                            &self.children(func_decl.generic_params.uindex_slice()),
+                        )
                         .field("return_type", &"NONE")
                         .finish()
                 }
@@ -358,7 +388,10 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_struct("StructDeclWithNoGeneric")
                     .field("is_pub", &struct_decl.is_pub)
                     .field("name", &self.get_token(struct_decl.struct_name.0))
-                    .field("field_decls", &self.children(struct_decl.field_decls.uindex_slice()))
+                    .field(
+                        "field_decls",
+                        &self.children(struct_decl.field_decls.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::StructDeclWithGeneric => {
@@ -366,8 +399,14 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_struct("StructDeclWithGeneric")
                     .field("is_pub", &struct_decl.is_pub)
                     .field("name", &self.get_token(struct_decl.struct_name.0))
-                    .field("generic_params", &self.children(struct_decl.generic_params.uindex_slice()))
-                    .field("field_decls", &self.children(struct_decl.field_decls.uindex_slice()))
+                    .field(
+                        "generic_params",
+                        &self.children(struct_decl.generic_params.uindex_slice()),
+                    )
+                    .field(
+                        "field_decls",
+                        &self.children(struct_decl.field_decls.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::StructFieldDecleration => {
@@ -378,8 +417,8 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("type", &self.child(field_decl.type_.0))
                     .finish()
             }
-            NodeTag::AnonymousStructFieldDecl =>
-                f.debug_struct("AnonymousStructFieldDecl")
+            NodeTag::AnonymousStructFieldDecl => f
+                .debug_struct("AnonymousStructFieldDecl")
                 .field("field_name", &self.get_token(main_token.0))
                 .field("type", &self.child(left))
                 .finish(),
@@ -388,7 +427,10 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_struct("EnumDeclWithNoGeneric")
                     .field("is_pub", &enum_decl.is_pub)
                     .field("name", &self.get_token(enum_decl.name.0))
-                    .field("variant_decls", &self.children(enum_decl.variant_decls.uindex_slice()))
+                    .field(
+                        "variant_decls",
+                        &self.children(enum_decl.variant_decls.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::EnumDeclWithGeneric => {
@@ -396,8 +438,14 @@ impl<'a> Debug for NodePrinter<'a> {
                 f.debug_struct("EnumDeclWithGeneric")
                     .field("is_pub", &enum_decl.is_pub)
                     .field("name", &self.get_token(enum_decl.name.0))
-                    .field("generic_params", &self.children(enum_decl.generic_params.uindex_slice()))
-                    .field("variant_decls", &self.children(enum_decl.variant_decls.uindex_slice()))
+                    .field(
+                        "generic_params",
+                        &self.children(enum_decl.generic_params.uindex_slice()),
+                    )
+                    .field(
+                        "variant_decls",
+                        &self.children(enum_decl.variant_decls.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::ImplDeclWithNoGeneric => {
@@ -406,7 +454,10 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("is_pub", &impl_decl.is_pub)
                     .field("impl_name", &self.get_token(impl_decl.impl_name.0))
                     .field("self_type", &self.child(impl_decl.self_type.0))
-                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .field(
+                        "statements",
+                        &self.children(impl_decl.statements.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::ImplDeclWithGeneric => {
@@ -415,8 +466,14 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("is_pub", &impl_decl.is_pub)
                     .field("impl_name", &self.get_token(impl_decl.impl_name.0))
                     .field("self_type", &self.child(impl_decl.self_type.0))
-                    .field("generic_params", &self.children(impl_decl.generic_params.uindex_slice()))
-                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .field(
+                        "generic_params",
+                        &self.children(impl_decl.generic_params.uindex_slice()),
+                    )
+                    .field(
+                        "statements",
+                        &self.children(impl_decl.statements.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::ImplForDeclWithNoGeneric => {
@@ -426,7 +483,10 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("impl_name", &self.get_token(impl_decl.impl_name.0))
                     .field("self_type", &self.child(impl_decl.self_type.0))
                     .field("interface", &self.child(impl_decl.interface.0))
-                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .field(
+                        "statements",
+                        &self.children(impl_decl.statements.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::ImplForDeclWithGeneric => {
@@ -436,8 +496,14 @@ impl<'a> Debug for NodePrinter<'a> {
                     .field("impl_name", &self.get_token(impl_decl.impl_name.0))
                     .field("self_type", &self.child(impl_decl.self_type.0))
                     .field("interface", &self.child(impl_decl.interface.0))
-                    .field("generic_params", &self.children(impl_decl.generic_params.uindex_slice()))
-                    .field("statements", &self.children(impl_decl.statements.uindex_slice()))
+                    .field(
+                        "generic_params",
+                        &self.children(impl_decl.generic_params.uindex_slice()),
+                    )
+                    .field(
+                        "statements",
+                        &self.children(impl_decl.statements.uindex_slice()),
+                    )
                     .finish()
             }
             NodeTag::InterfaceDeclWithNoGenerics => {
@@ -447,13 +513,19 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &interface_decl.is_pub)
                         .field("interface_name", &self.get_token(interface_decl.name.0))
                         .field("shape", &self.child(shape.0))
-                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .field(
+                            "statements",
+                            &self.children(interface_decl.statements.uindex_slice()),
+                        )
                         .finish()
                 } else {
                     f.debug_struct("InterfaceDeclWithNoGeneric")
                         .field("is_pub", &interface_decl.is_pub)
                         .field("interface_name", &self.get_token(interface_decl.name.0))
-                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
+                        .field(
+                            "statements",
+                            &self.children(interface_decl.statements.uindex_slice()),
+                        )
                         .finish()
                 }
             }
@@ -464,19 +536,31 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("is_pub", &interface_decl.is_pub)
                         .field("interface_name", &self.get_token(interface_decl.name.0))
                         .field("shape", &self.child(shape.0))
-                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
-                        .field("generic_params", &self.children(interface_decl.generic_params.uindex_slice()))
+                        .field(
+                            "statements",
+                            &self.children(interface_decl.statements.uindex_slice()),
+                        )
+                        .field(
+                            "generic_params",
+                            &self.children(interface_decl.generic_params.uindex_slice()),
+                        )
                         .finish()
                 } else {
                     f.debug_struct("InterfaceDeclWithGeneric")
                         .field("is_pub", &interface_decl.is_pub)
                         .field("interface_name", &self.get_token(interface_decl.name.0))
-                        .field("statements", &self.children(interface_decl.statements.uindex_slice()))
-                        .field("generic_params", &self.children(interface_decl.generic_params.uindex_slice()))
+                        .field(
+                            "statements",
+                            &self.children(interface_decl.statements.uindex_slice()),
+                        )
+                        .field(
+                            "generic_params",
+                            &self.children(interface_decl.generic_params.uindex_slice()),
+                        )
                         .finish()
                 }
             }
-            NodeTag::EnumVariantDecl =>
+            NodeTag::EnumVariantDecl => {
                 if left != U_NONE {
                     f.debug_struct("EnumVariantDecl")
                         .field("variant_name", &self.get_token(main_token.0))
@@ -487,8 +571,9 @@ impl<'a> Debug for NodePrinter<'a> {
                         .field("variant_name", &self.get_token(main_token.0))
                         .field("type", &"NONE")
                         .finish()
-                },
-            NodeTag::GenericParam =>
+                }
+            }
+            NodeTag::GenericParam => {
                 if left != U_NONE {
                     f.debug_struct("GenericParam")
                         .field("name", &self.get_token(main_token.0))
@@ -498,23 +583,27 @@ impl<'a> Debug for NodePrinter<'a> {
                     f.debug_struct("GenericParam")
                         .field("name", &self.get_token(main_token.0))
                         .finish()
-                },
-            NodeTag::AndGenericConstaint | NodeTag::OrGenericConstaint => {
-                f.debug_struct(format!("{:?}", tag).as_str())
-                    .field("left", &self.child(left))
-                    .field("right", &self.child(right))
-                    .finish()
-            },
-            NodeTag::InterfaceConstraint => 
-                f.debug_tuple("InterfaceConstraint")
+                }
+            }
+            NodeTag::AndGenericConstaint | NodeTag::OrGenericConstaint => f
+                .debug_struct(format!("{:?}", tag).as_str())
+                .field("left", &self.child(left))
+                .field("right", &self.child(right))
+                .finish(),
+            NodeTag::InterfaceConstraint => f
+                .debug_tuple("InterfaceConstraint")
                 .field(&self.get_token(main_token.0))
                 .finish(),
-            NodeTag::SelfParam => if left != U_NONE {
-                f.debug_tuple("SelfParam").field(&self.get_token(left)).finish()
-            } else {
-                f.debug_tuple("SelfParam").finish()
+            NodeTag::SelfParam => {
+                if left != U_NONE {
+                    f.debug_tuple("SelfParam")
+                        .field(&self.get_token(left))
+                        .finish()
+                } else {
+                    f.debug_tuple("SelfParam").finish()
+                }
             }
-            _ => todo!("NOT IMPLEMENTED YET: {:?}", tag)
+            _ => todo!("NOT IMPLEMENTED YET: {:?}", tag),
         }
     }
 }
@@ -530,13 +619,13 @@ impl<'a> NodePrinter<'a> {
 
     fn children(&self, indices: &[u32]) -> Vec<Self> {
         let mut children = Vec::new();
-        for index in indices.iter().copied()  {
+        for index in indices.iter().copied() {
             children.push(Self {
                 ast: self.ast,
                 index: NodeIndex(index),
                 skip_expression_statement_indent: self.skip_expression_statement_indent,
             });
-        };
+        }
         children
     }
 

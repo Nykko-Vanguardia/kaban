@@ -3,7 +3,7 @@ use kaban_lexer::token::TokenKind;
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ParseError {
     // #[error("{0} expected!")]
-    // Expected(String), 
+    // Expected(String),
     #[error("{0:?} expected!")]
     ExpectedToken(TokenKind),
     #[error("Missing type declaration")]
@@ -39,6 +39,8 @@ pub enum ParseError {
     InvalidImplItem,
     #[error("Expected either a block implementation or semicolon here")]
     MissingBlockOrSemicolon,
-    #[error("Self must be a pointer, to send a copy you must explicitly declare the type. Did you mean to write self& or self &mut, or self*?")]
+    #[error(
+        "Self must be a pointer, to send a copy you must explicitly declare the type. Did you mean to write self& or self &mut, or self*?"
+    )]
     MissingSelfReferenceModifier,
 }

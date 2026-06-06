@@ -1,10 +1,10 @@
-use kaban_core::UIndex;
 use kaban_core::ToUIndex;
 use kaban_core::ToUsize;
+use kaban_core::UIndex;
 use kaban_core::source::Source;
 
-use crate::Token;
 use crate::LexError;
+use crate::Token;
 use crate::token::TokenKind;
 
 pub struct Lexer<'a> {
@@ -17,7 +17,13 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(input: Source<'a>) -> Self {
-        Lexer { source: input, errors: Vec::new(), current: 0, line: 1, col: 1 }
+        Lexer {
+            source: input,
+            errors: Vec::new(),
+            current: 0,
+            line: 1,
+            col: 1,
+        }
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {
@@ -27,7 +33,9 @@ impl<'a> Lexer<'a> {
             let token = self.consume_next_token();
             let is_eof = matches!(token.kind, TokenKind::EOF);
             tokens.push(token);
-            if is_eof { break; }
+            if is_eof {
+                break;
+            }
         }
 
         tokens
@@ -37,18 +45,19 @@ impl<'a> Lexer<'a> {
         self.skip_whitespace_and_comments();
         let current = self.peek_current();
         let start = self.current;
-        
+
         let kind = match current {
             b'\0' => TokenKind::EOF,
             b'0'..=b'9' => self.handle_numbers(),
             b'/' if self.is_doc_comment() => self.handle_doc_comment(),
             b'"' => self.handle_string(b'"', TokenKind::StringLit),
             b'`' => self.handle_string(b'`', TokenKind::StringObjLit),
-            b'f' if self.peek_next() == b'`' => 
-                self.handle_string(b'`',TokenKind::InterpolatedStringObjLit),
+            b'f' if self.peek_next() == b'`' => {
+                self.handle_string(b'`', TokenKind::InterpolatedStringObjLit)
+            }
             b'\'' => self.handle_char_lit(),
             c if Self::is_non_underscore_symbol(c) => self.handle_symbol(),
-            _ => self.handle_letters()
+            _ => self.handle_letters(),
         };
         let end = self.current;
         Token::new(kind, start, end)
@@ -58,7 +67,7 @@ impl<'a> Lexer<'a> {
         let starting_index = self.current;
         while Self::is_keyword_or_identifier_char(self.peek_current()) {
             self.advance_current();
-        };
+        }
         let ending_index = self.current;
         let keyword_or_identifier = self.source.get_start_end(starting_index, ending_index);
         match keyword_or_identifier {
@@ -121,9 +130,9 @@ impl<'a> Lexer<'a> {
             b"i64" => TokenKind::I64,
             b"f32" => TokenKind::F32,
             b"f64" => TokenKind::F64,
-            b"u8" => TokenKind::U8, 
-            b"u16" => TokenKind::U16, 
-            b"u32" => TokenKind::U32, 
+            b"u8" => TokenKind::U8,
+            b"u16" => TokenKind::U16,
+            b"u32" => TokenKind::U32,
             b"u64" => TokenKind::U64,
             b"usize" => TokenKind::USize,
             b"c8" => TokenKind::C8,
@@ -161,7 +170,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Equals
                 }
-            },
+            }
             b'!' => {
                 if self.match_and_consume("!=") {
                     TokenKind::BangEqual
@@ -169,7 +178,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Bang
                 }
-            },
+            }
             b'?' => {
                 if self.match_and_consume("??.") {
                     TokenKind::QuestionQuestionDot
@@ -179,7 +188,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Question
                 }
-            },
+            }
             b'<' => {
                 if self.match_and_consume("<<") {
                     TokenKind::LessLess
@@ -191,7 +200,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Less
                 }
-            },
+            }
             b'>' => {
                 if self.match_and_consume(">>") {
                     TokenKind::GreaterGreater
@@ -203,7 +212,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Greater
                 }
-            },
+            }
             b'&' => {
                 if self.match_and_consume("&&") {
                     TokenKind::And
@@ -213,7 +222,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Ampersand
                 }
-            },
+            }
             b'|' => {
                 if self.match_and_consume("||") {
                     TokenKind::Or
@@ -221,7 +230,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Pipe
                 }
-            },
+            }
             b'+' => {
                 if self.match_and_consume("++") {
                     TokenKind::PlusPlus
@@ -231,7 +240,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Plus
                 }
-            },
+            }
             b'-' => {
                 if self.match_and_consume("--") {
                     TokenKind::MinusMinus
@@ -243,7 +252,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Minus
                 }
-            },
+            }
             b'*' => {
                 if self.match_and_consume("*=") {
                     TokenKind::StarEquals
@@ -251,7 +260,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Star
                 }
-            },
+            }
             b'/' => {
                 if self.match_and_consume("/=") {
                     TokenKind::SlashEquals
@@ -259,7 +268,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Slash
                 }
-            },
+            }
             b'%' => {
                 if self.match_and_consume("%=") {
                     TokenKind::PercentEquals
@@ -267,7 +276,7 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Percent
                 }
-            },
+            }
             b'.' => {
                 if self.match_and_consume("...") {
                     TokenKind::DotDotDot
@@ -279,25 +288,55 @@ impl<'a> Lexer<'a> {
                     self.advance_current();
                     TokenKind::Dot
                 }
-            },
-            b';' => { self.advance_current(); TokenKind::Semicolon },
+            }
+            b';' => {
+                self.advance_current();
+                TokenKind::Semicolon
+            }
             b':' => {
                 if self.match_and_consume("::") {
                     TokenKind::ColonColon
                 } else {
-                  self.advance_current(); 
-                  TokenKind::Colon
+                    self.advance_current();
+                    TokenKind::Colon
                 }
-            },
-            b',' => { self.advance_current(); TokenKind::Comma },
-            b'{' => { self.advance_current(); TokenKind::LeftBrace },
-            b'}' => { self.advance_current(); TokenKind::RightBrace },
-            b'(' => { self.advance_current(); TokenKind::LeftParen },
-            b')' => { self.advance_current(); TokenKind::RightParen },
-            b'[' => { self.advance_current(); TokenKind::LeftBracket }
-            b']' => { self.advance_current(); TokenKind::RightBracket },
-            b'^' => { self.advance_current(); TokenKind::Caret },
-            b'@' => { self.advance_current(); TokenKind::At },
+            }
+            b',' => {
+                self.advance_current();
+                TokenKind::Comma
+            }
+            b'{' => {
+                self.advance_current();
+                TokenKind::LeftBrace
+            }
+            b'}' => {
+                self.advance_current();
+                TokenKind::RightBrace
+            }
+            b'(' => {
+                self.advance_current();
+                TokenKind::LeftParen
+            }
+            b')' => {
+                self.advance_current();
+                TokenKind::RightParen
+            }
+            b'[' => {
+                self.advance_current();
+                TokenKind::LeftBracket
+            }
+            b']' => {
+                self.advance_current();
+                TokenKind::RightBracket
+            }
+            b'^' => {
+                self.advance_current();
+                TokenKind::Caret
+            }
+            b'@' => {
+                self.advance_current();
+                TokenKind::At
+            }
             // b'#' => { self.advance_current(); TokenKind::Hash },
             _ => self.error_recovery(LexError::UnexpectedCharacter),
         }
@@ -313,29 +352,43 @@ impl<'a> Lexer<'a> {
             };
         };
 
-        while self.peek_current().is_ascii_digit() { self.advance_current(); };
+        while self.peek_current().is_ascii_digit() {
+            self.advance_current();
+        }
 
         let mut float_flag = self.peek_current() == b'.' && self.peek_next().is_ascii_digit();
         if float_flag {
             self.advance_current();
-            while self.peek_current().is_ascii_digit() { self.advance_current();}
+            while self.peek_current().is_ascii_digit() {
+                self.advance_current();
+            }
         }
 
         if self.peek_current() == b'e' || self.peek_current() == b'E' {
             let has_sign = self.peek_next() == b'+' || self.peek_next() == b'-';
-            let next_digit = if has_sign { self.peek_till(2) } else { self.peek_next() };
+            let next_digit = if has_sign {
+                self.peek_till(2)
+            } else {
+                self.peek_next()
+            };
 
             if next_digit.is_ascii_digit() {
                 float_flag = true;
                 self.advance_current(); //consume e
-                if has_sign { self.advance_current(); } //consume sign
+                if has_sign {
+                    self.advance_current();
+                } //consume sign
                 while self.peek_current().is_ascii_digit() {
                     self.advance_current();
                 }
             }
         }
 
-        if !float_flag {TokenKind::IntLit} else {TokenKind::FloatLit}
+        if !float_flag {
+            TokenKind::IntLit
+        } else {
+            TokenKind::FloatLit
+        }
     }
 
     fn handle_hex(&mut self) -> TokenKind {
@@ -360,7 +413,7 @@ impl<'a> Lexer<'a> {
     fn handle_oct(&mut self) -> TokenKind {
         self.advance_current();
         self.advance_current();
-        while matches!(self.peek_current(), b'0'..=b'7'){
+        while matches!(self.peek_current(), b'0'..=b'7') {
             self.advance_current();
         }
 
@@ -368,10 +421,14 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_string(&mut self, terminator: u8, token_kind: TokenKind) -> TokenKind {
-        if self.peek_current() == b'f' {self.advance_current();};
+        if self.peek_current() == b'f' {
+            self.advance_current();
+        };
         self.advance_current();
         while self.peek_current() != terminator {
-            if self.peek_current() == b'\0' { return self.error_recovery(LexError::IncompleteString) };
+            if self.peek_current() == b'\0' {
+                return self.error_recovery(LexError::IncompleteString);
+            };
             if self.peek_current() == b'\\' {
                 self.advance_current();
                 self.advance_current();
@@ -379,7 +436,7 @@ impl<'a> Lexer<'a> {
             }
 
             self.advance_current();
-        };
+        }
         self.advance_current(); //consume end quotes
         token_kind
     }
@@ -399,10 +456,14 @@ impl<'a> Lexer<'a> {
                 b'\'' => b'\'',
                 _ => escape_char,
             }
-        } else { char };
+        } else {
+            char
+        };
 
         self.advance_current();
-        if self.peek_current() != b'\'' { return self.error_recovery(LexError::InvalidCharLiteral)};
+        if self.peek_current() != b'\'' {
+            return self.error_recovery(LexError::InvalidCharLiteral);
+        };
         self.advance_current();
 
         match Self::get_char_size(char) {
@@ -413,12 +474,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_doc_comment(&mut self) -> TokenKind {
-        for _ in 0..3 { self.advance_current(); }
+        for _ in 0..3 {
+            self.advance_current();
+        }
 
-        while !(self.peek_current() == b'*' && self.peek_next() == b'/') 
-            && self.peek_current() != b'\0' {
-                self.advance_current();
-            }
+        while !(self.peek_current() == b'*' && self.peek_next() == b'/')
+            && self.peek_current() != b'\0'
+        {
+            self.advance_current();
+        }
         self.advance_current();
         self.advance_current();
 
@@ -449,17 +513,22 @@ impl<'a> Lexer<'a> {
             match self.peek_current() {
                 c if c.is_ascii_whitespace() => self.advance_current(),
                 b'/' if self.peek_next() == b'/' => {
-                    while self.peek_current() != b'\n' && self.peek_current() != b'\0'{
+                    while self.peek_current() != b'\n' && self.peek_current() != b'\0' {
                         self.advance_current();
                     }
                 }
-                b'/' if self.peek_next() == b'*' =>  {
-                    if self.is_doc_comment() { break };
+                b'/' if self.peek_next() == b'*' => {
+                    if self.is_doc_comment() {
+                        break;
+                    };
                     self.advance_current();
                     self.advance_current();
 
-                    while !(self.peek_current() == b'*' && self.peek_next() == b'/') 
-                        && self.peek_current() != b'\0' {self.advance_current();}
+                    while !(self.peek_current() == b'*' && self.peek_next() == b'/')
+                        && self.peek_current() != b'\0'
+                    {
+                        self.advance_current();
+                    }
                     self.advance_current();
                     self.advance_current();
                 }
@@ -493,12 +562,14 @@ impl<'a> Lexer<'a> {
         self.source.get_start_end(self.current, end) == bytes
     }
 
-    fn match_and_consume(&mut self, pattern: &str) -> bool {        
-        if !self.matches_current(pattern) { return false; };
+    fn match_and_consume(&mut self, pattern: &str) -> bool {
+        if !self.matches_current(pattern) {
+            return false;
+        };
 
         for _ in 0..pattern.as_bytes().len() {
             self.advance_current();
-        };
+        }
 
         true
     }
@@ -517,10 +588,10 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_doc_comment(&self) -> bool {
-        self.peek_current() == b'/' &&
-            self.peek_next() == b'*' &&
-            self.peek_till(2) == b'*' &&
-            self.peek_till(3) != b'/'
+        self.peek_current() == b'/'
+            && self.peek_next() == b'*'
+            && self.peek_till(2) == b'*'
+            && self.peek_till(3) != b'/'
     }
 
     pub fn get_char_size(byte: u8) -> UIndex {
@@ -533,7 +604,7 @@ impl<'a> Lexer<'a> {
         } else if byte & 0b1111_1000 == 0b1111_0000 {
             4
         } else {
-            0 
+            0
         }
     }
 

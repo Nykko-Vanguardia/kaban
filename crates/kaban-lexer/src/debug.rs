@@ -22,9 +22,7 @@ impl Token {
 
 impl<'a> Debug for TokenPrinter<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string = unsafe {
-            str::from_utf8_unchecked(self.source.get(self.span))
-        };
+        let string = unsafe { str::from_utf8_unchecked(self.source.get(self.span)) };
         write!(f, "{:?}({:?})", self.kind, string)
     }
 }

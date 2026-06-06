@@ -1,7 +1,7 @@
 use kaban_core::source::IsSource;
 
-use kaban_lexer::Token;
 use kaban_lexer::Lexer;
+use kaban_lexer::Token;
 use kaban_lexer::token::TokenKind;
 
 #[test]
@@ -85,7 +85,7 @@ fn string_literal_including_quotes() {
         Token::new(TokenKind::Let, 0, 3),
         Token::new(TokenKind::Identifier, 4, 5),
         Token::new(TokenKind::Equals, 6, 7),
-        Token::new(TokenKind::StringLit, 8, 13),  // includes quotes
+        Token::new(TokenKind::StringLit, 8, 13), // includes quotes
         Token::new(TokenKind::Semicolon, 13, 14),
         Token::new(TokenKind::EOF, 14, 14),
     ];

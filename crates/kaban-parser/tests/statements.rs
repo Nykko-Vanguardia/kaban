@@ -1,4 +1,4 @@
-use kaban_core::source::{IsSource};
+use kaban_core::source::IsSource;
 use kaban_lexer::Lexer;
 use kaban_parser::Parser;
 // use kaban_parser::AST;
@@ -121,14 +121,18 @@ fn private_struct_decl_with_generics_and_impl_and_constraint() {
 
 #[test]
 fn private_struct_decl_with_generics_and_impl_and_and_or_constraint() {
-    test_snapshot!("struct Point<T: impl Serializable & impl Debug | impl DebugSerializable> {pub x: T, pub y: T,}");
+    test_snapshot!(
+        "struct Point<T: impl Serializable & impl Debug | impl DebugSerializable> {pub x: T, pub y: T,}"
+    );
 }
 
 //NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
 //or
 #[test]
 fn private_struct_decl_with_generics_and_parenthesis_constraint() {
-    test_snapshot!("struct Point<T: impl Serializable & (impl Debug | impl DebugSerializable)> {pub x: T, pub y: T,}");
+    test_snapshot!(
+        "struct Point<T: impl Serializable & (impl Debug | impl DebugSerializable)> {pub x: T, pub y: T,}"
+    );
 }
 
 //NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
@@ -167,7 +171,9 @@ fn private_enum_decl_with_type_assignments_and_generics() {
 
 #[test]
 fn private_enum_decl_with_type_assignments_and_struct_and_tuple_decl() {
-    test_snapshot!("enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}");
+    test_snapshot!(
+        "enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}"
+    );
 }
 
 #[test]
@@ -197,7 +203,9 @@ fn private_func_decl_with_multiple_generics_and_with_return_type_and_mut_values(
 
 #[test]
 fn public_func_decl_with_generic_constaint_interface_sugar() {
-    test_snapshot!("pub func foo(mut x: impl Serializable, y: impl Debug & impl Clone) -> T { let z = x + y; return z; }");
+    test_snapshot!(
+        "pub func foo(mut x: impl Serializable, y: impl Debug & impl Clone) -> T { let z = x + y; return z; }"
+    );
 }
 
 // REMOVED
@@ -239,7 +247,8 @@ fn func_decl_with_self_pointer() {
 
 #[test]
 fn impl_decl_with_no_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     impl Person::Core {
         pub const NUMBER: u8 = 10;
 
@@ -251,12 +260,14 @@ fn impl_decl_with_no_generics() {
             return step;
         }
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn impl_decl_with_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     impl Person<T>::Core<T> {
         pub const NUMBER: u8 = 10;
 
@@ -268,12 +279,14 @@ fn impl_decl_with_generics() {
             return step;
         }
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn impl_decl_with_generics_and_constaint() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     impl Talks for Person<T>::Core<T> {
         pub const NUMBER: u8 = 10;
 
@@ -287,12 +300,14 @@ fn impl_decl_with_generics_and_constaint() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn impl_decl_with_no_generics_and_constaint() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     impl Talks for Person::Core {
         pub const NUMBER: u8 = 10;
 
@@ -306,12 +321,14 @@ fn impl_decl_with_no_generics_and_constaint() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn interface_decl_with_no_shape_no_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     pub interface Talks {
         func step(step: i32) -> i32 {
             return step;
@@ -319,12 +336,14 @@ fn interface_decl_with_no_shape_no_generics() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn interface_decl_with_shape_no_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     pub interface Talks {
         shape: struct { x: i32, y: i32 }
         func step(step: i32) -> i32 {
@@ -333,12 +352,14 @@ fn interface_decl_with_shape_no_generics() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn interface_decl_with_no_shape_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     pub interface Talks<T> {
         func step(step: T) -> T {
             return step;
@@ -346,12 +367,14 @@ fn interface_decl_with_no_shape_generics() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
 fn interface_decl_with_shape_generics() {
-    test_snapshot!("
+    test_snapshot!(
+        "
     pub interface Talks<T> {
         shape: struct { x: i32, y: i32 }
 
@@ -361,7 +384,8 @@ fn interface_decl_with_shape_generics() {
 
         func default_talk(self&, message: c8);
     }
-    ");
+    "
+    );
 }
 
 #[test]
@@ -426,21 +450,25 @@ fn impl_decl_with_named_constructor() {
 
 #[test]
 fn impl_decl_with_constructor_and_methods() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         impl Person::Core {
             pub func new(name: String*, age: i32) -> self { }
             func get_name(self&) -> String& { return self.name; }
         }
-    ");
+    "
+    );
 }
 
 #[test]
 fn multiple_sequential_func_decls() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         func foo() -> i32 { return 1; }
         func bar() -> i32 { return 2; }
         func baz() -> i32 { return 3; }
-    ");
+    "
+    );
 }
 
 #[test]
@@ -460,19 +488,21 @@ fn private_func_decl_with_no_params_and_no_return_type() {
 
 #[test]
 fn struct_and_impl_sequential() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         struct Point { x: i32, y: i32 }
         impl Point::Core {
             func distance(self&) -> f64 { return 0.0; }
         }
-    ");
+    "
+    );
 }
 
 #[allow(dead_code)]
 fn panic_print(source: &str) {
     let source = source.to_source();
     let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize(); 
+    let tokens = lexer.tokenize();
     let mut parser = Parser::new(&tokens, source);
     let ast = parser.parse_program();
     ast.panic_print();

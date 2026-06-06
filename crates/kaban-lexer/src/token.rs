@@ -1,4 +1,4 @@
-use kaban_core::{UIndex, SourceSpan};
+use kaban_core::{SourceSpan, UIndex};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Token {
@@ -8,7 +8,10 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, start: UIndex, end: UIndex) -> Token {
-        Token {kind, span: SourceSpan {start, end}}
+        Token {
+            kind,
+            span: SourceSpan { start, end },
+        }
     }
 }
 
@@ -19,8 +22,8 @@ pub enum TokenKind {
     IntLit,
     FloatLit,
     StringLit,
-    StringObjLit,  // for ``, automatically sugars to String.new()
-    InterpolatedStringObjLit,  // for f`` automaticallu sugars to String.format()
+    StringObjLit,             // for ``, automatically sugars to String.new()
+    InterpolatedStringObjLit, // for f`` automaticallu sugars to String.format()
     BoolLit,
     Char8Lit,
     Char16Lit,
@@ -96,41 +99,41 @@ pub enum TokenKind {
     RightParen,
     LeftBracket, // [
     RightBracket,
-    Star, // * for heap pointers
-    Caret, // ^ for deref
-    Ampersand, // & for borrows
+    Star,         // * for heap pointers
+    Caret,        // ^ for deref
+    Ampersand,    // & for borrows
     AmpersandMut, //&mut
-    Pipe, // | for union types
-    FatArrow, // => Im still not sure between these two
-    SkinnyArrow, // -> Im still not sure between these two
+    Pipe,         // | for union types
+    FatArrow,     // => Im still not sure between these two
+    SkinnyArrow,  // -> Im still not sure between these two
     Plus,
     Minus,
     Percent,
-    PlusPlus, //++
+    PlusPlus,   //++
     MinusMinus, //--
     Slash,
-    DotDot, // ..
-    DotDotDot, // ...
-    DotDotEquals, // ..=
-    PlusEquals, // += 
-    MinusEquals, // -=
-    StarEquals, // *=
-    SlashEquals, // /=
+    DotDot,        // ..
+    DotDotDot,     // ...
+    DotDotEquals,  // ..=
+    PlusEquals,    // +=
+    MinusEquals,   // -=
+    StarEquals,    // *=
+    SlashEquals,   // /=
     PercentEquals, // %=
-    Bang, // !
+    Bang,          // !
     Question,
     QuestionQuestion,
     QuestionQuestionDot,
     Less,
     Greater,
     LessEqual,
-    GreaterEqual, // >=
-    EqualEqual, // ==
-    BangEqual, // !=
-    And, // &&
-    Or, // ||
-    Dot, // . for field access
-    LessLess, // << bitwise
+    GreaterEqual,   // >=
+    EqualEqual,     // ==
+    BangEqual,      // !=
+    And,            // &&
+    Or,             // ||
+    Dot,            // . for field access
+    LessLess,       // << bitwise
     GreaterGreater, // >> bit wise
     GreaterGreaterGreater,
     ///@ symbol
@@ -143,9 +146,9 @@ pub enum TokenKind {
     I64,
     F32,
     F64,
-    U8, 
-    U16, 
-    U32, 
+    U8,
+    U16,
+    U32,
     U64,
     USize,
     C8,
@@ -158,7 +161,7 @@ pub enum TokenKind {
 
     //Reserved
     Autofree, // debating if i should add this, autofree is only for class variables, will autofree
-              // upon calling destructor()
+    // upon calling destructor()
     Async,
     Await,
     Heap, //Might replace alloc
@@ -171,5 +174,5 @@ pub enum TokenKind {
     //Special
     DocComment,
     EOF,
-    Invalid
+    Invalid,
 }

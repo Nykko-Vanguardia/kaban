@@ -1,4 +1,4 @@
-use kaban_core::source::{IsSource};
+use kaban_core::source::IsSource;
 use kaban_lexer::Lexer;
 use kaban_parser::Parser;
 mod test_macro;
@@ -9,11 +9,16 @@ fn addition_is_left_associative() {
     let source = input.to_source();
 
     let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize(); 
+    let tokens = lexer.tokenize();
     let mut parser = Parser::new(&tokens, source);
     let ast = parser.parse_program();
     let print = if parser.errors.len() > 0 {
-        format!("input: {}\n\n{:#?}\n\nerrors!: {:#?}", input, ast.to_debugger(), parser.errors)
+        format!(
+            "input: {}\n\n{:#?}\n\nerrors!: {:#?}",
+            input,
+            ast.to_debugger(),
+            parser.errors
+        )
     } else {
         format!("input: {}\n\n{:#?}", input, ast.to_debugger())
     };
@@ -61,7 +66,6 @@ fn type_casting_with_simple_union_type() {
     test_snapshot!("x as union(i32*, f64, Person);");
 }
 
-
 #[test]
 fn type_casting_with_nested_union_types() {
     test_snapshot!("x as union(i32*, Person[], f64, union(i32&mut, f64&, c8 &mut));");
@@ -74,36 +78,36 @@ fn type_casting_with_types_with_generics() {
 
 #[test]
 fn bubble_up_on_undefined() {
-    test_snapshot!("x?;");   
+    test_snapshot!("x?;");
 }
 
 #[test]
 fn panic_up_on_undefined() {
-    test_snapshot!("x!;");   
+    test_snapshot!("x!;");
 }
 
 #[test]
 fn undefined_coalecing_with_member_access() {
-    test_snapshot!("x ?? foo.bazz;");   
+    test_snapshot!("x ?? foo.bazz;");
 }
 
 #[test]
-fn  bubble_up_member_access() {
+fn bubble_up_member_access() {
     test_snapshot!("foo?.bazz;");
 }
 
 #[test]
-fn  panic_member_access() {
+fn panic_member_access() {
     test_snapshot!("foo!.bazz;");
 }
 
 #[test]
-fn  undefined_chaining_member_access() {
+fn undefined_chaining_member_access() {
     test_snapshot!("foo??.bazz;");
 }
 
 #[test]
-fn  implementation_access() {
+fn implementation_access() {
     test_snapshot!("Person::Core;");
 }
 
@@ -132,21 +136,24 @@ fn pass_value_and_break_and_returning_expression() {
     test_snapshot!("pass x + 10; return self.foo();");
 }
 
-
 #[test]
 fn block_with_multiple_assignments_then_pass() {
-    test_snapshot!("x = {
+    test_snapshot!(
+        "x = {
             let y = 10;
             let z = 20;
             pass y + z;
-        };");
+        };"
+    );
 }
 
 #[test]
 fn if_expression_with_braces() {
-    test_snapshot!("if (x == 10) {
+    test_snapshot!(
+        "if (x == 10) {
             foo();
-    }");
+    }"
+    );
 }
 
 #[test]
@@ -191,7 +198,8 @@ fn if_expression_with_else_if_condition_braces() {
 
 #[test]
 fn match_statement_with_brace_and_no_brace() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         match (foo()) {
             10 => 20,
             20 => buzz(),
@@ -200,12 +208,14 @@ fn match_statement_with_brace_and_no_brace() {
                 fizz();
             },
         }
-    ");
+    "
+    );
 }
 
 #[test]
 fn match_statement_with_brace_and_no_brace_and_pipe() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         match (foo()) {
             10 | 30 | 40 => 20,
             20 => buzz(),
@@ -214,7 +224,8 @@ fn match_statement_with_brace_and_no_brace_and_pipe() {
                 fizz();
             },
         }
-    ");
+    "
+    );
 }
 
 #[test]
@@ -291,7 +302,6 @@ fn anonymous_struct_instantiation_with_single_implicit_field_declarations() {
 fn anonymous_struct_instantiation_with_nested_implicit_and_explicit_field_declarations() {
     test_snapshot!("{x, y: {a: b, b, c: 20,}};");
 }
-
 
 #[test]
 fn anonymous_func_decl_with_explicit_types_and_braces() {
@@ -464,7 +474,8 @@ fn for_loop_with_mut_binding() {
 
 #[test]
 fn nested_match_expression() {
-    test_snapshot!("
+    test_snapshot!(
+        "
         match (x) {
             10 => match (y) {
                 20 => foo(),
@@ -472,7 +483,8 @@ fn nested_match_expression() {
             },
             _ => bar(),
         }
-    ");
+    "
+    );
 }
 
 #[test]

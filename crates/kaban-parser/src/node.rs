@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use kaban_core::{UIndex};
+use kaban_core::UIndex;
 
 pub const U_NONE: UIndex = UIndex::MAX;
 
@@ -105,7 +105,7 @@ pub enum NodeTag {
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
     Or,
-    
+
     //Bitise Operations
     /// # left: NodeIndex - Expression
     /// # right: NodeIndex - Expression
@@ -230,8 +230,6 @@ pub enum NodeTag {
     MultiplyAssignment,
     DivideAssignment,
     ModuloAssignment,
-
-
 
     //STATEMENTS (No returns)------
     /// # main token: let
@@ -399,7 +397,7 @@ pub enum NodeTag {
     /// - extra\[right + 1\]: UIndex = param_count
     /// - extra\[right + 2 .. right + 2 + N\]: NodeIndex = parameters
     AnonymousFuncDecl, //let x: func(i32, f64) -> i32 = func(x, y) { return x + y };
-    
+
     //NOTE: THIS WAS REMOVED, blurry chance this gets added back
     /// # left: NodeIndex = Body
     /// # right: ExtraIndex -> [return_type, generic_count, param_count, generics..., parameters...]
@@ -412,9 +410,8 @@ pub enum NodeTag {
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     DoWhile, //dunno if i should keep this, do while like loop is safe to pass values because they
-             //will always run
+    //will always run
     // AnonymousClassDecl, //Not sure yet
-
 
     //TYPES
     I8,
@@ -489,7 +486,7 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...variants\]
     /// - extra\[right.. right + N\] = NodeIndex\[N\] \(variants\)
     AnonymousEnumType,
-    
+
     //Generic Constaints
     /// # main token: Interface Name (Identifier)
     /// eg. <T: impl Serializable>
@@ -553,8 +550,7 @@ pub enum NodeTag {
     /// # main token: Token Index = Identifier token
     /// # left: 1 | 0 = Mutable or not
     IdentifierBinding, //Decided to added this for binding identifiers let mut x; its also
-                       //applicable to destructures such as let (mut x, mut y);
-
+    //applicable to destructures such as let (mut x, mut y);
     /// # main token: TokenIndex = identifier token for the field name
     /// # left: NodeIndex = To [IdentifierBinding]
     /// this is for cases like let {mut x: new_name, y};
@@ -583,35 +579,38 @@ impl NodeTag {
     /// This means bool lit is not true here since it's left side contains 0 or 1
     /// Self is also not included here since it doesnt contain anything
     pub fn is_token_leaf(&self) -> bool {
-        matches!(self,
-            NodeTag::Identifier |
-            NodeTag::IntLit |
-            NodeTag::FloatLit |
-            NodeTag::Char8Lit |
-            NodeTag::Char16Lit |
-            NodeTag::Char32Lit |
-            NodeTag::StringLit
+        matches!(
+            self,
+            NodeTag::Identifier
+                | NodeTag::IntLit
+                | NodeTag::FloatLit
+                | NodeTag::Char8Lit
+                | NodeTag::Char16Lit
+                | NodeTag::Char32Lit
+                | NodeTag::StringLit
         )
     }
 
     /// Returns true if token is a leaf node
     /// Bool lits are detected here, to target pure token leafs, use is_token_leaf
     pub fn is_leaf(&self) -> bool {
-        matches!(self,
-            NodeTag::Identifier |
-            NodeTag::IntLit |
-            NodeTag::FloatLit |
-            NodeTag::BoolLit |
-            NodeTag::Char8Lit |
-            NodeTag::Char16Lit |
-            NodeTag::Char32Lit |
-            NodeTag::StringLit |
-            NodeTag::Self_
+        matches!(
+            self,
+            NodeTag::Identifier
+                | NodeTag::IntLit
+                | NodeTag::FloatLit
+                | NodeTag::BoolLit
+                | NodeTag::Char8Lit
+                | NodeTag::Char16Lit
+                | NodeTag::Char32Lit
+                | NodeTag::StringLit
+                | NodeTag::Self_
         )
     }
 
     pub fn is_type(&self) -> bool {
-        matches!(self,
+        matches!(
+            self,
             NodeTag::I8 |
             NodeTag::I16 |
             NodeTag::I32 |
@@ -647,55 +646,55 @@ impl NodeTag {
     }
 
     pub fn is_atomic_type(&self) -> bool {
-        matches!(self,
-            NodeTag::I8 |
-            NodeTag::I16 |
-            NodeTag::I32 |
-            NodeTag::I64 |
-            NodeTag::F32 |
-            NodeTag::F64 |
-            NodeTag::U8 |
-            NodeTag::U16 |
-            NodeTag::U32 |
-            NodeTag::U64 |
-            NodeTag::USize |
-            NodeTag::Bool |
-            NodeTag::Void |
-            NodeTag::C8 |
-            NodeTag::C16 |
-            NodeTag::C32 |
-            NodeTag::Undefined |
-            NodeTag::Garbage
+        matches!(
+            self,
+            NodeTag::I8
+                | NodeTag::I16
+                | NodeTag::I32
+                | NodeTag::I64
+                | NodeTag::F32
+                | NodeTag::F64
+                | NodeTag::U8
+                | NodeTag::U16
+                | NodeTag::U32
+                | NodeTag::U64
+                | NodeTag::USize
+                | NodeTag::Bool
+                | NodeTag::Void
+                | NodeTag::C8
+                | NodeTag::C16
+                | NodeTag::C32
+                | NodeTag::Undefined
+                | NodeTag::Garbage
         )
     }
 
     pub fn is_simple_modifier_type(&self) -> bool {
-        matches!(self,
-            NodeTag::Pointer |
-            NodeTag::Borrow |
-            NodeTag::MutBorrow |
-            NodeTag::Optional |
-            NodeTag::OptionalGarbage |
-            NodeTag::DynArrayType
-            // NodeTag::FixedArray 
-            // NodeTag::Named |
-            // NodeTag::Union |
-            // NodeTag::Result
+        matches!(
+            self,
+            NodeTag::Pointer
+                | NodeTag::Borrow
+                | NodeTag::MutBorrow
+                | NodeTag::Optional
+                | NodeTag::OptionalGarbage
+                | NodeTag::DynArrayType // NodeTag::FixedArray
+                                        // NodeTag::Named |
+                                        // NodeTag::Union |
+                                        // NodeTag::Result
         )
     }
 
     pub fn doesnt_require_semicolon(&self) -> bool {
-        matches!(self,
-            NodeTag::If |
-            NodeTag::Match |
-            NodeTag::Block |
-            NodeTag::While |
-            NodeTag::For |
-            NodeTag::CompTimeExpression
-            // NodeTag::DoWhile // you need a semicolon here
+        matches!(
+            self,
+            NodeTag::If
+                | NodeTag::Match
+                | NodeTag::Block
+                | NodeTag::While
+                | NodeTag::For
+                | NodeTag::CompTimeExpression // NodeTag::DoWhile // you need a semicolon here
         )
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -703,7 +702,6 @@ pub struct NodeData {
     pub left: UIndex,
     pub right: UIndex,
 }
-
 
 impl TokenIndex {
     pub fn some(self) -> Option<TokenIndex> {
@@ -722,7 +720,7 @@ impl ToOption for TokenIndex {
     fn to_option(self) -> Option<Self> {
         match self.0 {
             U_NONE => None,
-            _ => Some(self)
+            _ => Some(self),
         }
     }
 }
@@ -737,7 +735,7 @@ impl ToOption for NodeIndex {
     fn to_option(self) -> Option<Self> {
         match self.0 {
             U_NONE => None,
-            _ => Some(self)
+            _ => Some(self),
         }
     }
 }
@@ -770,17 +768,13 @@ pub trait OptionalNode {
 
 impl UIndexVec for Vec<NodeIndex> {
     fn uindex_slice(&self) -> &[UIndex] {
-        unsafe { 
-            std::mem::transmute::<&[NodeIndex], &[UIndex]>(self.as_slice()) 
-        }
+        unsafe { std::mem::transmute::<&[NodeIndex], &[UIndex]>(self.as_slice()) }
     }
 }
 
 impl UIndexVec for &[NodeIndex] {
     fn uindex_slice(&self) -> &[UIndex] {
-        unsafe { 
-            std::mem::transmute::<&[NodeIndex], &[UIndex]>(self) 
-        }
+        unsafe { std::mem::transmute::<&[NodeIndex], &[UIndex]>(self) }
     }
 }
 
@@ -790,9 +784,7 @@ pub trait UIndexVec {
 
 impl<'a> NodeIndexVec<'a> for &[UIndex] {
     fn node_index_slice(&self) -> &'a [NodeIndex] {
-        unsafe {
-            std::mem::transmute::<&[UIndex], &[NodeIndex]>(self)
-        }
+        unsafe { std::mem::transmute::<&[UIndex], &[NodeIndex]>(self) }
     }
 }
 
@@ -810,7 +802,6 @@ impl ToWrapper for UIndex {
     fn token_index(self) -> TokenIndex {
         TokenIndex(self)
     }
-
 }
 
 pub trait ToWrapper {
@@ -823,7 +814,7 @@ impl ToOption for UIndex {
     fn to_option(self) -> Option<Self> {
         match self {
             U_NONE => None,
-            _ => Some(self)
+            _ => Some(self),
         }
     }
 }

@@ -17,10 +17,10 @@ impl ToUIndex for usize {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// Represents a byte range in the source text.
-/// 
+///
 /// `start` is inclusive, `end` is exclusive.
 /// To extract the text: `&source[span.start as usize..span.end as usize]`
-/// 
+///
 /// # Example
 /// ```
 /// // source: "if x"
@@ -45,11 +45,7 @@ impl ToUIndex for bool {
     ///RETURNS 1 IF TRUE, 0 IF FALSE
     #[inline(always)]
     fn uindex(self) -> UIndex {
-        if self == true {
-            1
-        } else {
-            0
-        }
+        if self == true { 1 } else { 0 }
     }
 }
 
@@ -58,7 +54,10 @@ impl ToBool for UIndex {
     ///Converts 0 to false
     #[inline(always)]
     fn bool(self) -> bool {
-        debug_assert!(self == 1 || self == 0, "tried to convert a non 0 or 1 uindex to a bool");
+        debug_assert!(
+            self == 1 || self == 0,
+            "tried to convert a non 0 or 1 uindex to a bool"
+        );
         self == 1
     }
 }

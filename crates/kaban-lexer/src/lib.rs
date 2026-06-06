@@ -1,9 +1,9 @@
-pub mod token;
+pub mod debug;
 pub mod error;
 pub mod lexer;
-pub mod debug;
+pub mod token;
 
-pub use token::Token;
+pub use debug::TokenPrinter;
 pub use error::LexError;
 pub use lexer::Lexer;
-pub use debug::TokenPrinter;
+pub use token::Token;
