@@ -281,6 +281,11 @@ impl<'a> Parser<'a> {
             TokenKind::Enum if self.peek_next().kind == TokenKind::Dot => {
                 self.push_node(NodeTag::AnonymousEnumlit, main_token, U_NONE, U_NONE)
             }
+            TokenKind::Type => {
+                advance_after_match = false;
+                self.advance();
+                self.parse_type_decleration()?
+            }
             _ => {
                 self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
                 return None;
@@ -1240,6 +1245,13 @@ impl<'a> Parser<'a> {
 
         self.must_consume(TokenKind::LeftParen)?;
         let condition = self.parse_expression()?;
+        // let condition = if let Some(main_token) = self.if_matches_then_consume(TokenKind::Is) {
+        //     let right = self.parse_expression()?;
+        //     self.push_node(NodeTag::Is, main_token.index, condition.0, right.)
+        // } else {
+        //     condition
+        // };
+        let condition = self.consume_if_is_expression(condition)?;
         self.must_consume(TokenKind::RightParen)?;
         let then = self.parse_block_or_semicolon_terminated_expression()?;
         let else_ = if self.if_matches_then_consume_bool(TokenKind::Else) {
@@ -1258,6 +1270,33 @@ impl<'a> Parser<'a> {
             .some()
     }
 
+    #[inline(always)]
+    fn consume_if_is_expression(&mut self, left: NodeIndex) -> Option<NodeIndex> {
+        let (main_token, binding) = if let Some(main_token) =
+            self.if_matches_then_consume(TokenKind::Is)
+        {
+            if self.node_tags[left.0.usize()] != NodeTag::Identifier {
+                self.error_recovery(ParseError::RequiresExplicitBidningForIs);
+                return None;
+            };
+            let binding_main_token = self.main_token[left.0.usize()];
+            let binding = self.push_node(NodeTag::IdentifierBinding, binding_main_token, 0, U_NONE);
+            (main_token.index, binding)
+        } else if self.if_matches_then_consume_bool(TokenKind::To) {
+            let binding = self.parse_identifier_or_destructure()?;
+            let main_token = self.must_consume(TokenKind::Is)?;
+            (main_token.index, binding)
+        } else {
+            return left.some();
+        };
+
+        let right = self.parse_expression()?;
+        let extra_pointer = self.push_one_extra(binding.0);
+        self.push_one_extra(right.0);
+        self.push_node(NodeTag::ToIs, main_token, left.0, extra_pointer.0)
+            .some()
+    }
+
     fn parse_match_expression(&mut self) -> Option<NodeIndex> {
         let main_token = self.must_consume(TokenKind::Match)?.index;
 
@@ -1265,7 +1304,7 @@ impl<'a> Parser<'a> {
         let target = self.parse_expression()?;
         self.must_consume(TokenKind::RightParen)?;
         self.must_consume(TokenKind::LeftBrace)?;
-        let arms = self.parse_match_arms();
+        let arms = self.parse_match_arms(target);
         self.must_consume(TokenKind::RightBrace);
         let extra_index = self.push_one_extra(arms.len().uindex());
         self.push_extra(arms.uindex_slice());
@@ -1273,14 +1312,24 @@ impl<'a> Parser<'a> {
             .some()
     }
 
-    fn parse_match_arms(&mut self) -> Vec<NodeIndex> {
+    #[inline(always)]
+    fn parse_match_arms(&mut self, target: NodeIndex) -> Vec<NodeIndex> {
         self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
-            let left = p.parse_expression()?;
+            let left = if p.check_bool(TokenKind::Is) || p.check_bool(TokenKind::To) {
+                p.consume_if_is_expression(target)?
+            } else {
+                p.parse_expression()?
+            };
             let left = if p.check_bool(TokenKind::Pipe) {
                 let pipe_main_token = p.peek_current().index;
                 let mut match_targets = Vec::new();
                 while !p.is_at_end() && p.if_matches_then_consume_bool(TokenKind::Pipe) {
-                    match_targets.push(p.parse_expression()?);
+                    let more_lefts = if p.check_bool(TokenKind::Is) || p.check_bool(TokenKind::To) {
+                        p.consume_if_is_expression(target)?
+                    } else {
+                        p.parse_expression()?
+                    };
+                    match_targets.push(more_lefts);
                 }
                 let extra_pointer = p.push_one_extra(left.0);
                 p.push_extra(match_targets.uindex_slice());
@@ -1670,6 +1719,42 @@ impl<'a> Parser<'a> {
             true
         } else {
             false
+        }
+    }
+
+    #[allow(dead_code)]
+    //NOTE: Still debating whether I should use this. This is for cases like i32::Core.method(), but i might just force,
+    //(type i32)::Core.method()
+    //For now this isn't used anywhere.
+    fn is_unambigous_type(&self) -> bool {
+        let current = self.peek_current();
+        match current.kind {
+            TokenKind::I16
+            | TokenKind::I32
+            | TokenKind::I64
+            | TokenKind::F32
+            | TokenKind::F64
+            | TokenKind::U8
+            | TokenKind::U16
+            | TokenKind::U32
+            | TokenKind::U64
+            | TokenKind::USize
+            | TokenKind::C8
+            | TokenKind::C16
+            | TokenKind::C32
+            | TokenKind::Bool
+            // | TokenKind::Undefined
+            // | TokenKind::Garbage
+            // | TokenKind::Identifier
+            // | TokenKind::Self_
+            // | TokenKind::Union
+            // | TokenKind::Func
+            | TokenKind::Void => true,
+
+            TokenKind::Struct if self.peek_next().kind == TokenKind::LeftBrace => true,
+
+            TokenKind::Enum if self.peek_next().kind == TokenKind::LeftBrace => true,
+            _ => unreachable!(),
         }
     }
 

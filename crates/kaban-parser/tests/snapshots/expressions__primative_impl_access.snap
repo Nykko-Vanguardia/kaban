@@ -1,0 +1,17 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: type i32::Core.method();
+
+Block [
+    MethodCall {
+        callee: ImplAccess {
+            left: Type(I32),
+            right: Identifier("Core"),
+        },
+        method name: Identifier("method"),
+        is mutable: false,
+        args: [],
+    },
+]

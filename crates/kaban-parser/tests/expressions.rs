@@ -197,6 +197,23 @@ fn if_expression_with_else_if_condition_braces() {
 }
 
 #[test]
+fn if_expression_with_is_condition() {
+    test_snapshot!("if (x is Day.Monday) { foo(); } else if (x is type i32) { buzz(); }");
+}
+
+#[test]
+fn if_expression_with_is_and_to_binding_condition() {
+    test_snapshot!("if (x to time is Day.Monday) { foo(); }");
+}
+
+#[test]
+fn if_expression_with_is_and_complex_to_binding_condition() {
+    test_snapshot!(
+        "if (x to mut time is Day.Monday) { foo(); } else if (x to {mut y, z,} is Day.Tuesday) { buzz(); }"
+    );
+}
+
+#[test]
 fn match_statement_with_brace_and_no_brace() {
     test_snapshot!(
         "
@@ -223,6 +240,33 @@ fn match_statement_with_brace_and_no_brace_and_pipe() {
                 bazz();
                 fizz();
             },
+        }
+    "
+    );
+}
+
+#[test]
+fn match_statement_with_is_statement() {
+    test_snapshot!(
+        "
+        match (day_enum) {
+            is Day.Monday => 20,
+            to time is Day.Tuesday => buzz(),
+            to {time, mut wednesday_event} is Day.Wednesday => buzz(),
+        }
+    "
+    );
+}
+
+#[test]
+fn match_statement_with_is_statement_and_pipes() {
+    test_snapshot!(
+        "
+        match (day_enum) {
+            is Day.Monday
+            | is Day.Tuesday
+            | 32 => 20,
+            to time is Day.Wednesday => buzz(),
         }
     "
     );
@@ -515,6 +559,21 @@ fn if_expression_as_argument() {
 #[test]
 fn block_expression_as_argument() {
     test_snapshot!("foo({ let x = 10; pass x + 1; });");
+}
+
+#[test]
+fn passing_type_to_function() {
+    test_snapshot!("foo(type i32);");
+}
+
+#[test]
+fn primative_impl_access() {
+    test_snapshot!("type i32::Core.method();");
+}
+
+#[test]
+fn primative_impl_access_with_parenthesis() {
+    test_snapshot!("(type i32)::Core.method();");
 }
 
 //NOTE: REMOVED

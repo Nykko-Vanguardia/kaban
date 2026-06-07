@@ -655,6 +655,19 @@ impl<'a> AST<'a> {
             statements: statements.node_index_slice(),
         }
     }
+
+    pub fn view_to_is(&'a self, index: NodeIndex) -> ToIs {
+        debug_assert!(NodeTag::ToIs == self.get_tag(index));
+        let (original, extra_pointer) = self.get_left_right(index);
+        let binding = self.get_one_extra(extra_pointer);
+        let is_target = self.get_one_extra(extra_pointer + 1);
+
+        ToIs {
+            original: original.node_index(),
+            binding: binding.node_index(),
+            is_target: is_target.node_index(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -872,4 +885,10 @@ pub struct InterfaceDeclWithGenerics<'a> {
     pub shape: Option<NodeIndex>,
     pub generic_params: &'a [NodeIndex],
     pub statements: &'a [NodeIndex],
+}
+
+pub struct ToIs {
+    pub original: NodeIndex,
+    pub binding: NodeIndex,
+    pub is_target: NodeIndex,
 }

@@ -43,4 +43,8 @@ pub enum ParseError {
         "Self must be a pointer, to send a copy you must explicitly declare the type. Did you mean to write self& or self &mut, or self*?"
     )]
     MissingSelfReferenceModifier,
+    #[error("Left side of is statement is not an identifier, you need to cast the value to an identifier binding
+    eg. (x[0]: time is Day.Monday) or (x[0]: {{x, y}} is WebEvent.Click)
+        ")]
+    RequiresExplicitBidningForIs,
 }

@@ -603,6 +603,14 @@ impl<'a> Debug for NodePrinter<'a> {
                     f.debug_tuple("SelfParam").finish()
                 }
             }
+            NodeTag::ToIs => {
+                let to_is = self.ast.view_to_is(index);
+                f.debug_struct("ToIs")
+                    .field("original", &self.child(to_is.original.0))
+                    .field("binding", &self.child(to_is.binding.0))
+                    .field("is target", &self.child(to_is.is_target.0))
+                    .finish()
+            }
             _ => todo!("NOT IMPLEMENTED YET: {:?}", tag),
         }
     }

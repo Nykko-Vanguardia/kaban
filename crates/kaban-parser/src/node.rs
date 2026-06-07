@@ -572,6 +572,17 @@ pub enum NodeTag {
 
     /// # left: u32 = Expression
     CompTimeExpression,
+
+    ///eg. if (x is type i32) or if (x is Day.Monday)
+    ///just like binary expressions like 10 + 5
+    // Is,
+    /// eg. if \(x: time is Day.Monday\)
+    /// # main token = is
+    /// # left: NodeIndex = original expression (x) (Expression)
+    /// # right: ExtraIndex -> \[...identifier binding, is_target\]
+    /// - extra\[right\]: NodeIndex = Identifier binding (time)
+    /// - extra\[right + 1\]: NodeIndex = Is target (Day.Monday)
+    ToIs,
 }
 
 impl NodeTag {

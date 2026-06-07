@@ -211,7 +211,7 @@ impl NodeTag {
                 | NodeTag::MinusAssignment
                 | NodeTag::MultiplyAssignment
                 | NodeTag::DivideAssignment
-                | NodeTag::ModuloAssignment
+                | NodeTag::ModuloAssignment // | NodeTag::Is //NOT A REGULAR OPERATOR
         )
     }
 
