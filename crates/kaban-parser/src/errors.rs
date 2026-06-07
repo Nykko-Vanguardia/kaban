@@ -4,6 +4,8 @@ use kaban_lexer::token::TokenKind;
 pub enum ParseError {
     // #[error("{0} expected!")]
     // Expected(String),
+    #[error("Expression expected!")]
+    ExpectedExpression,
     #[error("{0:?} expected!")]
     ExpectedToken(TokenKind),
     #[error("Missing type declaration")]

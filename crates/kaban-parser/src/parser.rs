@@ -287,7 +287,7 @@ impl<'a> Parser<'a> {
                 self.parse_type_decleration()?
             }
             _ => {
-                self.error_recovery(ParseError::ExpectedToken(TokenKind::Identifier));
+                self.error_recovery(ParseError::ExpectedExpression);
                 return None;
             }
         };
@@ -1578,17 +1578,30 @@ impl<'a> Parser<'a> {
     //which triggered a missing left parenthisis error, this caused the program to hang.
     fn error_recovery(&mut self, error: ParseError) {
         self.errors.push(error);
-        while !Self::is_recovery_point(self.peek_current().kind) && !self.is_at_end() {
+        while !self.is_at_recovery_point() && !self.is_at_end() {
             self.advance();
         }
     }
 
-    fn is_recovery_point(token: TokenKind) -> bool {
-        token == TokenKind::Semicolon
-            || token == TokenKind::RightBrace
-            || token == TokenKind::Pub
-            || token == TokenKind::Func
-            || token == TokenKind::EOF
+    #[inline(always)]
+    fn is_at_recovery_point(&mut self) -> bool {
+        let token = self.peek_current().kind;
+        match token {
+            TokenKind::Semicolon | TokenKind::RightBrace => {
+                self.advance();
+                true
+            }
+            TokenKind::Pub
+            | TokenKind::Let
+            | TokenKind::Const
+            | TokenKind::Struct
+            | TokenKind::Enum
+            | TokenKind::Func
+            | TokenKind::Impl
+            | TokenKind::Interface
+            | TokenKind::EOF => true,
+            _ => false,
+        }
     }
 
     fn peek_infix_or_postfix_operator(&mut self) -> Option<(NodeTag, TokenIndex)> {

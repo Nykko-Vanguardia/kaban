@@ -1,0 +1,13 @@
+---
+source: crates/kaban-parser/tests/errors.rs
+expression: print
+---
+input: x = 10
+
+Block []
+
+errors!: [
+    ExpectedToken(
+        Semicolon,
+    ),
+]
