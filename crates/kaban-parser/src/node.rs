@@ -35,9 +35,10 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[...element\]
     /// - extra\[right..right + N\] = NodeId\[N\] (expressions)
     TupleLit,
-    /// # main token: true or false
-    /// # left : 0 | 1 - 1 being true, 0 being false
-    BoolLit,
+    /// # main token: true
+    TrueLit,
+    /// # main token: false
+    FalseLit,
     /// # main token: TokenIndex
     Char8Lit,
     /// # main token: TokenIndex
@@ -586,31 +587,27 @@ pub enum NodeTag {
 }
 
 impl NodeTag {
-    /// Returns true if token is a leaf node just containing a token index
-    /// This means bool lit is not true here since it's left side contains 0 or 1
-    /// Self is also not included here since it doesnt contain anything
-    pub fn is_token_leaf(&self) -> bool {
-        matches!(
-            self,
-            NodeTag::Identifier
-                | NodeTag::IntLit
-                | NodeTag::FloatLit
-                | NodeTag::Char8Lit
-                | NodeTag::Char16Lit
-                | NodeTag::Char32Lit
-                | NodeTag::StringLit
-        )
-    }
+    // pub fn is_token_leaf(&self) -> bool {
+    //     matches!(
+    //         self,
+    //         NodeTag::Identifier
+    //             | NodeTag::IntLit
+    //             | NodeTag::FloatLit
+    //             | NodeTag::Char8Lit
+    //             | NodeTag::Char16Lit
+    //             | NodeTag::Char32Lit
+    //             | NodeTag::StringLit
+    //     )
+    // }
 
-    /// Returns true if token is a leaf node
-    /// Bool lits are detected here, to target pure token leafs, use is_token_leaf
     pub fn is_leaf(&self) -> bool {
         matches!(
             self,
             NodeTag::Identifier
                 | NodeTag::IntLit
                 | NodeTag::FloatLit
-                | NodeTag::BoolLit
+                | NodeTag::TrueLit
+                | NodeTag::FalseLit
                 | NodeTag::Char8Lit
                 | NodeTag::Char16Lit
                 | NodeTag::Char32Lit

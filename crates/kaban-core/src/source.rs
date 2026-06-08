@@ -1,4 +1,4 @@
-use crate::{SourceSpan, ToUIndex, ToUsize, UIndex};
+use crate::{ToUIndex, ToUsize, UIndex};
 
 #[derive(Clone, Copy)]
 pub struct Source<'a> {
@@ -12,13 +12,13 @@ impl<'a> Source<'a> {
         }
     }
 
-    #[inline(always)]
-    pub fn get(&self, span: SourceSpan) -> &'a [u8] {
-        &self.source[span.start.usize()..span.end.usize()]
-    }
+    // #[inline(always)]
+    // pub fn get(&self, span: SourceSpan) -> &'a [u8] {
+    //     &self.source[span.start.usize()..span.end.usize()]
+    // }
 
     #[inline(always)]
-    pub fn get_start_end(&self, start: UIndex, end: UIndex) -> &'a [u8] {
+    pub fn get(&self, start: UIndex, end: UIndex) -> &'a [u8] {
         &self.source[start.usize()..end.usize()]
     }
 
@@ -33,18 +33,18 @@ impl<'a> Source<'a> {
     }
 
     #[inline(always)]
-    pub fn matches(&self, span: SourceSpan, matches: &str) -> bool {
-        self.get(span) == matches.as_bytes()
+    pub fn matches(&self, start: UIndex, end: UIndex, matches: &str) -> bool {
+        self.get(start, end) == matches.as_bytes()
     }
 
     #[inline(always)]
-    pub fn as_str(&self, span: SourceSpan) -> &str {
-        unsafe { str::from_utf8_unchecked(self.get(span)) }
+    pub fn as_str(&self, start: UIndex, end: UIndex) -> &str {
+        unsafe { str::from_utf8_unchecked(self.get(start, end)) }
     }
 
     #[inline(always)]
     pub fn as_str_start_end(&self, start: UIndex, end: UIndex) -> &str {
-        self.as_str(SourceSpan { start, end })
+        self.as_str(start, end)
     }
 
     #[inline(always)]

@@ -4,7 +4,7 @@ expression: print
 ---
 input: 
     pub interface Talks<T> {
-        shape: struct { x: i32, y: i32 }
+        requires struct { x: i32, y: i32 }
 
         func step(step: T) -> T {
             return self.x;

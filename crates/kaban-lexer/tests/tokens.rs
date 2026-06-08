@@ -7,7 +7,7 @@ use kaban_lexer::token::TokenKind;
 #[test]
 fn let_decleration_with_arithmetic() {
     let input = "let x = 5 + 10;".to_source();
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input).tokenize().result.to_token_views();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
         Token::new(TokenKind::Identifier, 4, 5),
@@ -19,13 +19,12 @@ fn let_decleration_with_arithmetic() {
         Token::new(TokenKind::EOF, 15, 15),
     ];
     assert_eq!(tokens, expected);
-    println!("{:#?}", tokens);
 }
 
 #[test]
 fn complex_arithmetic_with_parentheses() {
     let input = "let answer = (50 * 123) / 2;".to_source();
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input).tokenize().result.to_token_views();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
         Token::new(TokenKind::Identifier, 4, 10),
@@ -46,7 +45,7 @@ fn complex_arithmetic_with_parentheses() {
 #[test]
 fn whitespace_is_ignored_between_tokens() {
     let input = "let    x\n    = \n   100   ;".to_source();
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input).tokenize().result.to_token_views();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
         Token::new(TokenKind::Identifier, 7, 8),
@@ -61,7 +60,10 @@ fn whitespace_is_ignored_between_tokens() {
 #[test]
 fn line_and_block_comments_are_skipped() {
     let input = "//The path of the righteous man is\n            /*\n              beset on all sides by the inequities of the selfish and the tyranny of evil men\n             */\n            let: i32;\n            ";
-    let tokens = Lexer::new(input.to_source()).tokenize();
+    let tokens = Lexer::new(input.to_source())
+        .tokenize()
+        .result
+        .to_token_views();
     // find positions of let, colon, i32, semicolon, eof
     let let_pos = input.find("let").unwrap() as u32;
     let colon_pos = input.find(':').unwrap() as u32;
@@ -80,7 +82,7 @@ fn line_and_block_comments_are_skipped() {
 #[test]
 fn string_literal_including_quotes() {
     let input = r#"let x = "let";"#.to_source();
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input).tokenize().result.to_token_views();
     let expected = vec![
         Token::new(TokenKind::Let, 0, 3),
         Token::new(TokenKind::Identifier, 4, 5),
@@ -95,7 +97,7 @@ fn string_literal_including_quotes() {
 #[test]
 fn doc_comment_is_single_token() {
     let input = "/** * hello */".to_source();
-    let tokens = Lexer::new(input).tokenize();
+    let tokens = Lexer::new(input).tokenize().result.to_token_views();
     let expected = vec![
         Token::new(TokenKind::DocComment, 0, 14),
         Token::new(TokenKind::EOF, 14, 14),

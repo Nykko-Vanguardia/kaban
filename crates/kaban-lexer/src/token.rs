@@ -1,17 +1,15 @@
-use kaban_core::{SourceSpan, UIndex};
+use kaban_core::UIndex;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub span: SourceSpan,
+    pub start: UIndex,
+    pub end: UIndex,
 }
-
+//
 impl Token {
     pub fn new(kind: TokenKind, start: UIndex, end: UIndex) -> Token {
-        Token {
-            kind,
-            span: SourceSpan { start, end },
-        }
+        Token { kind, start, end }
     }
 }
 
@@ -24,7 +22,8 @@ pub enum TokenKind {
     StringLit,
     StringObjLit,             // for ``, automatically sugars to String.new()
     InterpolatedStringObjLit, // for f`` automaticallu sugars to String.format()
-    BoolLit,
+    TrueLit,
+    FalseLit,
     Char8Lit,
     Char16Lit,
     Char32Lit,
@@ -39,6 +38,7 @@ pub enum TokenKind {
     // Free,
     Struct,
     Interface,
+    Requires,
     Impl,
     // Class,
     Pub,

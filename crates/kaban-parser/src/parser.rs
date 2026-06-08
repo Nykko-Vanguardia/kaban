@@ -3,11 +3,13 @@ use crate::{
     errors::ParseError,
     node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec},
 };
-use kaban_core::{SourceSpan, ToUIndex, ToUsize, UIndex, source::Source};
-use kaban_lexer::{Token, token::TokenKind};
+use kaban_core::{ToUIndex, ToUsize, UIndex, source::Source};
+use kaban_lexer::{lexer::TokenizedSource, token::TokenKind};
 
 pub struct Parser<'a> {
-    tokens: &'a [Token],
+    tokenized_source: &'a TokenizedSource,
+
+    token_kinds: &'a [TokenKind],
     source: Source<'a>,
     current: usize,
     pub errors: Vec<ParseError>,
@@ -19,9 +21,11 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token], source: Source<'a>) -> Self {
+    pub fn new(tokenized_source: &'a TokenizedSource, source: Source<'a>) -> Self {
         Parser {
-            tokens,
+            tokenized_source,
+
+            token_kinds: &tokenized_source.kind,
             current: 0,
             errors: Vec::new(),
             source,
@@ -43,7 +47,7 @@ impl<'a> Parser<'a> {
 
         let root = self.push_block(top_level_statements, TokenIndex(U_NONE));
         AST::new(
-            self.tokens,
+            self.tokenized_source,
             std::mem::take(&mut self.node_tags),
             std::mem::take(&mut self.node_data),
             std::mem::take(&mut self.main_token),
@@ -53,21 +57,21 @@ impl<'a> Parser<'a> {
         )
     }
 
-    pub fn reset(&mut self, tokens: &'a [Token], source: Source<'a>) {
+    pub fn reset(&mut self, tokenized_source: &'a TokenizedSource, source: Source<'a>) {
         self.node_tags.clear();
         self.node_data.clear();
         self.extra.clear();
 
-        self.tokens = tokens;
+        self.tokenized_source = tokenized_source;
+        self.token_kinds = &tokenized_source.kind;
         self.source = source;
         self.current = 0;
     }
 
     pub fn parse_statement(&mut self) -> Option<NodeIndex> {
         let is_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
-        let current_token = self.peek_current();
 
-        match current_token.kind {
+        match self.peek_current_kind() {
             TokenKind::Let => {
                 if is_pub {
                     self.error_recovery(ParseError::PubInLet);
@@ -169,24 +173,17 @@ impl<'a> Parser<'a> {
             return self.parse_prefix_unary_expression(prefix_unary, token_index);
         };
 
-        let current_token = self.peek_current();
-        let main_token = current_token.index;
+        let token_kind = self.peek_current_kind();
+        let main_token = self.current_token_index();
         let mut advance_after_match = true;
-        let token_kind = current_token.kind;
         let atom = match token_kind {
             TokenKind::IntLit => self.push_node(NodeTag::IntLit, main_token, U_NONE, U_NONE),
             TokenKind::FloatLit => self.push_node(NodeTag::FloatLit, main_token, U_NONE, U_NONE),
             TokenKind::Identifier => {
                 self.push_node(NodeTag::Identifier, main_token, U_NONE, U_NONE)
             }
-            TokenKind::BoolLit => {
-                let bool: UIndex = if self.source.matches(current_token.span(), "true") {
-                    1
-                } else {
-                    0
-                };
-                self.push_node(NodeTag::BoolLit, main_token, bool, U_NONE)
-            }
+            TokenKind::TrueLit => self.push_node(NodeTag::TrueLit, main_token, U_NONE, U_NONE),
+            TokenKind::FalseLit => self.push_node(NodeTag::FalseLit, main_token, U_NONE, U_NONE),
             TokenKind::LeftBracket => {
                 advance_after_match = false;
                 self.advance();
@@ -278,7 +275,7 @@ impl<'a> Parser<'a> {
                 advance_after_match = false;
                 self.parse_comptime_expression()?
             }
-            TokenKind::Enum if self.peek_next().kind == TokenKind::Dot => {
+            TokenKind::Enum if self.peek_next_kind() == TokenKind::Dot => {
                 self.push_node(NodeTag::AnonymousEnumlit, main_token, U_NONE, U_NONE)
             }
             TokenKind::Type => {
@@ -368,7 +365,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_and_consume_block(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::LeftBrace)?.index;
+        let main_token = self.must_consume(TokenKind::LeftBrace)?;
         let mut statements = Vec::new();
         while !self.is_at_end() && !self.check_bool(TokenKind::RightBrace) {
             if let Some(statment) = self.parse_statement() {
@@ -392,10 +389,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type_decleration(&mut self) -> Option<NodeIndex> {
-        let current_token = self.peek_current();
-        let main_token = current_token.index;
+        let main_token = self.current_token_index();
         let mut advance_after_match = true;
-        let mut type_ = match current_token.kind {
+        let mut type_ = match self.peek_current_kind() {
             TokenKind::LeftParen => {
                 advance_after_match = false;
                 self.advance();
@@ -462,7 +458,7 @@ impl<'a> Parser<'a> {
                         let type_ = p.parse_type_decleration()?;
                         p.push_node(
                             NodeTag::AnonymousStructFieldDecl,
-                            field_name.index,
+                            field_name,
                             type_.0,
                             U_NONE,
                         )
@@ -483,9 +479,9 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.must_consume(TokenKind::LeftParen)?;
                 let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
-                    let main_token = p.peek_current().index;
+                    let main_token = p.current_token_index();
                     let is_mut = p.if_matches_then_consume_bool(TokenKind::Mut).uindex();
-                    let identifier_main_token = p.must_consume(TokenKind::Identifier)?.index;
+                    let identifier_main_token = p.must_consume(TokenKind::Identifier)?;
                     let identifier_binding = p.push_node(
                         NodeTag::IdentifierBinding,
                         identifier_main_token,
@@ -516,7 +512,7 @@ impl<'a> Parser<'a> {
                     extra_pointer.0,
                 )
             }
-            TokenKind::Enum if self.peek_next().kind == TokenKind::LeftBrace => {
+            TokenKind::Enum if self.peek_next_kind() == TokenKind::LeftBrace => {
                 advance_after_match = false;
                 self.advance();
                 let enum_variant_declerations = self.parse_enum_block();
@@ -540,9 +536,8 @@ impl<'a> Parser<'a> {
 
         loop {
             advance_after_match = true;
-            let current_token = self.peek_current();
-            let main_token = current_token.index;
-            type_ = match current_token.kind {
+            let main_token = self.current_token_index();
+            type_ = match self.peek_current_kind() {
                 TokenKind::Star => self.push_node(NodeTag::Pointer, main_token, type_.0, U_NONE),
                 TokenKind::Ampersand => {
                     self.push_node(NodeTag::Borrow, main_token, type_.0, U_NONE)
@@ -606,7 +601,7 @@ impl<'a> Parser<'a> {
 
                 p.push_node(
                     NodeTag::GenericParam,
-                    name.index,
+                    name,
                     constraint.to_index_or_u_none(),
                     U_NONE,
                 )
@@ -621,9 +616,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_generic_constraint_atom(&mut self) -> Option<NodeIndex> {
-        let current_token = self.peek_current();
         // let main_token = current_token.index;
-        match current_token.kind {
+        match self.peek_current_kind() {
             TokenKind::LeftParen => {
                 self.advance();
                 let generic = self.parse_generic_constraint()?;
@@ -632,7 +626,7 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Impl => {
                 self.advance();
-                let main_token = self.must_consume(TokenKind::Identifier)?.index;
+                let main_token = self.must_consume(TokenKind::Identifier)?;
                 self.push_node(NodeTag::InterfaceConstraint, main_token, U_NONE, U_NONE)
             }
             _ => self.parse_type_decleration()?,
@@ -646,13 +640,13 @@ impl<'a> Parser<'a> {
         let mut left = self.parse_generic_constraint_atom()?;
 
         loop {
-            let current = self.peek_current();
-            let main_token = current.index;
-            match current.kind {
+            let main_token = self.current_token_index();
+            let token_kind = self.peek_current_kind();
+            match token_kind {
                 TokenKind::Ampersand | TokenKind::Pipe => {
                     self.advance();
                     let right = self.parse_generic_constraint_atom()?;
-                    let tag = match current.kind {
+                    let tag = match token_kind {
                         TokenKind::Ampersand => NodeTag::AndGenericConstaint,
                         TokenKind::Pipe => NodeTag::OrGenericConstaint,
                         _ => unreachable!(),
@@ -695,7 +689,7 @@ impl<'a> Parser<'a> {
                         child,
                         operator,
                         operator_main_token,
-                        at_main_token.index,
+                        at_main_token,
                     )
                 } else {
                     if operator == NodeTag::Colon {
@@ -767,18 +761,17 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_identifier_or_destructure(&mut self) -> Option<NodeIndex> {
-        let token = self.peek_current();
-        let main_token = token.index;
-        match token.kind {
+        let main_token = self.current_token_index();
+        match self.peek_current_kind() {
             TokenKind::Mut => {
                 self.advance();
                 let identifier = self.must_consume(TokenKind::Identifier)?;
-                self.push_node(NodeTag::IdentifierBinding, identifier.index, 1, U_NONE)
+                self.push_node(NodeTag::IdentifierBinding, identifier, 1, U_NONE)
                     .some()
             }
             TokenKind::Identifier => {
                 self.advance();
-                self.push_node(NodeTag::IdentifierBinding, token.index, 0, U_NONE)
+                self.push_node(NodeTag::IdentifierBinding, main_token, 0, U_NONE)
                     .some()
             }
             TokenKind::LeftParen => {
@@ -824,14 +817,14 @@ impl<'a> Parser<'a> {
                     } else {
                         p.push_node(
                             NodeTag::IdentifierBinding,
-                            field_name.index,
+                            field_name,
                             is_mut.uindex(),
                             U_NONE,
                         )
                     };
                     p.push_node(
                         NodeTag::StructDestructureBinding,
-                        field_name.index,
+                        field_name,
                         binding.0,
                         U_NONE,
                     )
@@ -858,7 +851,7 @@ impl<'a> Parser<'a> {
 //Complicated statements or expressions
 impl<'a> Parser<'a> {
     fn parse_let_statement(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Let)?.index;
+        let main_token = self.must_consume(TokenKind::Let)?;
 
         let binding = self.parse_identifier_or_destructure()?;
         let let_type = if self.if_matches_then_consume_bool(TokenKind::Colon) {
@@ -879,7 +872,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_statement(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Const)?.index;
+        let main_token = self.must_consume(TokenKind::Const)?;
         let identifier = self.must_consume(TokenKind::Identifier)?;
         self.must_consume(TokenKind::Colon)?;
         let type_ = self.parse_type_decleration()?;
@@ -893,17 +886,12 @@ impl<'a> Parser<'a> {
         let extra_pointer = self.push_one_extra(is_pub.uindex());
         self.push_one_extra(type_.0);
         self.push_one_extra(assignment.0);
-        self.push_node(
-            NodeTag::Const,
-            main_token,
-            identifier.index.0,
-            extra_pointer.0,
-        )
-        .some()
+        self.push_node(NodeTag::Const, main_token, identifier.0, extra_pointer.0)
+            .some()
     }
 
     fn parse_func_decleration_or_header(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Func)?.index;
+        let main_token = self.must_consume(TokenKind::Func)?;
 
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
@@ -911,7 +899,7 @@ impl<'a> Parser<'a> {
         self.must_consume(TokenKind::LeftParen)?;
         let self_ = self.parse_self_param();
         let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
-            let main_token = p.peek_current().index;
+            let main_token = p.current_token_index();
             let identifier_binding = p.parse_identifier_or_destructure()?;
             p.must_consume(TokenKind::Colon)?;
             let type_ = if p.check_bool(TokenKind::Impl) {
@@ -929,7 +917,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let block = if self.peek_current().kind == TokenKind::LeftBrace {
+        let block = if self.peek_current_kind() == TokenKind::LeftBrace {
             self.parse_and_consume_block()
         } else {
             self.must_consume(TokenKind::Semicolon);
@@ -997,17 +985,12 @@ impl<'a> Parser<'a> {
             //     self.advance();
             //     self.advance();
             // }
-            let current = self.peek_current();
-            let self_ = match current.kind {
+            let current_index = self.current_token_index();
+            let self_ = match self.peek_current_kind() {
                 TokenKind::Ampersand | TokenKind::AmpersandMut | TokenKind::Star => {
                     self.advance();
-                    self.push_node(
-                        NodeTag::SelfParam,
-                        main_token.index,
-                        current.index.0,
-                        U_NONE,
-                    )
-                    .some()
+                    self.push_node(NodeTag::SelfParam, main_token, current_index.0, U_NONE)
+                        .some()
                 }
                 //NOTE: REMOVED THIS, COPIES MUST BE SENT EXPLICITLY
                 // _ => self.push_node(NodeTag::SelfParam, U_NONE, mut_self.uindex()).some()
@@ -1026,14 +1009,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_struct_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Struct)?.index;
+        let main_token = self.must_consume(TokenKind::Struct)?;
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
         self.must_consume(TokenKind::LeftBrace);
         let field_declerations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
             let is_pub = p.if_matches_then_consume_bool(TokenKind::Pub);
-            let field_name = p.must_consume(TokenKind::Identifier)?.index;
+            let field_name = p.must_consume(TokenKind::Identifier)?;
             p.must_consume(TokenKind::Colon)?;
             let type_ = p.parse_type_decleration()?;
             p.push_node(
@@ -1071,7 +1054,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enum_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Enum)?.index;
+        let main_token = self.must_consume(TokenKind::Enum)?;
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
@@ -1105,7 +1088,7 @@ impl<'a> Parser<'a> {
     fn parse_enum_block(&mut self) -> Vec<NodeIndex> {
         self.must_consume(TokenKind::LeftBrace);
         let enum_variants = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
-            let variant_name = p.must_consume(TokenKind::Identifier)?.index;
+            let variant_name = p.must_consume(TokenKind::Identifier)?;
             let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
                 p.parse_type_decleration()
             } else {
@@ -1125,7 +1108,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_impl_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Impl)?.index;
+        let main_token = self.must_consume(TokenKind::Impl)?;
 
         let type_or_interface = self.parse_type_decleration()?;
         let (type_, interface) = if self.if_matches_then_consume_bool(TokenKind::For) {
@@ -1140,9 +1123,9 @@ impl<'a> Parser<'a> {
 
         self.must_consume(TokenKind::LeftBrace)?;
         let mut statements = Vec::new();
-        while !self.is_at_end() && self.peek_current().kind != TokenKind::RightBrace {
+        while !self.is_at_end() && self.peek_current_kind() != TokenKind::RightBrace {
             let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
-            let statement = match self.peek_current().kind {
+            let statement = match self.peek_current_kind() {
                 TokenKind::Func => self.parse_func_decleration_or_header(is_inside_pub),
                 TokenKind::Const => self.parse_const_statement(is_inside_pub),
                 TokenKind::At => self.parse_comptime_expression(),
@@ -1171,7 +1154,7 @@ impl<'a> Parser<'a> {
             } else {
                 NodeTag::ImplDeclWithGeneric
             };
-            self.push_node(tag, main_token, impl_name.index.0, extra_pointer.0)
+            self.push_node(tag, main_token, impl_name.0, extra_pointer.0)
                 .some()
         } else {
             self.push_one_extra(statements.len().uindex());
@@ -1181,27 +1164,27 @@ impl<'a> Parser<'a> {
             } else {
                 NodeTag::ImplDeclWithNoGeneric
             };
-            self.push_node(tag, main_token, impl_name.index.0, extra_pointer.0)
+            self.push_node(tag, main_token, impl_name.0, extra_pointer.0)
                 .some()
         }
     }
 
     fn parse_interface_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Interface)?.index;
+        let main_token = self.must_consume(TokenKind::Interface)?;
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
         self.must_consume(TokenKind::LeftBrace)?;
-        let shape = if self.if_identifier_says_shape_consume_bool() {
-            self.must_consume(TokenKind::Colon);
+        let shape = if self.if_matches_then_consume_bool(TokenKind::Requires) {
+            // self.must_consume(TokenKind::Colon);
             self.parse_generic_constraint()
         } else {
             None
         };
 
         let mut statements = Vec::new();
-        while !self.is_at_end() && self.peek_current().kind != TokenKind::RightBrace {
+        while !self.is_at_end() && self.peek_current_kind() != TokenKind::RightBrace {
             let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
-            let statement = match self.peek_current().kind {
+            let statement = match self.peek_current_kind() {
                 TokenKind::Func => self.parse_func_decleration_or_header(is_inside_pub),
                 // TokenKind::Const => self.parse_const_statement(is_inside_pub),
                 TokenKind::At => self.parse_comptime_expression(),
@@ -1241,7 +1224,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::If)?.index;
+        let main_token = self.must_consume(TokenKind::If)?;
 
         self.must_consume(TokenKind::LeftParen)?;
         let condition = self.parse_expression()?;
@@ -1281,11 +1264,11 @@ impl<'a> Parser<'a> {
             };
             let binding_main_token = self.main_token[left.0.usize()];
             let binding = self.push_node(NodeTag::IdentifierBinding, binding_main_token, 0, U_NONE);
-            (main_token.index, binding)
+            (main_token, binding)
         } else if self.if_matches_then_consume_bool(TokenKind::To) {
             let binding = self.parse_identifier_or_destructure()?;
             let main_token = self.must_consume(TokenKind::Is)?;
-            (main_token.index, binding)
+            (main_token, binding)
         } else {
             return left.some();
         };
@@ -1298,7 +1281,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_match_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Match)?.index;
+        let main_token = self.must_consume(TokenKind::Match)?;
 
         self.must_consume(TokenKind::LeftParen)?;
         let target = self.parse_expression()?;
@@ -1321,7 +1304,7 @@ impl<'a> Parser<'a> {
                 p.parse_expression()?
             };
             let left = if p.check_bool(TokenKind::Pipe) {
-                let pipe_main_token = p.peek_current().index;
+                let pipe_main_token = p.current_token_index();
                 let mut match_targets = Vec::new();
                 while !p.is_at_end() && p.if_matches_then_consume_bool(TokenKind::Pipe) {
                     let more_lefts = if p.check_bool(TokenKind::Is) || p.check_bool(TokenKind::To) {
@@ -1344,7 +1327,7 @@ impl<'a> Parser<'a> {
             } else {
                 left
             };
-            let main_token = p.must_consume(TokenKind::FatArrow)?.index;
+            let main_token = p.must_consume(TokenKind::FatArrow)?;
             let right = p.parse_expression()?;
             p.push_node(NodeTag::MatchArms, main_token, left.0, right.0)
                 .some()
@@ -1352,7 +1335,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_while_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::While)?.index;
+        let main_token = self.must_consume(TokenKind::While)?;
         self.must_consume(TokenKind::LeftParen)?;
         let condition = self.parse_expression()?;
         self.must_consume(TokenKind::RightParen)?;
@@ -1363,7 +1346,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_do_while_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Do)?.index;
+        let main_token = self.must_consume(TokenKind::Do)?;
         let block = self.parse_block_or_semicolon_terminated_expression()?;
         self.must_consume(TokenKind::While)?;
         self.must_consume(TokenKind::LeftParen)?;
@@ -1375,7 +1358,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_for_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::For)?.index;
+        let main_token = self.must_consume(TokenKind::For)?;
         self.must_consume(TokenKind::LeftParen)?;
         let binding = self.parse_identifier_or_destructure()?;
         self.must_consume(TokenKind::In)?;
@@ -1398,11 +1381,11 @@ impl<'a> Parser<'a> {
         let main_token = if let Some(index) = left_brace_index {
             index
         } else {
-            self.must_consume(TokenKind::LeftBrace)?.index
+            self.must_consume(TokenKind::LeftBrace)?
         };
 
         let field_instantiations = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
-            let field_name = p.must_consume(TokenKind::Identifier)?.index;
+            let field_name = p.must_consume(TokenKind::Identifier)?;
             let assignment = if p.if_matches_then_consume_bool(TokenKind::Colon) {
                 p.parse_expression()?
             } else {
@@ -1431,11 +1414,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_anonymous_func_decleration_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Func)?.index;
+        let main_token = self.must_consume(TokenKind::Func)?;
 
         self.must_consume(TokenKind::LeftParen)?;
         let params = self.parse_comma_seperated_nodes(TokenKind::RightParen, |p| {
-            let main_token = p.peek_current().index;
+            let main_token = p.current_token_index();
             let identifier_binding = p.parse_identifier_or_destructure()?;
             let type_ = if p.if_matches_then_consume_bool(TokenKind::Colon) {
                 p.parse_type_decleration()
@@ -1472,7 +1455,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comptime_expression(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::At)?.index;
+        let main_token = self.must_consume(TokenKind::At)?;
         let expression = self.parse_block_or_semicolon_terminated_expression()?;
         self.push_node(
             NodeTag::CompTimeExpression,
@@ -1486,49 +1469,42 @@ impl<'a> Parser<'a> {
 
 //helper
 impl<'a> Parser<'a> {
-    fn peek_current(&self) -> TokenRef<'a> {
-        self.peek_offset(0)
+    fn peek_current_kind(&self) -> TokenKind {
+        self.token_kinds[self.current]
     }
 
-    fn peek_next(&self) -> TokenRef<'a> {
-        self.peek_offset(1)
+    fn peek_next_kind(&self) -> TokenKind {
+        self.token_kinds[self.current + 1]
     }
 
-    fn peek_offset(&self, offset: usize) -> TokenRef<'a> {
-        let index = self.current + offset;
-        let token = &self.tokens[index];
-        TokenRef {
-            token,
-            index: TokenIndex(index as UIndex),
-            kind: token.kind,
-        }
+    fn peek_kind_at(&self, offset: usize) -> TokenKind {
+        self.token_kinds[self.current + offset]
     }
 
-    fn advance(&mut self) -> TokenRef<'a> {
+    fn current_token_index(&self) -> TokenIndex {
+        TokenIndex(self.current.uindex())
+    }
+
+    fn advance(&mut self) -> TokenIndex {
         if !self.is_at_end() {
             self.current += 1;
         }
 
-        // &self.tokens[self.current - 1]
-        let index = self.current - 1;
-        let token = &self.tokens[index];
-        TokenRef {
-            token,
-            index: TokenIndex(index as UIndex),
-            kind: token.kind,
-        }
+        //-1 because it was the token you just passed
+        // self.token_kinds[self.current - 1]
+        TokenIndex((self.current - 1).uindex())
     }
 
+    #[inline(always)]
     fn is_at_end(&self) -> bool {
-        matches!(self.tokens[self.current].kind, TokenKind::EOF)
+        matches!(self.token_kinds[self.current], TokenKind::EOF)
     }
 
-    fn check(&mut self, token_kind: TokenKind) -> Option<TokenRef<'a>> {
-        let current = self.peek_current();
-        if current.kind != token_kind {
+    fn check(&mut self, token_kind: TokenKind) -> Option<TokenIndex> {
+        if self.peek_current_kind() != token_kind {
             None
         } else {
-            Some(current)
+            Some(self.current_token_index())
         }
     }
 
@@ -1539,7 +1515,7 @@ impl<'a> Parser<'a> {
     /**
      * Returns token if found, does error recovery and logs error if not
      */
-    fn must_check(&mut self, token: TokenKind, error: ParseError) -> Option<TokenRef<'a>> {
+    fn must_check(&mut self, token: TokenKind, error: ParseError) -> Option<TokenIndex> {
         match self.check(token) {
             Some(found_token) => Some(found_token),
             None => {
@@ -1549,7 +1525,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn must_consume(&mut self, token_kind: TokenKind) -> Option<TokenRef<'a>> {
+    fn must_consume(&mut self, token_kind: TokenKind) -> Option<TokenIndex> {
         match self.must_check(token_kind, ParseError::ExpectedToken(token_kind)) {
             Some(_) => Some(self.advance()),
             None => None,
@@ -1559,7 +1535,7 @@ impl<'a> Parser<'a> {
     /**
      * If token matches expected, this advances, stays in place otherwise
      */
-    fn if_matches_then_consume(&mut self, token_kind: TokenKind) -> Option<TokenRef<'a>> {
+    fn if_matches_then_consume(&mut self, token_kind: TokenKind) -> Option<TokenIndex> {
         if let Some(found_token) = self.check(token_kind) {
             self.advance();
             Some(found_token)
@@ -1572,10 +1548,6 @@ impl<'a> Parser<'a> {
         self.if_matches_then_consume(token_kind).is_some()
     }
 
-    //FIXME: (#3) Error recovery forced parser to get stuck in a loop
-    //error: during the testing of if_expression_with_else_if_condition() in expressions.rs
-    //an error occured when I accidentally mistyped the input "if condition) foo();"
-    //which triggered a missing left parenthisis error, this caused the program to hang.
     fn error_recovery(&mut self, error: ParseError) {
         self.errors.push(error);
         while !self.is_at_recovery_point() && !self.is_at_end() {
@@ -1585,7 +1557,7 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     fn is_at_recovery_point(&mut self) -> bool {
-        let token = self.peek_current().kind;
+        let token = self.peek_current_kind();
         match token {
             TokenKind::Semicolon | TokenKind::RightBrace => {
                 self.advance();
@@ -1605,9 +1577,8 @@ impl<'a> Parser<'a> {
     }
 
     fn peek_infix_or_postfix_operator(&mut self) -> Option<(NodeTag, TokenIndex)> {
-        let current_token = self.peek_current();
         Some((
-            match current_token.kind {
+            match self.peek_current_kind() {
                 TokenKind::Plus => NodeTag::Add,
                 TokenKind::Minus => NodeTag::Subtract,
                 TokenKind::Star => NodeTag::Multiply,
@@ -1650,7 +1621,7 @@ impl<'a> Parser<'a> {
                 TokenKind::LeftBrace => NodeTag::StructInstantiation,
                 _ => return None,
             },
-            current_token.index,
+            self.current_token_index(),
         ))
     }
 
@@ -1661,8 +1632,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn try_consume_prefix_unary_operator(&mut self) -> Option<(NodeTag, TokenIndex)> {
-        let current_token = self.peek_current();
-        let operator = match current_token.kind {
+        let operator = match self.peek_current_kind() {
             TokenKind::Minus => NodeTag::Negative,
             TokenKind::Bang => NodeTag::Not,
             TokenKind::Bnot => NodeTag::BNot,
@@ -1673,8 +1643,8 @@ impl<'a> Parser<'a> {
             // TokenKind::Destruct => NodeTag::Destruct,
             _ => return None,
         };
-        self.advance();
-        Some((operator, current_token.index))
+        let index = self.advance();
+        Some((operator, index))
     }
 
     fn parse_comma_seperated_expressions(
@@ -1715,9 +1685,9 @@ impl<'a> Parser<'a> {
     }
 
     fn is_anonymous_struct_instantiation(&self) -> bool {
-        debug_assert!(self.peek_current().kind == TokenKind::LeftBrace);
-        let next = self.peek_next().kind;
-        let third = self.peek_offset(2).kind;
+        debug_assert!(self.peek_current_kind() == TokenKind::LeftBrace);
+        let next = self.peek_next_kind();
+        let third = self.peek_kind_at(2);
 
         next == TokenKind::Identifier
             && (third == TokenKind::Colon ||
@@ -1725,23 +1695,22 @@ impl<'a> Parser<'a> {
              third == TokenKind::Comma)
     }
 
-    fn if_identifier_says_shape_consume_bool(&mut self) -> bool {
-        let current = self.peek_current();
-        if current.kind == TokenKind::Identifier && self.source.matches(current.span(), "shape") {
-            self.advance();
-            true
-        } else {
-            false
-        }
-    }
+    // fn if_identifier_says_shape_consume_bool(&mut self) -> bool {
+    //     let current = self.peek_current();
+    //     if current.kind == TokenKind::Identifier && self.source.matches(current.span(), "shape") {
+    //         self.advance();
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 
     #[allow(dead_code)]
     //NOTE: Still debating whether I should use this. This is for cases like i32::Core.method(), but i might just force,
     //(type i32)::Core.method()
     //For now this isn't used anywhere.
     fn is_unambigous_type(&self) -> bool {
-        let current = self.peek_current();
-        match current.kind {
+        match self.peek_current_kind() {
             TokenKind::I16
             | TokenKind::I32
             | TokenKind::I64
@@ -1764,9 +1733,9 @@ impl<'a> Parser<'a> {
             // | TokenKind::Func
             | TokenKind::Void => true,
 
-            TokenKind::Struct if self.peek_next().kind == TokenKind::LeftBrace => true,
+            TokenKind::Struct if self.peek_next_kind() == TokenKind::LeftBrace => true,
 
-            TokenKind::Enum if self.peek_next().kind == TokenKind::LeftBrace => true,
+            TokenKind::Enum if self.peek_next_kind() == TokenKind::LeftBrace => true,
             _ => unreachable!(),
         }
     }
@@ -1833,26 +1802,4 @@ impl<'a> Parser<'a> {
     // }
     // self.advance();
     // Expression::ArrayLit(items)
-}
-
-struct TokenRef<'a> {
-    token: &'a Token,
-    index: TokenIndex,
-    kind: TokenKind,
-}
-
-impl<'a> TokenRef<'a> {
-    // fn unwrap(&self) -> &'a Token {
-    //     self.token
-    // }
-
-    // #[inline(always)]
-    // fn kind(&self) -> TokenKind {
-    //     self.token.kind
-    // }
-
-    #[inline(always)]
-    pub fn span(&self) -> SourceSpan {
-        self.token.span
-    }
 }

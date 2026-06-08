@@ -1,5 +1,5 @@
 use kaban_core::source::IsSource;
-use kaban_lexer::Lexer;
+use kaban_lexer::{Lexer, lexer::LexResult};
 use kaban_parser::Parser;
 mod test_macro;
 

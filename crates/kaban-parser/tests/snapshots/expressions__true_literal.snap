@@ -7,6 +7,6 @@ input: x == true;
 Block [
     Equal {
         left: Identifier("x"),
-        right: true,
+        right: TrueLit("true"),
     },
 ]

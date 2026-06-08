@@ -1,5 +1,5 @@
 use kaban_core::source::IsSource;
-use kaban_lexer::Lexer;
+use kaban_lexer::{Lexer, lexer::LexResult};
 use kaban_parser::Parser;
 mod test_macro;
 
@@ -9,8 +9,8 @@ fn addition_is_left_associative() {
     let source = input.to_source();
 
     let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(&tokens, source);
+    let LexResult { result, .. } = lexer.tokenize();
+    let mut parser = Parser::new(&result, source);
     let ast = parser.parse_program();
     let print = if parser.errors.len() > 0 {
         format!(

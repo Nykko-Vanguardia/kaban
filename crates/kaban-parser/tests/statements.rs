@@ -1,5 +1,5 @@
 use kaban_core::source::IsSource;
-use kaban_lexer::Lexer;
+use kaban_lexer::{Lexer, lexer::LexResult};
 use kaban_parser::Parser;
 // use kaban_parser::AST;
 mod test_macro;
@@ -345,7 +345,7 @@ fn interface_decl_with_shape_no_generics() {
     test_snapshot!(
         "
     pub interface Talks {
-        shape: struct { x: i32, y: i32 }
+        requires struct { x: i32, y: i32 }
         func step(step: i32) -> i32 {
             return self.x;
         }
@@ -376,7 +376,7 @@ fn interface_decl_with_shape_generics() {
     test_snapshot!(
         "
     pub interface Talks<T> {
-        shape: struct { x: i32, y: i32 }
+        requires struct { x: i32, y: i32 }
 
         func step(step: T) -> T {
             return self.x;
@@ -503,7 +503,7 @@ fn panic_print(source: &str) {
     let source = source.to_source();
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
-    let mut parser = Parser::new(&tokens, source);
+    let mut parser = Parser::new(&tokens.result, source);
     let ast = parser.parse_program();
     ast.panic_print();
 }

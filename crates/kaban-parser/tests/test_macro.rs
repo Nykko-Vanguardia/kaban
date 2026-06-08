@@ -7,8 +7,8 @@ macro_rules! test_snapshot {
             let input = $input;
             let source = input.to_source();
             let mut lexer = Lexer::new(source);
-            let tokens = lexer.tokenize();
-            let mut parser = Parser::new(&tokens, source);
+            let LexResult { result, .. } = lexer.tokenize();
+            let mut parser = Parser::new(&result, source);
             let ast = parser.parse_program();
 
             let formatted_string = if parser.errors.len() > 0 {

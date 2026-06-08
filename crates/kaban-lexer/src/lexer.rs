@@ -4,44 +4,62 @@ use kaban_core::UIndex;
 use kaban_core::source::Source;
 
 use crate::LexError;
-use crate::Token;
+use crate::token::Token;
 use crate::token::TokenKind;
 
 pub struct Lexer<'a> {
     source: Source<'a>,
     current: UIndex,
-    errors: Vec<LexError>,
-    line: u32,
-    col: u32,
+}
+
+pub struct LexResult {
+    pub result: TokenizedSource,
+    pub errors: Vec<LexError>,
+}
+
+pub struct TokenizedSource {
+    pub kind: Vec<TokenKind>,
+    pub start: Vec<UIndex>,
+    pub end: Vec<UIndex>,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: Source<'a>) -> Self {
         Lexer {
             source: input,
-            errors: Vec::new(),
             current: 0,
-            line: 1,
-            col: 1,
         }
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens: Vec<Token> = Vec::new();
+    pub fn tokenize(&mut self) -> LexResult {
+        let mut result = TokenizedSource {
+            kind: Vec::new(),
+            start: Vec::new(),
+            end: Vec::new(),
+        };
+        let mut errors = Vec::new();
 
         loop {
-            let token = self.consume_next_token();
-            let is_eof = matches!(token.kind, TokenKind::EOF);
-            tokens.push(token);
-            if is_eof {
-                break;
+            match self.consume_next_token() {
+                Ok(Token { kind, start, end }) => {
+                    result.kind.push(kind);
+                    result.start.push(start);
+                    result.end.push(end);
+                    let is_eof = matches!(kind, TokenKind::EOF);
+                    if is_eof {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    errors.push(error);
+                }
             }
         }
 
-        tokens
+        LexResult { result, errors }
     }
 
-    pub fn consume_next_token(&mut self) -> Token {
+    pub fn consume_next_token(&mut self) -> Result<Token, LexError> {
         self.skip_whitespace_and_comments();
         let current = self.peek_current();
         let start = self.current;
@@ -50,17 +68,17 @@ impl<'a> Lexer<'a> {
             b'\0' => TokenKind::EOF,
             b'0'..=b'9' => self.handle_numbers(),
             b'/' if self.is_doc_comment() => self.handle_doc_comment(),
-            b'"' => self.handle_string(b'"', TokenKind::StringLit),
-            b'`' => self.handle_string(b'`', TokenKind::StringObjLit),
+            b'"' => self.handle_string(b'"', TokenKind::StringLit)?,
+            b'`' => self.handle_string(b'`', TokenKind::StringObjLit)?,
             b'f' if self.peek_next() == b'`' => {
-                self.handle_string(b'`', TokenKind::InterpolatedStringObjLit)
+                self.handle_string(b'`', TokenKind::InterpolatedStringObjLit)?
             }
-            b'\'' => self.handle_char_lit(),
-            c if Self::is_non_underscore_symbol(c) => self.handle_symbol(),
+            b'\'' => self.handle_char_lit()?,
+            c if Self::is_non_underscore_symbol(c) => self.handle_symbol()?,
             _ => self.handle_letters(),
         };
         let end = self.current;
-        Token::new(kind, start, end)
+        Ok(Token { kind, start, end })
     }
 
     fn handle_letters(&mut self) -> TokenKind {
@@ -69,7 +87,7 @@ impl<'a> Lexer<'a> {
             self.advance_current();
         }
         let ending_index = self.current;
-        let keyword_or_identifier = self.source.get_start_end(starting_index, ending_index);
+        let keyword_or_identifier = self.source.get(starting_index, ending_index);
         match keyword_or_identifier {
             b"let" => TokenKind::Let,
             b"mut" => TokenKind::Mut,
@@ -80,6 +98,7 @@ impl<'a> Lexer<'a> {
             // b"free" => TokenKind::Free,
             b"struct" => TokenKind::Struct,
             b"interface" => TokenKind::Interface,
+            b"requires" => TokenKind::Requires,
             b"impl" => TokenKind::Impl,
             // b"class" => TokenKind::Class,
             b"pub" => TokenKind::Pub,
@@ -142,8 +161,8 @@ impl<'a> Lexer<'a> {
             b"void" => TokenKind::Void,
             b"undefined" => TokenKind::Undefined,
             b"garbage" => TokenKind::Garbage,
-            b"true" => TokenKind::BoolLit,
-            b"false" => TokenKind::BoolLit,
+            b"true" => TokenKind::TrueLit,
+            b"false" => TokenKind::FalseLit,
             b"asm" => TokenKind::ASM,
             //Reserved
             b"autofree" => TokenKind::Autofree,
@@ -158,9 +177,9 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn handle_symbol(&mut self) -> TokenKind {
+    fn handle_symbol(&mut self) -> Result<TokenKind, LexError> {
         let current = self.peek_current();
-        match current {
+        Ok(match current {
             b'=' => {
                 if self.match_and_consume("==") {
                     TokenKind::EqualEqual
@@ -338,8 +357,8 @@ impl<'a> Lexer<'a> {
                 TokenKind::At
             }
             // b'#' => { self.advance_current(); TokenKind::Hash },
-            _ => self.error_recovery(LexError::UnexpectedCharacter),
-        }
+            _ => return Err(LexError::UnexpectedCharacter),
+        })
     }
 
     fn handle_numbers(&mut self) -> TokenKind {
@@ -420,14 +439,18 @@ impl<'a> Lexer<'a> {
         TokenKind::IntLit
     }
 
-    fn handle_string(&mut self, terminator: u8, token_kind: TokenKind) -> TokenKind {
+    fn handle_string(
+        &mut self,
+        terminator: u8,
+        token_kind: TokenKind,
+    ) -> Result<TokenKind, LexError> {
         if self.peek_current() == b'f' {
             self.advance_current();
         };
         self.advance_current();
         while self.peek_current() != terminator {
             if self.peek_current() == b'\0' {
-                return self.error_recovery(LexError::IncompleteString);
+                return Err(LexError::IncompleteString);
             };
             if self.peek_current() == b'\\' {
                 self.advance_current();
@@ -438,10 +461,10 @@ impl<'a> Lexer<'a> {
             self.advance_current();
         }
         self.advance_current(); //consume end quotes
-        token_kind
+        Ok(token_kind)
     }
 
-    fn handle_char_lit(&mut self) -> TokenKind {
+    fn handle_char_lit(&mut self) -> Result<TokenKind, LexError> {
         self.advance_current();
 
         let char = self.peek_current();
@@ -462,15 +485,15 @@ impl<'a> Lexer<'a> {
 
         self.advance_current();
         if self.peek_current() != b'\'' {
-            return self.error_recovery(LexError::InvalidCharLiteral);
+            return Err(LexError::InvalidCharLiteral);
         };
         self.advance_current();
 
-        match Self::get_char_size(char) {
+        Ok(match Self::get_char_size(char) {
             1 => TokenKind::Char8Lit,
             2 => TokenKind::Char16Lit,
             _ => TokenKind::Char32Lit,
-        }
+        })
     }
 
     fn handle_doc_comment(&mut self) -> TokenKind {
@@ -498,12 +521,13 @@ impl<'a> Lexer<'a> {
             return;
         }
 
-        if current_byte == b'\n' {
-            self.line += 1;
-            self.col = 1;
-        } else {
-            self.col += 1;
-        }
+        //NOTE: LIN AND COL RECALC ON THE FLY
+        // if current_byte == b'\n' {
+        //     self.line += 1;
+        //     self.col = 1;
+        // } else {
+        //     self.col += 1;
+        // }
 
         self.current += Lexer::get_char_size(current_byte);
     }
@@ -559,7 +583,7 @@ impl<'a> Lexer<'a> {
             return false;
         }
 
-        self.source.get_start_end(self.current, end) == bytes
+        self.source.get(self.current, end) == bytes
     }
 
     fn match_and_consume(&mut self, pattern: &str) -> bool {
@@ -608,9 +632,24 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn error_recovery(&mut self, lex_error: LexError) -> TokenKind {
-        self.errors.push(lex_error);
-        self.advance_current();
-        TokenKind::Invalid
+    // fn error_recovery(&mut self, lex_error: LexError) -> TokenKind {
+    //     self.advance_current();
+    //     TokenKind::Invalid
+    // }
+}
+
+impl TokenizedSource {
+    #[cfg(debug_assertions)]
+    ///THIS IS ONLY USED FOR DEBUGGING
+    pub fn to_token_views(&self) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        for i in 0..self.start.len() {
+            let kind = self.kind[i];
+            let start = self.start[i];
+            let end = self.end[i];
+            tokens.push(Token::new(kind, start, end));
+        }
+
+        tokens
     }
 }

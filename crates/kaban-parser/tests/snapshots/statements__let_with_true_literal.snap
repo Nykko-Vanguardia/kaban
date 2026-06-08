@@ -10,6 +10,6 @@ Block [
             name: Identifier("x"),
             mutable: false,
         },
-        assignment: true,
+        assignment: TrueLit("true"),
     },
 ]

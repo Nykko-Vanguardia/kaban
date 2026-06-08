@@ -23,10 +23,10 @@ impl<'a> Debug for NodePrinter<'a> {
         match tag {
             NodeTag::Self_ => write!(f, "{:?}", tag),
             NodeTag::AnonymousEnumlit => write!(f, "{:?}", tag),
-            t if t.is_token_leaf() => self.write_token(f, main_token.0),
-            NodeTag::BoolLit => {
-                write!(f, "{}", left.bool())
-            }
+            t if t.is_leaf() => self.write_token(f, main_token.0),
+            // NodeTag::BoolLit => {
+            //     write!(f, "{}", left.bool())
+            // }
             NodeTag::ExpressionStatement => {
                 if self.skip_expression_statement_indent {
                     write!(f, "{:#?}", &self.child(left))
