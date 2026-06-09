@@ -9,5 +9,5 @@ Block [
 ]
 
 errors!: [
-    ExpectedExpression,
+    ParseError at 2: Expressions expected! found Semicolon instead,
 ]

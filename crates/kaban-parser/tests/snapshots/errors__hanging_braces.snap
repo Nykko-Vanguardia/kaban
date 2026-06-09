@@ -7,10 +7,6 @@ input: { let x = 10
 Block []
 
 errors!: [
-    ExpectedToken(
-        Semicolon,
-    ),
-    ExpectedToken(
-        RightBrace,
-    ),
+    ParseError at 12: Semicolon expected! found EOF instead,
+    ParseError at 12: RightBrace expected! found EOF instead,
 ]

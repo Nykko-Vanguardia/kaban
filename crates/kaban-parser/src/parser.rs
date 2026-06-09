@@ -1,6 +1,6 @@
 use crate::{
     ast::AST,
-    errors::ParseError,
+    errors::{ParseError, ParseErrorKind},
     node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec},
 };
 use kaban_core::{ToUIndex, ToUsize, UIndex, source::Source};
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
         match self.peek_current_kind() {
             TokenKind::Let => {
                 if is_pub {
-                    self.error_recovery(ParseError::PubInLet);
+                    self.error_recovery(ParseErrorKind::PubInLet);
                 }
                 self.parse_let_statement()
             }
@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
                 self.parse_type_decleration()?
             }
             _ => {
-                self.error_recovery(ParseError::ExpectedExpression);
+                self.error_recovery(ParseErrorKind::ExpectedExpression);
                 return None;
             }
         };
@@ -525,7 +525,7 @@ impl<'a> Parser<'a> {
                 )
             }
             _ => {
-                self.error_recovery(ParseError::MissingTypeDeclaration);
+                self.error_recovery(ParseErrorKind::MissingTypeDeclaration);
                 return None;
             }
         };
@@ -693,7 +693,7 @@ impl<'a> Parser<'a> {
                     )
                 } else {
                     if operator == NodeTag::Colon {
-                        self.error_recovery(ParseError::ExpectedMethod);
+                        self.error_recovery(ParseErrorKind::ExpectedMethod);
                     }
                     self.push_node(operator, operator_main_token, parent.0, child.0)
                         .some()
@@ -738,7 +738,7 @@ impl<'a> Parser<'a> {
             .some()
         } else {
             if operator == NodeTag::Colon {
-                self.error_recovery(ParseError::ExpectedMethod);
+                self.error_recovery(ParseErrorKind::ExpectedMethod);
             }
             let member_access = self.push_node(operator, dot_main_token, parent.0, child.0);
 
@@ -811,7 +811,7 @@ impl<'a> Parser<'a> {
                     let field_name = p.must_consume(TokenKind::Identifier)?;
                     let binding = if p.if_matches_then_consume_bool(TokenKind::Colon) {
                         if is_mut {
-                            p.error_recovery(ParseError::StructMutBinding);
+                            p.error_recovery(ParseErrorKind::StructMutBinding);
                         };
                         p.parse_identifier_or_destructure()?
                     } else {
@@ -841,7 +841,7 @@ impl<'a> Parser<'a> {
                 .some()
             }
             _ => {
-                self.error_recovery(ParseError::MissingIdentifier);
+                self.error_recovery(ParseErrorKind::MissingIdentifier);
                 None
             }
         }
@@ -851,7 +851,7 @@ impl<'a> Parser<'a> {
 //Complicated statements or expressions
 impl<'a> Parser<'a> {
     fn parse_let_statement(&mut self) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Let)?;
+        let main_token = self.debug_advance(TokenKind::Let);
 
         let binding = self.parse_identifier_or_destructure()?;
         let let_type = if self.if_matches_then_consume_bool(TokenKind::Colon) {
@@ -872,7 +872,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_statement(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Const)?;
+        let main_token = self.debug_advance(TokenKind::Const);
         let identifier = self.must_consume(TokenKind::Identifier)?;
         self.must_consume(TokenKind::Colon)?;
         let type_ = self.parse_type_decleration()?;
@@ -891,7 +891,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_func_decleration_or_header(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Func)?;
+        let main_token = self.debug_advance(TokenKind::Func);
 
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
@@ -967,7 +967,7 @@ impl<'a> Parser<'a> {
         if self.node_tags[func.0.usize()] == NodeTag::FuncNoBodyWithNoGenerics
             || self.node_tags[func.0.usize()] == NodeTag::FuncNoBodyWithGenerics
         {
-            self.error_recovery(ParseError::MissingBlock);
+            self.error_recovery(ParseErrorKind::MissingBlock);
             return None;
         }
 
@@ -995,7 +995,7 @@ impl<'a> Parser<'a> {
                 //NOTE: REMOVED THIS, COPIES MUST BE SENT EXPLICITLY
                 // _ => self.push_node(NodeTag::SelfParam, U_NONE, mut_self.uindex()).some()
                 _ => {
-                    self.error_recovery(ParseError::MissingSelfReferenceModifier);
+                    self.error_recovery(ParseErrorKind::MissingSelfReferenceModifier);
                     None
                 }
             };
@@ -1009,7 +1009,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_struct_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Struct)?;
+        let main_token = self.debug_advance(TokenKind::Struct);
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
@@ -1054,7 +1054,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enum_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Enum)?;
+        let main_token = self.debug_advance(TokenKind::Enum);
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
@@ -1108,7 +1108,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_impl_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Impl)?;
+        let main_token = self.debug_advance(TokenKind::Impl);
 
         let type_or_interface = self.parse_type_decleration()?;
         let (type_, interface) = if self.if_matches_then_consume_bool(TokenKind::For) {
@@ -1130,7 +1130,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Const => self.parse_const_statement(is_inside_pub),
                 TokenKind::At => self.parse_comptime_expression(),
                 _ => {
-                    self.error_recovery(ParseError::InvalidImplItem);
+                    self.error_recovery(ParseErrorKind::InvalidImplItem);
                     return None;
                 }
             };
@@ -1170,7 +1170,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_interface_decleration(&mut self, is_pub: bool) -> Option<NodeIndex> {
-        let main_token = self.must_consume(TokenKind::Interface)?;
+        let main_token = self.debug_advance(TokenKind::Interface);
         _ = self.must_consume(TokenKind::Identifier)?;
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
         self.must_consume(TokenKind::LeftBrace)?;
@@ -1189,7 +1189,7 @@ impl<'a> Parser<'a> {
                 // TokenKind::Const => self.parse_const_statement(is_inside_pub),
                 TokenKind::At => self.parse_comptime_expression(),
                 _ => {
-                    self.error_recovery(ParseError::InvalidImplItem);
+                    self.error_recovery(ParseErrorKind::InvalidImplItem);
                     return None;
                 }
             };
@@ -1259,7 +1259,7 @@ impl<'a> Parser<'a> {
             self.if_matches_then_consume(TokenKind::Is)
         {
             if self.node_tags[left.0.usize()] != NodeTag::Identifier {
-                self.error_recovery(ParseError::RequiresExplicitBidningForIs);
+                self.error_recovery(ParseErrorKind::RequiresExplicitBidningForIs);
                 return None;
             };
             let binding_main_token = self.main_token[left.0.usize()];
@@ -1469,22 +1469,27 @@ impl<'a> Parser<'a> {
 
 //helper
 impl<'a> Parser<'a> {
+    #[inline(always)]
     fn peek_current_kind(&self) -> TokenKind {
         self.token_kinds[self.current]
     }
 
+    #[inline(always)]
     fn peek_next_kind(&self) -> TokenKind {
         self.token_kinds[self.current + 1]
     }
 
+    #[inline(always)]
     fn peek_kind_at(&self, offset: usize) -> TokenKind {
         self.token_kinds[self.current + offset]
     }
 
+    #[inline(always)]
     fn current_token_index(&self) -> TokenIndex {
         TokenIndex(self.current.uindex())
     }
 
+    #[inline(always)]
     fn advance(&mut self) -> TokenIndex {
         if !self.is_at_end() {
             self.current += 1;
@@ -1493,6 +1498,12 @@ impl<'a> Parser<'a> {
         //-1 because it was the token you just passed
         // self.token_kinds[self.current - 1]
         TokenIndex((self.current - 1).uindex())
+    }
+
+    #[inline(always)]
+    fn debug_advance(&mut self, expected: TokenKind) -> TokenIndex {
+        debug_assert!(self.peek_current_kind() == expected);
+        self.advance()
     }
 
     #[inline(always)]
@@ -1515,7 +1526,7 @@ impl<'a> Parser<'a> {
     /**
      * Returns token if found, does error recovery and logs error if not
      */
-    fn must_check(&mut self, token: TokenKind, error: ParseError) -> Option<TokenIndex> {
+    fn must_check(&mut self, token: TokenKind, error: ParseErrorKind) -> Option<TokenIndex> {
         match self.check(token) {
             Some(found_token) => Some(found_token),
             None => {
@@ -1526,7 +1537,7 @@ impl<'a> Parser<'a> {
     }
 
     fn must_consume(&mut self, token_kind: TokenKind) -> Option<TokenIndex> {
-        match self.must_check(token_kind, ParseError::ExpectedToken(token_kind)) {
+        match self.must_check(token_kind, ParseErrorKind::ExpectedToken(token_kind)) {
             Some(_) => Some(self.advance()),
             None => None,
         }
@@ -1548,7 +1559,14 @@ impl<'a> Parser<'a> {
         self.if_matches_then_consume(token_kind).is_some()
     }
 
-    fn error_recovery(&mut self, error: ParseError) {
+    fn error_recovery(&mut self, kind: ParseErrorKind) {
+        let token_index = self.current_token_index();
+        let error = ParseError {
+            kind,
+            found: self.peek_current_kind(),
+            position: self.tokenized_source.start[token_index.0.usize()],
+            token_index,
+        };
         self.errors.push(error);
         while !self.is_at_recovery_point() && !self.is_at_end() {
             self.advance();
@@ -1741,40 +1759,6 @@ impl<'a> Parser<'a> {
     }
 
     // DEAD CODE:
-    // fn parse_right_side_expression(
-    //     &mut self,
-    //     left_side: Expression,
-    //     left_operator: Operator,
-    // ) -> Option<Expression> {
-    //     let right_side = self.consume_atom_or_prefix_unary()?;
-    //     let right_side = if let Some(right_operator) = self.peek_infix_or_postfix_operator()
-    //         && right_operator.precedence() > left_operator.precedence() {
-    //             let right_operator = self.try_consume_infix_or_postfix_operator()?;
-    //             self.parse_right_side_expression(right_side, right_operator)?
-    //     } else {
-    //         right_side
-    //     };
-    //
-    //     let right = right_side.to_box();
-    //     let left = left_side.to_box();
-    //     match left_operator {
-    //         Operator::Arithmetic(operator) => Some(Expression::ArithmeticOperation {left, right, operator}),
-    //         Operator::Comparison(operator) => Some(Expression::ComparisonOperation { left, right, operator }),
-    //         Operator::Logical(operator) => Some(Expression::LogicalOperation {left, right, operator}),
-    //         Operator::BitwiseBinary(operator) => Some(Expression::BinaryOperation { left, right, operator }),
-    //         Operator::PrefixUnary(operator) => todo!(),
-    //         Operator::PostfixUnary(operator) => todo!(),
-    //         Operator::MemberAccess(operator) => Some(Expression::MemberAccess {parent: left, child: right, operator}),
-    //         Operator::Special(operator) => match operator {
-    //             Special::UndefinedCoalescing => Some(Expression::UndefinedCoalescing { possibly_undefined: left, default: right }),
-    //             // Special::As => Some(Expression::TypeCasting { value: left, type_: right })
-    //             Special::As => todo!(),
-    //         }
-    //         Operator::FuncCall => todo!(),
-    //         Operator::Index(operator) => todo!()
-    //     }
-    // }
-
     //Old code for desugaring string lits
     // let mut items = Vec::new();
     // let bytes = s.as_bytes();

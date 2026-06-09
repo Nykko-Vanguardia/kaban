@@ -7,7 +7,5 @@ input: x = 10
 Block []
 
 errors!: [
-    ExpectedToken(
-        Semicolon,
-    ),
+    ParseError at 6: Semicolon expected! found EOF instead,
 ]

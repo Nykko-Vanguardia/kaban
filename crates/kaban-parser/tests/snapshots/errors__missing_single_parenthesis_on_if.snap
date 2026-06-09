@@ -7,7 +7,5 @@ input: if x == 10) {}
 Block []
 
 errors!: [
-    ExpectedToken(
-        LeftParen,
-    ),
+    ParseError at 3: LeftParen expected! found Identifier instead,
 ]

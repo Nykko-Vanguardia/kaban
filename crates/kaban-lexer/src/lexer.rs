@@ -4,6 +4,7 @@ use kaban_core::UIndex;
 use kaban_core::source::Source;
 
 use crate::LexError;
+use crate::error::LexErrorKind;
 use crate::token::Token;
 use crate::token::TokenKind;
 
@@ -357,7 +358,7 @@ impl<'a> Lexer<'a> {
                 TokenKind::At
             }
             // b'#' => { self.advance_current(); TokenKind::Hash },
-            _ => return Err(LexError::UnexpectedCharacter),
+            _ => return Err(self.error_recovery(LexErrorKind::UnexpectedCharacter)),
         })
     }
 
@@ -450,7 +451,7 @@ impl<'a> Lexer<'a> {
         self.advance_current();
         while self.peek_current() != terminator {
             if self.peek_current() == b'\0' {
-                return Err(LexError::IncompleteString);
+                return Err(self.error_recovery(LexErrorKind::IncompleteString));
             };
             if self.peek_current() == b'\\' {
                 self.advance_current();
@@ -485,7 +486,7 @@ impl<'a> Lexer<'a> {
 
         self.advance_current();
         if self.peek_current() != b'\'' {
-            return Err(LexError::InvalidCharLiteral);
+            return Err(self.error_recovery(LexErrorKind::InvalidCharLiteral));
         };
         self.advance_current();
 
@@ -632,10 +633,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    // fn error_recovery(&mut self, lex_error: LexError) -> TokenKind {
-    //     self.advance_current();
-    //     TokenKind::Invalid
-    // }
+    fn error_recovery(&mut self, kind: LexErrorKind) -> LexError {
+        let position = self.current;
+        self.advance_current();
+        LexError { kind, position }
+    }
 }
 
 impl TokenizedSource {
