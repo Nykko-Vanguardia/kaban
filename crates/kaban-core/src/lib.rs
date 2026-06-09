@@ -1,5 +1,5 @@
-pub mod source;
 pub mod compiler_error;
+pub mod source;
 pub type UIndex = u32;
 
 impl ToUsize for UIndex {

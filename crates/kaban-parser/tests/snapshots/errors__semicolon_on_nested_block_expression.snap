@@ -33,7 +33,6 @@ Block [
     ],
 ]
 
-errors!: [
-    ParseError at 37: Expressions expected! found Semicolon instead,
-    ParseError at 48: Expressions expected! found Semicolon instead,
+warnings!: [
+    ParseWarning at 48: Semicolon is unecessary here,
 ]

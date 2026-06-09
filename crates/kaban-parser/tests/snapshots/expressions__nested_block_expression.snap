@@ -2,7 +2,7 @@
 source: crates/kaban-parser/tests/expressions.rs
 expression: print
 ---
-input: { let x = { let y = 10; pass y + 1; } pass x; }
+input: { let x = { let y = 10; pass y + 1; }; pass x; }
 
 Block [
     Block [

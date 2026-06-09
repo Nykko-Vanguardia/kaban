@@ -1,8 +1,8 @@
 ---
 source: crates/kaban-parser/tests/expressions.rs
-expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+expression: print
 ---
-input: if (x == 10) foo(); else bazz();
+input: if (x == 10) foo() else bazz();
 
 Block [
     IfExpression {

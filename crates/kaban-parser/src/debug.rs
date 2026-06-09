@@ -10,9 +10,33 @@ use crate::{
 pub struct NodePrinter<'a> {
     ast: &'a AST<'a>,
     index: NodeIndex,
-    skip_expression_statement_indent: bool,
 }
 
+impl<'a> AST<'a> {
+    pub fn node_printer(&'a self) -> NodePrinter<'a> {
+        NodePrinter {
+            ast: self,
+            index: self.root,
+        }
+    }
+}
+
+impl<'a> Debug for AST<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
+        let tree = self.node_printer();
+        write!(f, "{:#?}", tree)?;
+
+        if self.errors.len() > 0 {
+            write!(f, "\n\nerrors!: {:#?}", self.errors)?;
+        }
+
+        if self.warnings.len() > 0 {
+            write!(f, "\n\nwarnings!: {:#?}", self.warnings)?;
+        }
+
+        Ok(())
+    }
+}
 impl<'a> Debug for NodePrinter<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let tag = self.ast.get_tag(self.index);
@@ -27,15 +51,15 @@ impl<'a> Debug for NodePrinter<'a> {
             // NodeTag::BoolLit => {
             //     write!(f, "{}", left.bool())
             // }
-            NodeTag::ExpressionStatement => {
-                if self.skip_expression_statement_indent {
-                    write!(f, "{:#?}", &self.child(left))
-                } else {
-                    f.debug_tuple("ExpressionStatement")
-                        .field(&self.child(left))
-                        .finish()
-                }
-            }
+            // NodeTag::ExpressionStatement => {
+            //     if self.skip_expression_statement_indent {
+            //         write!(f, "{:#?}", &self.child(left))
+            //     } else {
+            //         f.debug_tuple("ExpressionStatement")
+            //             .field(&self.child(left))
+            //             .finish()
+            //     }
+            // }
             t if t.is_binary_expression() => f
                 .debug_struct(format!("{:?}", t).as_str())
                 .field("left", &self.child(left))
@@ -621,7 +645,6 @@ impl<'a> NodePrinter<'a> {
         Self {
             ast: self.ast,
             index: NodeIndex(index),
-            skip_expression_statement_indent: self.skip_expression_statement_indent,
         }
     }
 
@@ -631,7 +654,6 @@ impl<'a> NodePrinter<'a> {
             children.push(Self {
                 ast: self.ast,
                 index: NodeIndex(index),
-                skip_expression_statement_indent: self.skip_expression_statement_indent,
             });
         }
         children
@@ -644,31 +666,5 @@ impl<'a> NodePrinter<'a> {
 
     fn write_token(&self, f: &mut std::fmt::Formatter<'_>, index: UIndex) -> std::fmt::Result {
         write!(f, "{:?}", self.get_token(index))
-    }
-}
-
-impl<'a> AST<'a> {
-    pub fn to_debugger(&'a self) -> NodePrinter<'a> {
-        NodePrinter {
-            ast: self,
-            index: self.root,
-            skip_expression_statement_indent: false,
-        }
-    }
-
-    pub fn to_debugger_options(&'a self, skip_expression_statement: bool) -> NodePrinter<'a> {
-        NodePrinter {
-            ast: self,
-            index: self.root,
-            skip_expression_statement_indent: skip_expression_statement,
-        }
-    }
-
-    pub fn create_debugger(&'a self, node: NodeIndex) -> NodePrinter<'a> {
-        NodePrinter {
-            ast: self,
-            index: node,
-            skip_expression_statement_indent: false,
-        }
     }
 }

@@ -286,7 +286,6 @@ pub enum NodeTag {
     Pass,
     Break,
     Continue,
-    ExpressionStatement,
     /// # left: NodeIndex = condition (expression)
     /// # right: NodeIndex = block (Block)
     While,
@@ -692,7 +691,17 @@ impl NodeTag {
         )
     }
 
-    pub fn doesnt_require_semicolon(&self) -> bool {
+    /// These nodes don't require a semicolon terminator IF they are used as a statement
+    /// AND if they ARE terminated with a }. Otherwise, the expression statement forces a semicolon.
+    ///
+    /// # For example
+    /// ```kaban
+    /// if (true) x += 1; // Requires a semicolon because expression statements expect semicolons
+    /// x = 10 + (if (true) pass 10) + 20; // Doesn't require semicolon because if itself doesn't need a semicolon
+    /// if (true) { x += 1 } // Doesn't require a semicolon because the expression statement semicolon is overridden by the }
+    /// let x = if (true) { x += 1 }; // Requires a semicolon that belongs to let
+    /// ```
+    pub fn can_omit_semicolon(&self) -> bool {
         matches!(
             self,
             NodeTag::If

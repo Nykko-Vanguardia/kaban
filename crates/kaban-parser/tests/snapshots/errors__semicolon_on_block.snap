@@ -8,6 +8,6 @@ Block [
     Block [],
 ]
 
-errors!: [
-    ParseError at 2: Expressions expected! found Semicolon instead,
+warnings!: [
+    ParseWarning at 2: Semicolon is unecessary here,
 ]

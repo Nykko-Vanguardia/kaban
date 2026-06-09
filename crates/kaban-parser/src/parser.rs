@@ -1,6 +1,6 @@
 use crate::{
     ast::AST,
-    errors::{ParseError, ParseErrorKind},
+    errors::{ParseError, ParseErrorKind, ParseWarning, ParseWarningKind},
     node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec},
 };
 use kaban_core::{ToUIndex, ToUsize, UIndex, source::Source};
@@ -13,6 +13,7 @@ pub struct Parser<'a> {
     source: Source<'a>,
     current: usize,
     pub errors: Vec<ParseError>,
+    pub warnings: Vec<ParseWarning>,
 
     node_tags: Vec<NodeTag>,
     main_token: Vec<TokenIndex>,
@@ -28,6 +29,7 @@ impl<'a> Parser<'a> {
             token_kinds: &tokenized_source.kind,
             current: 0,
             errors: Vec::new(),
+            warnings: Vec::new(),
             source,
 
             node_tags: Vec::new(),
@@ -54,6 +56,8 @@ impl<'a> Parser<'a> {
             std::mem::take(&mut self.extra),
             self.source,
             root,
+            std::mem::take(&mut self.errors),
+            std::mem::take(&mut self.warnings),
         )
     }
 
@@ -91,7 +95,11 @@ impl<'a> Parser<'a> {
                 // let expression_statement = self.push_node(NodeTag::ExpressionStatement, expression.0, 0);
 
                 let tag = self.node_tags[expression.0.usize()];
-                if !tag.doesnt_require_semicolon() {
+                if tag.can_omit_semicolon() {
+                    if self.peek_behind_kind(1) != TokenKind::RightBrace {
+                        self.must_consume(TokenKind::Semicolon)?;
+                    };
+                } else {
                     self.must_consume(TokenKind::Semicolon)?;
                 }
                 // expression_statement.some()
@@ -283,6 +291,11 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.parse_type_decleration()?
             }
+            TokenKind::Semicolon => {
+                self.push_warning(ParseWarningKind::UnecessarySemicolon);
+                self.advance();
+                return None;
+            }
             _ => {
                 self.error_recovery(ParseErrorKind::ExpectedExpression);
                 return None;
@@ -375,17 +388,6 @@ impl<'a> Parser<'a> {
 
         self.must_consume(TokenKind::RightBrace)?;
         self.push_block(statements, main_token).some()
-    }
-
-    pub fn parse_block_or_semicolon_terminated_expression(&mut self) -> Option<NodeIndex> {
-        let is_a_block = self.check_bool(TokenKind::LeftBrace);
-        let block_or_expression = self.parse_expression();
-
-        if !is_a_block {
-            self.must_consume(TokenKind::Semicolon)?;
-        }
-
-        block_or_expression
     }
 
     fn parse_type_decleration(&mut self) -> Option<NodeIndex> {
@@ -861,9 +863,7 @@ impl<'a> Parser<'a> {
         };
         self.must_consume(TokenKind::Equals)?;
         let assignment = self.parse_expression()?;
-        if !self.node_tags[assignment.0.usize()].doesnt_require_semicolon() {
-            self.must_consume(TokenKind::Semicolon)?;
-        }
+        self.must_consume(TokenKind::Semicolon)?;
 
         let extra_pointer = self.push_one_extra(let_type.to_index_or_u_none());
         self.push_one_extra(assignment.0);
@@ -879,9 +879,7 @@ impl<'a> Parser<'a> {
 
         self.must_consume(TokenKind::Equals)?;
         let assignment = self.parse_expression()?;
-        if !self.node_tags[assignment.0.usize()].doesnt_require_semicolon() {
-            self.must_consume(TokenKind::Semicolon)?;
-        }
+        self.must_consume(TokenKind::Semicolon)?;
 
         let extra_pointer = self.push_one_extra(is_pub.uindex());
         self.push_one_extra(type_.0);
@@ -1236,14 +1234,9 @@ impl<'a> Parser<'a> {
         // };
         let condition = self.consume_if_is_expression(condition)?;
         self.must_consume(TokenKind::RightParen)?;
-        let then = self.parse_block_or_semicolon_terminated_expression()?;
+        let then = self.parse_expression()?;
         let else_ = if self.if_matches_then_consume_bool(TokenKind::Else) {
-            // self.parse_block_or_semicolon_terminated_expression()?.some()
-            if self.check_bool(TokenKind::If) {
-                self.parse_if_expression()
-            } else {
-                self.parse_block_or_semicolon_terminated_expression()
-            }
+            self.parse_expression()
         } else {
             None
         };
@@ -1347,7 +1340,7 @@ impl<'a> Parser<'a> {
 
     fn parse_do_while_expression(&mut self) -> Option<NodeIndex> {
         let main_token = self.must_consume(TokenKind::Do)?;
-        let block = self.parse_block_or_semicolon_terminated_expression()?;
+        let block = self.parse_expression()?;
         self.must_consume(TokenKind::While)?;
         self.must_consume(TokenKind::LeftParen)?;
         let condition = self.parse_expression()?;
@@ -1364,7 +1357,7 @@ impl<'a> Parser<'a> {
         self.must_consume(TokenKind::In)?;
         let iterator = self.parse_expression()?;
         self.must_consume(TokenKind::RightParen)?;
-        let block = self.parse_block_or_semicolon_terminated_expression()?;
+        let block = self.parse_expression()?;
 
         let extra_pointer = self.push_one_extra(iterator.0);
         self.push_one_extra(block.0);
@@ -1456,7 +1449,7 @@ impl<'a> Parser<'a> {
 
     fn parse_comptime_expression(&mut self) -> Option<NodeIndex> {
         let main_token = self.must_consume(TokenKind::At)?;
-        let expression = self.parse_block_or_semicolon_terminated_expression()?;
+        let expression = self.parse_expression()?;
         self.push_node(
             NodeTag::CompTimeExpression,
             main_token,
@@ -1480,8 +1473,13 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
-    fn peek_kind_at(&self, offset: usize) -> TokenKind {
-        self.token_kinds[self.current + offset]
+    fn peek_behind_kind(&self, offset: u8) -> TokenKind {
+        self.token_kinds[self.current - offset as usize]
+    }
+
+    #[inline(always)]
+    fn peek_kind_at(&self, offset: u8) -> TokenKind {
+        self.token_kinds[self.current + offset as usize]
     }
 
     #[inline(always)]
@@ -1571,6 +1569,17 @@ impl<'a> Parser<'a> {
         while !self.is_at_recovery_point() && !self.is_at_end() {
             self.advance();
         }
+    }
+
+    fn push_warning(&mut self, kind: ParseWarningKind) {
+        let token_index = self.current_token_index();
+        let warning = ParseWarning {
+            kind,
+            found: self.peek_current_kind(),
+            position: self.tokenized_source.start[token_index.0.usize()],
+            token_index,
+        };
+        self.warnings.push(warning);
     }
 
     #[inline(always)]

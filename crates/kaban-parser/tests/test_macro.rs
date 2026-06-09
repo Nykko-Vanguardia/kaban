@@ -11,17 +11,7 @@ macro_rules! test_snapshot {
             let mut parser = Parser::new(&result, source);
             let ast = parser.parse_program();
 
-            let formatted_string = if parser.errors.len() > 0 {
-                format!(
-                    "input: {}\n\n{:#?}\n\nerrors!: {:#?}",
-                    input,
-                    ast.to_debugger(),
-                    parser.errors
-                )
-            } else {
-                format!("input: {}\n\n{:#?}", input, ast.to_debugger())
-            };
-
+            let formatted_string = format!("input: {}\n\n{:#?}", input, ast);
             let _ = tx.send(formatted_string);
         });
 

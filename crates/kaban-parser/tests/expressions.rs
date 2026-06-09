@@ -12,17 +12,8 @@ fn addition_is_left_associative() {
     let LexResult { result, .. } = lexer.tokenize();
     let mut parser = Parser::new(&result, source);
     let ast = parser.parse_program();
-    let print = if parser.errors.len() > 0 {
-        format!(
-            "input: {}\n\n{:#?}\n\nerrors!: {:#?}",
-            input,
-            ast.to_debugger(),
-            parser.errors
-        )
-    } else {
-        format!("input: {}\n\n{:#?}", input, ast.to_debugger())
-    };
 
+    let print = format!("input: {}\n\n{:#?}", input, ast);
     insta::assert_snapshot!(print);
 }
 
@@ -183,12 +174,12 @@ fn if_expression_else_condition_and_braces_and_multiple_expressions() {
 
 #[test]
 fn if_expression_else_condition_without_braces() {
-    test_snapshot!("if (x == 10) foo(); else bazz();");
+    test_snapshot!("if (x == 10) foo() else bazz();");
 }
 
 #[test]
 fn if_expression_with_else_if_condition() {
-    test_snapshot!("if (x == 10) foo(); else if (x == y) buzz(); else bazz();");
+    test_snapshot!("if (x == 10) foo() else if (x == y) buzz() else bazz();");
 }
 
 #[test]
@@ -464,16 +455,14 @@ fn unary_minus() {
     test_snapshot!("-10;");
 }
 
-//NOTE: Subject to change might have to include ;
 #[test]
 fn empty_block_expression() {
     test_snapshot!("{}");
 }
 
-//NOTE: Subject to change might have to include ;
 #[test]
 fn nested_block_expression() {
-    test_snapshot!("{ let x = { let y = 10; pass y + 1; } pass x; }");
+    test_snapshot!("{ let x = { let y = 10; pass y + 1; }; pass x; }");
 }
 
 #[test]
@@ -553,7 +542,7 @@ fn chained_index_and_method() {
 
 #[test]
 fn if_expression_as_argument() {
-    test_snapshot!("foo(if (x > 0) pass x; else pass y;);");
+    test_snapshot!("foo(if (x > 0) pass x else pass y);");
 }
 
 #[test]

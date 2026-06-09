@@ -24,8 +24,20 @@ pub enum ParseErrorKind {
     RequiresExplicitBidningForIs,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ParseWarningKind {
+    UnecessarySemicolon,
+}
+
 pub struct ParseError {
     pub kind: ParseErrorKind,
+    pub found: TokenKind,
+    pub position: UIndex,
+    pub token_index: TokenIndex,
+}
+
+pub struct ParseWarning {
+    pub kind: ParseWarningKind,
     pub found: TokenKind,
     pub position: UIndex,
     pub token_index: TokenIndex,
@@ -56,6 +68,28 @@ impl CompilerError for ParseError {
         };
 
         format!("ParseError at {}: {kind_message}", self.position)
+    }
+}
+
+impl CompilerError for ParseWarning {
+    fn message(&self) -> String {
+        let kind_message = match self.kind {
+            ParseWarningKind::UnecessarySemicolon => "Semicolon is unecessary here",
+        };
+
+        format!("ParseWarning at {}: {kind_message}", self.position)
+    }
+}
+
+impl Debug for ParseWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
+    }
+}
+
+impl Display for ParseWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
     }
 }
 

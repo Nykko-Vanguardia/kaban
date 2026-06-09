@@ -1,7 +1,10 @@
 use kaban_core::{ToBool, ToUsize, UIndex, source::Source};
 use kaban_lexer::{Token, lexer::TokenizedSource};
 
-use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToOption, ToWrapper, TokenIndex};
+use crate::{
+    errors::{ParseError, ParseWarning},
+    node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToOption, ToWrapper, TokenIndex},
+};
 
 pub struct AST<'a> {
     tokenized_source: &'a TokenizedSource,
@@ -11,6 +14,8 @@ pub struct AST<'a> {
     pub extra: Vec<UIndex>,
     source: Source<'a>,
     pub root: NodeIndex,
+    pub errors: Vec<ParseError>,
+    pub warnings: Vec<ParseWarning>,
 }
 
 impl<'a> AST<'a> {
@@ -22,6 +27,8 @@ impl<'a> AST<'a> {
         extra: Vec<UIndex>,
         source: Source<'a>,
         root: NodeIndex,
+        errors: Vec<ParseError>,
+        warnings: Vec<ParseWarning>,
     ) -> Self {
         Self {
             tokenized_source,
@@ -31,6 +38,8 @@ impl<'a> AST<'a> {
             extra,
             source,
             root,
+            errors,
+            warnings,
         }
     }
 
