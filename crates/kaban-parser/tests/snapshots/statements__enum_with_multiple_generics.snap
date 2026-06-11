@@ -1,0 +1,34 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: enum Result<T, E> { Ok: T, Err: E, }
+
+Block [
+    EnumDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("Result"),
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("E"),
+            },
+        ],
+        variant_decls: [
+            EnumVariantDecl {
+                variant_name: Identifier("Ok"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Err"),
+                type: NamedType(
+                    Identifier("E"),
+                ),
+            },
+        ],
+    },
+]

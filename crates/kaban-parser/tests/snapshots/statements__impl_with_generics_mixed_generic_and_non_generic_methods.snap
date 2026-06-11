@@ -1,0 +1,177 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Cache<K, V>::Core<K, V> {
+        func get(self&, key: K&) -> V?;
+        func insert<E>(self&mut, key: K, value: V) -> Result<i32, E>;
+        func transform_values<W>(self&, f: func(x: V) -> W) -> Cache<K, W>;
+        func size(self&) -> i32 { return self.size; }
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Cache"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("K"),
+                ),
+                NamedType(
+                    Identifier("V"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("K"),
+            },
+            GenericParam {
+                name: Identifier("V"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("get"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("key"),
+                            mutable: false,
+                        },
+                        type: Borrow(
+                            NamedType(
+                                Identifier("K"),
+                            ),
+                        ),
+                    },
+                ],
+                return_type: Optional(
+                    NamedType(
+                        Identifier("V"),
+                    ),
+                ),
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("insert"),
+                params: [
+                    SelfParam(
+                        AmpersandMut("&mut"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("key"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("K"),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("value"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("V"),
+                        ),
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("E"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Result"),
+                    ),
+                    generic_args: [
+                        Type(I32),
+                        NamedType(
+                            Identifier("E"),
+                        ),
+                    ],
+                },
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("transform_values"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("V"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("W"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("W"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Cache"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("K"),
+                        ),
+                        NamedType(
+                            Identifier("W"),
+                        ),
+                    ],
+                },
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("size"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: Type(I32),
+                body: Block [
+                    Return(
+                        MemberAccess {
+                            left: Self_,
+                            right: Identifier("size"),
+                        },
+                    ),
+                ],
+            },
+        ],
+    },
+]

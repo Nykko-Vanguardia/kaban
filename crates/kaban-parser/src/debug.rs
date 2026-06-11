@@ -26,11 +26,11 @@ impl<'a> Debug for AST<'a> {
         let tree = self.node_printer();
         write!(f, "{:#?}", tree)?;
 
-        if self.errors.len() > 0 {
+        if !self.errors.is_empty() {
             write!(f, "\n\nerrors!: {:#?}", self.errors)?;
         }
 
-        if self.warnings.len() > 0 {
+        if !self.warnings.is_empty() {
             write!(f, "\n\nwarnings!: {:#?}", self.warnings)?;
         }
 

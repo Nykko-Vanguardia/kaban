@@ -52,7 +52,8 @@ impl CompilerError for ParseError {
                 format!("{:?} expected! found {:?} instead", token, self.found),
             ParseErrorKind::MissingTypeDeclaration => "Missing type declaration".to_string(),
             ParseErrorKind::MissingBlock => "Expected Block".to_string(),
-            ParseErrorKind::MissingIdentifier => "Expected an Identifier or Destructure Pattern".to_string(),
+            ParseErrorKind::MissingIdentifier =>
+                format!("Expected an Identifier or Destructure Pattern! Found {:?} instead", self.found),
             //TODO: Make this error actually coherent
             ParseErrorKind::StructMutBinding => "Mut expected to be after the : when binding not before".to_string(),
             ParseErrorKind::PubInLet => "Let statements can not be public, try using const at the top level".to_string(),

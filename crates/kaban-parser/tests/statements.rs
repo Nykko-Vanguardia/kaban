@@ -498,12 +498,224 @@ fn struct_and_impl_sequential() {
     );
 }
 
-#[allow(dead_code)]
-fn panic_print(source: &str) {
-    let source = source.to_source();
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(&tokens.result, source);
-    let ast = parser.parse_program();
-    ast.panic_print();
+//TEST SCRATCH RECURSSION
+#[test]
+fn func_decl_with_multiple_generics_and_multiple_params() {
+    test_snapshot!("func foo<T, U, V>(x: T, y: U, z: V) -> V { return z; }");
+}
+
+#[test]
+fn func_decl_with_multiple_generics_self_and_params() {
+    test_snapshot!("func foo<T, U>(self&, x: T, y: U) -> T { return x; }");
+}
+
+#[test]
+fn func_decl_with_generic_param_of_generic_type() {
+    test_snapshot!("func foo<T>(x: HashMap<String, T>, y: T) -> HashMap<String, T> { return x; }");
+}
+
+#[test]
+fn func_decl_with_multiple_constrained_generics() {
+    test_snapshot!("func foo<T: impl Serializable, U: impl Debug>(x: T, y: U) -> T { return x; }");
+}
+
+#[test]
+fn struct_with_multiple_generics_and_multiple_fields() {
+    test_snapshot!("struct Pair<T, U> { first: T, second: U, tag: i32, }");
+}
+
+#[test]
+fn struct_with_nested_generic_field() {
+    test_snapshot!("struct Cache<T> { items: HashMap<String, T>, size: i32, }");
+}
+
+#[test]
+fn enum_with_multiple_generics() {
+    test_snapshot!("enum Result<T, E> { Ok: T, Err: E, }");
+}
+
+#[test]
+fn impl_decl_with_multiple_generics() {
+    test_snapshot!(
+        "
+    impl Pair<T, U>::Core<T, U> {
+        func first(self&) -> T { return self.first; }
+        func second(self&) -> U { return self.second; }
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_multiple_generics_and_shape() {
+    test_snapshot!(
+        "
+    pub interface Mapper<T, U> {
+        requires struct { size: i32 }
+        func map(self&, value: T) -> U;
+        func map_all(self&, values: T[]) -> U[];
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_struct_generics_and_generic_method_inside() {
+    test_snapshot!(
+        "
+    impl Container<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Container<U> { return Container::Core.new(f(self.value)); }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_multiple_generic_methods() {
+    test_snapshot!(
+        "
+    impl Pair<T, U>::Core<T, U> {
+        func map_first<V>(self&, f: func(x: T) -> V) -> Pair<V, U>;
+        func map_second<V>(self&, f: func(x: U) -> V) -> Pair<T, V>;
+        func map_both<V, W>(self&, f: func(x: T) -> V, g: func(x: U) -> W) -> Pair<V, W>;
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_generics_and_generic_methods_inside() {
+    test_snapshot!(
+        "
+    pub interface Functor<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Functor<U>;
+        func flat_map<U>(self&, f: func(x: T) -> Functor<U>) -> Functor<U>;
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_multiple_generics_shape_and_generic_methods() {
+    test_snapshot!(
+        "
+    pub interface Transformer<T, U> {
+        requires struct { capacity: i32, size: i32 }
+        func transform<V>(self&, input: T, mapper: func(x: U) -> V) -> V;
+        func batch_transform<V, W>(self&, inputs: T[], f: func(x: U) -> V, g: func(x: V) -> W) -> W[];
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_generics_mixed_generic_and_non_generic_methods() {
+    test_snapshot!(
+        "
+    impl Cache<K, V>::Core<K, V> {
+        func get(self&, key: K&) -> V?;
+        func insert<E>(self&mut, key: K, value: V) -> Result<i32, E>;
+        func transform_values<W>(self&, f: func(x: V) -> W) -> Cache<K, W>;
+        func size(self&) -> i32 { return self.size; }
+    }
+    "
+    );
+}
+
+#[test]
+fn generic_method_with_deeply_nested_generic_param_types_inside_generic_impl() {
+    test_snapshot!(
+        "
+    impl Graph<T>::Core<T> {
+        func shortest_path<W>(self&, from: T, to_: T, weight: func(x: Edge<T, W>) -> W) -> Result<W[], PathError>;
+    }
+    "
+    );
+}
+
+#[test]
+fn multiple_generic_impl_blocks_with_generic_methods() {
+    test_snapshot!(
+        "
+    impl Pipeline<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Pipeline<U>;
+        func filter(self&, f: func(x: T) -> bool) -> Pipeline<T>;
+    }
+    impl Pipeline<T>::Builder<T> {
+        func from<U>(source: U, converter: func(x: U) -> T) -> Pipeline<T>;
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_generics_implementing_generic_interface() {
+    test_snapshot!(
+        "
+    impl Functor<T> for Container<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Container<U> {
+            return Container::Core.new(f(self.value));
+        }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_deeply_nested_generics() {
+    test_snapshot!(
+        "impl Registry<K, V>::Core<K, V> {
+        func transform<A, B, C>(
+            self&,
+            f: func(
+                x: Result<
+                    HashMap<K, Vec<V>>,
+                    Option<A>
+                >
+            ) -> HashMap<
+                Result<B, K>,
+                Vec<C>
+            >,
+            g: func(
+                y: HashMap<
+                    Option<K>,
+                    Result<V, A>
+                >
+            ) -> Result<
+                Vec<B>,
+                Option<C>
+            >
+        ) -> Registry<
+            Result<K, B>,
+            HashMap<V, C>
+        >;
+
+        func fold<X, Y>(
+            self&,
+            reducer: func(
+                x: Result<
+                    HashMap<
+                        K,
+                        Result<V, X>
+                    >,
+                    Vec<Y>
+                >
+            ) -> Option<
+                HashMap<X, Y>
+            >
+        ) -> Result<
+            Registry<X, Y>,
+            Option<K>
+        >;
+
+        func identity(self&) -> Registry<K, V> {
+            return self;
+        }
+    }"
+    );
+}
+
+#[test]
+fn func_with_deeply_nested_generic_param_types() {
+    test_snapshot!("func foo<T, U>(x: Result<HashMap<String, T>, U>) -> T { x += 10; return x; }");
 }

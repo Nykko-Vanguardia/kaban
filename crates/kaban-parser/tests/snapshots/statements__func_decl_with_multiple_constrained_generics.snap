@@ -1,0 +1,54 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo<T: impl Serializable, U: impl Debug>(x: T, y: U) -> T { return x; }
+
+Block [
+    FuncDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("y"),
+                    mutable: false,
+                },
+                type: NamedType(
+                    Identifier("U"),
+                ),
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+                constraint: InterfaceConstraint(
+                    Identifier("Serializable"),
+                ),
+            },
+            GenericParam {
+                name: Identifier("U"),
+                constraint: InterfaceConstraint(
+                    Identifier("Debug"),
+                ),
+            },
+        ],
+        return_type: NamedType(
+            Identifier("T"),
+        ),
+        body: Block [
+            Return(
+                Identifier("x"),
+            ),
+        ],
+    },
+]

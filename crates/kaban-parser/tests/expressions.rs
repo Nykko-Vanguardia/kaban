@@ -38,6 +38,16 @@ fn parentheses_override_precedence() {
 }
 
 #[test]
+fn bitwise_and_operation() {
+    test_snapshot!("x b& y;");
+}
+
+#[test]
+fn bitwise_right_shift_operation() {
+    test_snapshot!("x b>> y;");
+}
+
+#[test]
 fn type_casting_with_i32() {
     test_snapshot!("x as i32;");
 }

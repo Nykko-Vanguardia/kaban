@@ -164,13 +164,13 @@ impl NodeTag {
     }
 
     pub fn is_member_access(&self) -> bool {
-        match self {
+        matches!(
+            self,
             NodeTag::MemberAccess
-            | NodeTag::ImplAccess
-            | NodeTag::UndefinedChainingAccess
-            | NodeTag::Colon => true,
-            _ => false,
-        }
+                | NodeTag::ImplAccess
+                | NodeTag::UndefinedChainingAccess
+                | NodeTag::Colon
+        )
     }
 
     /**

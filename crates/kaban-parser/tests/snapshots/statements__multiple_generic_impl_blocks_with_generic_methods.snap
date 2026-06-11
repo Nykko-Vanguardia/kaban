@@ -1,0 +1,195 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Pipeline<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Pipeline<U>;
+        func filter(self&, f: func(x: T) -> bool) -> Pipeline<T>;
+    }
+    impl Pipeline<T>::Builder<T> {
+        func from<U>(source: U, converter: func(x: U) -> T) -> Pipeline<T>;
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Pipeline"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("map"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("T"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("U"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("U"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pipeline"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("U"),
+                        ),
+                    ],
+                },
+            },
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("filter"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("T"),
+                                    ),
+                                },
+                            ],
+                            return type: Type(Bool),
+                        },
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pipeline"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("T"),
+                        ),
+                    ],
+                },
+            },
+        ],
+    },
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Builder"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Pipeline"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("from"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("source"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("U"),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("converter"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("U"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("T"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("U"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pipeline"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("T"),
+                        ),
+                    ],
+                },
+            },
+        ],
+    },
+]

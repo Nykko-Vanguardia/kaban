@@ -136,10 +136,13 @@ impl<'a> Lexer<'a> {
             b"import" => TokenKind::Import,
             b"type" => TokenKind::Type,
             b"as" => TokenKind::As,
-            b"band" => TokenKind::Band,
-            b"bor" => TokenKind::Bor,
-            b"bxor" => TokenKind::Bxor,
-            b"bnot" => TokenKind::Bnot,
+            b"b" if self.match_and_consume("&") => TokenKind::Band,
+            b"b" if self.match_and_consume("|") => TokenKind::Bor,
+            b"b" if self.match_and_consume("^") => TokenKind::Bxor,
+            b"b" if self.match_and_consume("!") => TokenKind::Bnot,
+            b"b" if self.match_and_consume(">>") => TokenKind::GreaterGreater,
+            b"b" if self.match_and_consume(">>>") => TokenKind::GreaterGreaterGreater,
+            b"b" if self.match_and_consume("<<") => TokenKind::LessLess,
             b"comptime" => TokenKind::Comptime,
             b"write" => TokenKind::Write,
             b"unsafe" => TokenKind::Unsafe,
@@ -210,10 +213,10 @@ impl<'a> Lexer<'a> {
                 }
             }
             b'<' => {
-                if self.match_and_consume("<<") {
-                    TokenKind::LessLess
-                } else if self.match_and_consume("<=") {
+                if self.match_and_consume("<=") {
                     TokenKind::LessEqual
+                // } else if self.match_and_consume("<<") {
+                //     TokenKind::LessLess
                 } else if self.match_and_consume("<-") {
                     TokenKind::LeftArrow
                 } else {
@@ -222,12 +225,12 @@ impl<'a> Lexer<'a> {
                 }
             }
             b'>' => {
-                if self.match_and_consume(">>") {
-                    TokenKind::GreaterGreater
-                } else if self.match_and_consume(">>>") {
-                    TokenKind::GreaterGreaterGreater
-                } else if self.match_and_consume(">=") {
+                if self.match_and_consume(">=") {
                     TokenKind::GreaterEqual
+                // } else if self.match_and_consume(">>") {
+                //     TokenKind::GreaterGreater
+                // } else if self.match_and_consume(">>>") {
+                //     TokenKind::GreaterGreaterGreater
                 } else {
                     self.advance_current();
                     TokenKind::Greater
@@ -592,7 +595,7 @@ impl<'a> Lexer<'a> {
             return false;
         };
 
-        for _ in 0..pattern.as_bytes().len() {
+        for _ in 0..pattern.len() {
             self.advance_current();
         }
 

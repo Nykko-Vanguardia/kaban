@@ -33,6 +33,11 @@ impl<'a> Source<'a> {
     }
 
     #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.source.is_empty()
+    }
+
+    #[inline(always)]
     pub fn matches(&self, start: UIndex, end: UIndex, matches: &str) -> bool {
         self.get(start, end) == matches.as_bytes()
     }

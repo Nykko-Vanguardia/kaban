@@ -1,7 +1,7 @@
 use crate::{
     ast::AST,
     errors::{ParseError, ParseErrorKind, ParseWarning, ParseWarningKind},
-    node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE, UIndexVec},
+    node::{ExtraIndex, NodeData, NodeIndex, NodeTag, OptionalNode, TokenIndex, U_NONE},
 };
 use kaban_core::{ToUIndex, ToUsize, UIndex, source::Source};
 use kaban_lexer::{lexer::TokenizedSource, token::TokenKind};
@@ -19,6 +19,8 @@ pub struct Parser<'a> {
     main_token: Vec<TokenIndex>,
     node_data: Vec<NodeData>,
     extra: Vec<UIndex>,
+
+    scratch: Vec<UIndex>,
 }
 
 impl<'a> Parser<'a> {
@@ -36,16 +38,20 @@ impl<'a> Parser<'a> {
             node_data: Vec::new(),
             main_token: Vec::new(),
             extra: Vec::new(),
+
+            scratch: Vec::new(),
         }
     }
 
     pub fn parse_program(&mut self) -> AST<'a> {
-        let mut top_level_statements = Vec::new();
+        let start = self.scratch.len();
         while !self.is_at_end() {
             if let Some(statment) = self.parse_statement() {
-                top_level_statements.push(statment);
+                self.scratch.push(statment.0);
             }
         }
+        let end = self.scratch.len();
+        let top_level_statements = ScratchSlice { start, end };
 
         let root = self.push_block(top_level_statements, TokenIndex(U_NONE));
         AST::new(
@@ -132,10 +138,17 @@ impl<'a> Parser<'a> {
         ExtraIndex(starting_index)
     }
 
-    fn push_extra(&mut self, data: &[UIndex]) -> ExtraIndex {
+    #[inline(always)]
+    fn push_extra(&mut self, ScratchSlice { start, end }: ScratchSlice) -> ExtraIndex {
+        let extra = self.push_extra_no_truncate(ScratchSlice { start, end });
+        self.scratch.truncate(start);
+        extra
+    }
+
+    fn push_extra_no_truncate(&mut self, ScratchSlice { start, end }: ScratchSlice) -> ExtraIndex {
         let starting_index = self.extra.len().uindex();
-        for element in data.iter().copied() {
-            self.extra.push(element);
+        for i in start..end {
+            self.extra.push(self.scratch[i]);
         }
         ExtraIndex(starting_index)
     }
@@ -197,8 +210,8 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightBracket);
                 self.must_consume(TokenKind::RightBracket);
-                let right = self.push_extra(args.uindex_slice());
-                self.push_node(NodeTag::ArrayLit, main_token, args.len().uindex(), right.0)
+                let right = self.push_extra(args);
+                self.push_node(NodeTag::ArrayLit, main_token, args.len(), right.0)
             }
             TokenKind::StringLit => self.push_node(NodeTag::StringLit, main_token, U_NONE, U_NONE),
             TokenKind::StringObjLit => todo!(),
@@ -215,11 +228,11 @@ impl<'a> Parser<'a> {
                         self.parse_comma_seperated_expressions(TokenKind::RightParen);
                     self.must_consume(TokenKind::RightParen)?;
                     let extra_pointer = self.push_one_extra(first_element.0);
-                    self.push_extra(tuple_elements.uindex_slice());
+                    self.push_extra(tuple_elements);
                     self.push_node(
                         NodeTag::TupleLit,
                         main_token,
-                        tuple_elements.len().uindex() + additional_len_for_first_element,
+                        tuple_elements.len() + additional_len_for_first_element,
                         extra_pointer.0,
                     )
                 } else {
@@ -314,16 +327,8 @@ impl<'a> Parser<'a> {
         token_index: TokenIndex,
     ) -> Option<NodeIndex> {
         let operand = self.parse_expression()?;
-        match prefix_unary {
-            // NodeTag::New | NodeTag::Destruct => {
-            //     // self.advance();
-            //     let method_call = self.parse_expression()?;
-            //     self.push_node(prefix_unary, method_call.0, U_NONE).some()
-            // },
-            _ => self
-                .push_node(prefix_unary, token_index, operand.0, 0)
-                .some(),
-        }
+        self.push_node(prefix_unary, token_index, operand.0, 0)
+            .some()
     }
 
     fn parse_postfix_expression(
@@ -339,8 +344,8 @@ impl<'a> Parser<'a> {
             NodeTag::FuncCall => {
                 let args = self.parse_comma_seperated_expressions(TokenKind::RightParen);
                 self.must_consume(TokenKind::RightParen)?;
-                let extra_index = self.push_one_extra(args.len().uindex());
-                self.push_extra(args.uindex_slice());
+                let extra_index = self.push_one_extra(args.len());
+                self.push_extra(args);
                 self.push_node(NodeTag::FuncCall, main_token, operand.0, extra_index.0)
                     .some()
             }
@@ -351,8 +356,8 @@ impl<'a> Parser<'a> {
                 });
                 self.must_consume(TokenKind::Greater)?;
 
-                let extra_index = self.push_one_extra(args.len().uindex());
-                self.push_extra(args.uindex_slice());
+                let extra_index = self.push_one_extra(args.len());
+                self.push_extra(args);
                 self.push_node(
                     NodeTag::GenericInstantiation,
                     main_token,
@@ -379,12 +384,14 @@ impl<'a> Parser<'a> {
 
     pub fn parse_and_consume_block(&mut self) -> Option<NodeIndex> {
         let main_token = self.must_consume(TokenKind::LeftBrace)?;
-        let mut statements = Vec::new();
+        let start = self.scratch.len();
         while !self.is_at_end() && !self.check_bool(TokenKind::RightBrace) {
             if let Some(statment) = self.parse_statement() {
-                statements.push(statment);
+                self.scratch.push(statment.0);
             }
         }
+        let end = self.scratch.len();
+        let statements = ScratchSlice { start, end };
 
         self.must_consume(TokenKind::RightBrace)?;
         self.push_block(statements, main_token).some()
@@ -406,11 +413,11 @@ impl<'a> Parser<'a> {
                     self.must_consume(TokenKind::RightParen)?;
                     const FIRST_TYPE_LEN: u32 = 1;
                     let extra_pointer = self.push_one_extra(first_type_.0);
-                    self.push_extra(the_rest_of_the_types.uindex_slice());
+                    self.push_extra(the_rest_of_the_types);
                     self.push_node(
                         NodeTag::TupleType,
                         main_token,
-                        the_rest_of_the_types.len().uindex() + FIRST_TYPE_LEN,
+                        the_rest_of_the_types.len() + FIRST_TYPE_LEN,
                         extra_pointer.0,
                     )
                 } else {
@@ -446,8 +453,8 @@ impl<'a> Parser<'a> {
                     p.parse_type_decleration()
                 });
                 self.must_consume(TokenKind::RightParen)?;
-                let extra = self.push_extra(types.uindex_slice());
-                self.push_node(NodeTag::Union, main_token, types.len().uindex(), extra.0)
+                let extra = self.push_extra(types);
+                self.push_node(NodeTag::Union, main_token, types.len(), extra.0)
             }
             TokenKind::Struct => {
                 advance_after_match = false;
@@ -467,12 +474,12 @@ impl<'a> Parser<'a> {
                         .some()
                     });
                 self.must_consume(TokenKind::RightBrace);
-                let extra_pointer = self.push_extra(field_declerations.uindex_slice());
+                let extra_pointer = self.push_extra(field_declerations);
 
                 self.push_node(
                     NodeTag::AnonymousStructType,
                     main_token,
-                    field_declerations.len().uindex(),
+                    field_declerations.len(),
                     extra_pointer.0,
                 )
             }
@@ -504,8 +511,8 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                let extra_pointer = self.push_one_extra(params.len().uindex());
-                self.push_extra(params.uindex_slice());
+                let extra_pointer = self.push_one_extra(params.len());
+                self.push_extra(params);
 
                 self.push_node(
                     NodeTag::FuncType,
@@ -518,11 +525,11 @@ impl<'a> Parser<'a> {
                 advance_after_match = false;
                 self.advance();
                 let enum_variant_declerations = self.parse_enum_block();
-                let extra_pointer = self.push_extra(enum_variant_declerations.uindex_slice());
+                let extra_pointer = self.push_extra(enum_variant_declerations);
                 self.push_node(
                     NodeTag::AnonymousEnumType,
                     main_token,
-                    enum_variant_declerations.len().uindex(),
+                    enum_variant_declerations.len(),
                     extra_pointer.0,
                 )
             }
@@ -571,8 +578,8 @@ impl<'a> Parser<'a> {
                         p.parse_type_decleration()
                     });
                     self.must_consume(TokenKind::Greater)?;
-                    let extra_pointer = self.push_one_extra(types.len().uindex());
-                    self.push_extra(types.uindex_slice());
+                    let extra_pointer = self.push_one_extra(types.len());
+                    self.push_extra(types);
                     self.push_node(
                         NodeTag::TypeWithGenerics,
                         main_token,
@@ -591,7 +598,7 @@ impl<'a> Parser<'a> {
         Some(type_)
     }
 
-    fn if_angle_bracket_parse_generic_declerations_else_none(&mut self) -> Option<Vec<NodeIndex>> {
+    fn if_angle_bracket_parse_generic_declerations_else_none(&mut self) -> Option<ScratchSlice> {
         if self.if_matches_then_consume_bool(TokenKind::Less) {
             let generic_list = self.parse_comma_seperated_nodes(TokenKind::Greater, |p| {
                 let name = p.must_consume(TokenKind::Identifier)?;
@@ -676,8 +683,8 @@ impl<'a> Parser<'a> {
                     self.must_consume(TokenKind::RightParen)?;
                     let is_mutable_self = operator == NodeTag::Colon;
                     let extra_pointer = self.push_one_extra(is_mutable_self.uindex());
-                    self.push_one_extra(args.len().uindex());
-                    self.push_extra(args.uindex_slice());
+                    self.push_one_extra(args.len());
+                    self.push_extra(args);
                     self.push_node(
                         NodeTag::MethodCall,
                         operator_main_token,
@@ -727,10 +734,10 @@ impl<'a> Parser<'a> {
             let is_mutable_self = operator == NodeTag::Colon;
             // let extra_pointer = self.push_one_extra(child.0);
             let extra_pointer = self.push_one_extra(is_mutable_self.uindex());
-            self.push_one_extra(args.len().uindex());
-            self.push_one_extra(generic_args.len().uindex());
-            self.push_extra(args.uindex_slice());
-            self.push_extra(generic_args.uindex_slice());
+            self.push_one_extra(args.len());
+            self.push_one_extra(generic_args.len());
+            self.push_extra(args);
+            self.push_extra(generic_args);
             self.push_node(
                 NodeTag::MethodWithGenericInstantiation,
                 dot_main_token,
@@ -744,8 +751,8 @@ impl<'a> Parser<'a> {
             }
             let member_access = self.push_node(operator, dot_main_token, parent.0, child.0);
 
-            let extra_index = self.push_one_extra(generic_args.len().uindex());
-            self.push_extra(generic_args.uindex_slice());
+            let extra_index = self.push_one_extra(generic_args.len());
+            self.push_extra(generic_args);
             self.push_node(
                 NodeTag::GenericInstantiation,
                 at_main_token,
@@ -756,9 +763,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn push_block(&mut self, statements: Vec<NodeIndex>, main_token: TokenIndex) -> NodeIndex {
-        let block_size = statements.len().uindex();
-        let extra_ptr = self.push_extra(statements.uindex_slice());
+    fn push_block(&mut self, statements: ScratchSlice, main_token: TokenIndex) -> NodeIndex {
+        let block_size = statements.len();
+        let extra_ptr = self.push_extra(statements);
         self.push_node(NodeTag::Block, main_token, block_size, extra_ptr.0)
     }
 
@@ -782,11 +789,11 @@ impl<'a> Parser<'a> {
                     p.parse_identifier_or_destructure()
                 });
                 self.must_consume(TokenKind::RightParen)?;
-                let extra_pointer = self.push_extra(elements.uindex_slice());
+                let extra_pointer = self.push_extra(elements);
                 self.push_node(
                     NodeTag::TupleDestructure,
                     main_token,
-                    elements.len().uindex(),
+                    elements.len(),
                     extra_pointer.0,
                 )
                 .some()
@@ -797,11 +804,11 @@ impl<'a> Parser<'a> {
                     p.parse_identifier_or_destructure()
                 });
                 self.must_consume(TokenKind::RightBracket)?;
-                let extra_pointer = self.push_extra(elements.uindex_slice());
+                let extra_pointer = self.push_extra(elements);
                 self.push_node(
                     NodeTag::ArrayDestructure,
                     main_token,
-                    elements.len().uindex(),
+                    elements.len(),
                     extra_pointer.0,
                 )
                 .some()
@@ -833,11 +840,11 @@ impl<'a> Parser<'a> {
                     .some()
                 });
                 self.must_consume(TokenKind::RightBrace);
-                let extra_pointer = self.push_extra(binding_list.uindex_slice());
+                let extra_pointer = self.push_extra(binding_list);
                 self.push_node(
                     NodeTag::StructDestructure,
                     main_token,
-                    binding_list.len().uindex(),
+                    binding_list.len(),
                     extra_pointer.0,
                 )
                 .some()
@@ -930,13 +937,14 @@ impl<'a> Parser<'a> {
 
         let add_self_to_param_len = if self_.is_some() { 1 } else { 0 };
         if let Some(generics) = generics {
-            self.push_one_extra(generics.len().uindex());
-            self.push_one_extra(params.len().uindex() + add_self_to_param_len);
-            self.push_extra(generics.uindex_slice());
+            self.push_one_extra(generics.len());
+            self.push_one_extra(params.len() + add_self_to_param_len);
+            self.push_extra_no_truncate(generics);
             if let Some(self_) = self_ {
                 self.push_one_extra(self_.0);
             }
-            self.push_extra(params.uindex_slice());
+            self.push_extra_no_truncate(params);
+            self.scratch.truncate(generics.start);
             let tag = if has_block {
                 NodeTag::FuncDeclWithGenerics
             } else {
@@ -945,11 +953,11 @@ impl<'a> Parser<'a> {
             self.push_node(tag, main_token, is_pub.uindex(), extra_pointer.0)
                 .some()
         } else {
-            self.push_one_extra(params.len().uindex() + add_self_to_param_len);
+            self.push_one_extra(params.len() + add_self_to_param_len);
             if let Some(self_) = self_ {
                 self.push_one_extra(self_.0);
             }
-            self.push_extra(params.uindex_slice());
+            self.push_extra(params);
             let tag = if has_block {
                 NodeTag::FuncDeclWithNoGenerics
             } else {
@@ -1027,10 +1035,11 @@ impl<'a> Parser<'a> {
         });
         self.must_consume(TokenKind::RightBrace);
         if let Some(generics) = generics {
-            let extra_pointer = self.push_one_extra(generics.len().uindex());
-            self.push_one_extra(field_declerations.len().uindex());
-            self.push_extra(generics.uindex_slice());
-            self.push_extra(field_declerations.uindex_slice());
+            let extra_pointer = self.push_one_extra(generics.len());
+            self.push_one_extra(field_declerations.len());
+            self.push_extra_no_truncate(generics);
+            self.push_extra_no_truncate(field_declerations);
+            self.scratch.truncate(generics.start);
             self.push_node(
                 NodeTag::StructDeclWithGeneric,
                 main_token,
@@ -1039,8 +1048,8 @@ impl<'a> Parser<'a> {
             )
             .some()
         } else {
-            let extra_pointer = self.push_one_extra(field_declerations.len().uindex());
-            self.push_extra(field_declerations.uindex_slice());
+            let extra_pointer = self.push_one_extra(field_declerations.len());
+            self.push_extra(field_declerations);
             self.push_node(
                 NodeTag::StructDeclWithNoGeneric,
                 main_token,
@@ -1059,10 +1068,11 @@ impl<'a> Parser<'a> {
         let enum_variant_declerations = self.parse_enum_block();
 
         if let Some(generics) = generics {
-            let extra_pointer = self.push_one_extra(generics.len().uindex());
-            self.push_one_extra(enum_variant_declerations.len().uindex());
-            self.push_extra(generics.uindex_slice());
-            self.push_extra(enum_variant_declerations.uindex_slice());
+            let extra_pointer = self.push_one_extra(generics.len());
+            self.push_one_extra(enum_variant_declerations.len());
+            self.push_extra_no_truncate(generics);
+            self.push_extra_no_truncate(enum_variant_declerations);
+            self.scratch.truncate(generics.start);
             self.push_node(
                 NodeTag::EnumDeclWithGeneric,
                 main_token,
@@ -1071,8 +1081,8 @@ impl<'a> Parser<'a> {
             )
             .some()
         } else {
-            let extra_pointer = self.push_one_extra(enum_variant_declerations.len().uindex());
-            self.push_extra(enum_variant_declerations.uindex_slice());
+            let extra_pointer = self.push_one_extra(enum_variant_declerations.len());
+            self.push_extra(enum_variant_declerations);
             self.push_node(
                 NodeTag::EnumDeclWithNoGeneric,
                 main_token,
@@ -1083,7 +1093,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_enum_block(&mut self) -> Vec<NodeIndex> {
+    fn parse_enum_block(&mut self) -> ScratchSlice {
         self.must_consume(TokenKind::LeftBrace);
         let enum_variants = self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
             let variant_name = p.must_consume(TokenKind::Identifier)?;
@@ -1120,7 +1130,7 @@ impl<'a> Parser<'a> {
         let generics = self.if_angle_bracket_parse_generic_declerations_else_none();
 
         self.must_consume(TokenKind::LeftBrace)?;
-        let mut statements = Vec::new();
+        let start = self.scratch.len();
         while !self.is_at_end() && self.peek_current_kind() != TokenKind::RightBrace {
             let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
             let statement = match self.peek_current_kind() {
@@ -1132,8 +1142,10 @@ impl<'a> Parser<'a> {
                     return None;
                 }
             };
-            statements.push(statement?);
+            self.scratch.push(statement?.0);
         }
+        let end = self.scratch.len();
+        let statements = ScratchSlice { start, end };
         self.must_consume(TokenKind::RightBrace)?;
 
         let extra_pointer = self.push_one_extra(is_pub.uindex());
@@ -1143,10 +1155,11 @@ impl<'a> Parser<'a> {
         };
 
         if let Some(generics) = generics {
-            self.push_one_extra(generics.len().uindex());
-            self.push_one_extra(statements.len().uindex());
-            self.push_extra(generics.uindex_slice());
-            self.push_extra(statements.uindex_slice());
+            self.push_one_extra(generics.len());
+            self.push_one_extra(statements.len());
+            self.push_extra_no_truncate(generics);
+            self.push_extra_no_truncate(statements);
+            self.scratch.truncate(generics.start);
             let tag = if interface.is_some() {
                 NodeTag::ImplForDeclWithGeneric
             } else {
@@ -1155,8 +1168,8 @@ impl<'a> Parser<'a> {
             self.push_node(tag, main_token, impl_name.0, extra_pointer.0)
                 .some()
         } else {
-            self.push_one_extra(statements.len().uindex());
-            self.push_extra(statements.uindex_slice());
+            self.push_one_extra(statements.len());
+            self.push_extra(statements);
             let tag = if interface.is_some() {
                 NodeTag::ImplForDeclWithNoGeneric
             } else {
@@ -1179,7 +1192,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let mut statements = Vec::new();
+        let start = self.scratch.len();
         while !self.is_at_end() && self.peek_current_kind() != TokenKind::RightBrace {
             let is_inside_pub = self.if_matches_then_consume_bool(TokenKind::Pub);
             let statement = match self.peek_current_kind() {
@@ -1191,16 +1204,19 @@ impl<'a> Parser<'a> {
                     return None;
                 }
             };
-            statements.push(statement?);
+            self.scratch.push(statement?.0);
         }
+        let end = self.scratch.len();
+        let statements = ScratchSlice { start, end };
         self.must_consume(TokenKind::RightBrace)?;
 
         let extra_pointer = self.push_one_extra(shape.to_index_or_u_none());
         if let Some(generics) = generics {
-            self.push_one_extra(generics.len().uindex());
-            self.push_one_extra(statements.len().uindex());
-            self.push_extra(generics.uindex_slice());
-            self.push_extra(statements.uindex_slice());
+            self.push_one_extra(generics.len());
+            self.push_one_extra(statements.len());
+            self.push_extra_no_truncate(generics);
+            self.push_extra_no_truncate(statements);
+            self.scratch.truncate(generics.start);
             self.push_node(
                 NodeTag::InterfaceDeclWithGenerics,
                 main_token,
@@ -1209,8 +1225,8 @@ impl<'a> Parser<'a> {
             )
             .some()
         } else {
-            self.push_one_extra(statements.len().uindex());
-            self.push_extra(statements.uindex_slice());
+            self.push_one_extra(statements.len());
+            self.push_extra(statements);
             self.push_node(
                 NodeTag::InterfaceDeclWithNoGenerics,
                 main_token,
@@ -1282,14 +1298,14 @@ impl<'a> Parser<'a> {
         self.must_consume(TokenKind::LeftBrace)?;
         let arms = self.parse_match_arms(target);
         self.must_consume(TokenKind::RightBrace);
-        let extra_index = self.push_one_extra(arms.len().uindex());
-        self.push_extra(arms.uindex_slice());
+        let extra_index = self.push_one_extra(arms.len());
+        self.push_extra(arms);
         self.push_node(NodeTag::Match, main_token, target.0, extra_index.0)
             .some()
     }
 
     #[inline(always)]
-    fn parse_match_arms(&mut self, target: NodeIndex) -> Vec<NodeIndex> {
+    fn parse_match_arms(&mut self, target: NodeIndex) -> ScratchSlice {
         self.parse_comma_seperated_nodes(TokenKind::RightBrace, |p| {
             let left = if p.check_bool(TokenKind::Is) || p.check_bool(TokenKind::To) {
                 p.consume_if_is_expression(target)?
@@ -1298,19 +1314,21 @@ impl<'a> Parser<'a> {
             };
             let left = if p.check_bool(TokenKind::Pipe) {
                 let pipe_main_token = p.current_token_index();
-                let mut match_targets = Vec::new();
+                let start = p.scratch.len();
                 while !p.is_at_end() && p.if_matches_then_consume_bool(TokenKind::Pipe) {
                     let more_lefts = if p.check_bool(TokenKind::Is) || p.check_bool(TokenKind::To) {
                         p.consume_if_is_expression(target)?
                     } else {
                         p.parse_expression()?
                     };
-                    match_targets.push(more_lefts);
+                    p.scratch.push(more_lefts.0);
                 }
+                let end = p.scratch.len();
+                let match_targets = ScratchSlice { start, end };
                 let extra_pointer = p.push_one_extra(left.0);
-                p.push_extra(match_targets.uindex_slice());
+                p.push_extra(match_targets);
                 const ORIGINAL_LEFT: UIndex = 1;
-                let len = match_targets.len().uindex() + ORIGINAL_LEFT;
+                let len = match_targets.len() + ORIGINAL_LEFT;
                 p.push_node(
                     NodeTag::MultipleMatchTargets,
                     pipe_main_token,
@@ -1395,8 +1413,8 @@ impl<'a> Parser<'a> {
         });
         self.must_consume(TokenKind::RightBrace)?;
 
-        let extra_pointer = self.push_one_extra(field_instantiations.len().uindex());
-        self.push_extra(field_instantiations.uindex_slice());
+        let extra_pointer = self.push_one_extra(field_instantiations.len());
+        self.push_extra(field_instantiations);
         self.push_node(
             NodeTag::StructInstantiation,
             main_token,
@@ -1435,8 +1453,8 @@ impl<'a> Parser<'a> {
         };
         let block = self.parse_expression()?; //Still deciding if i force a block
         let extra_pointer = self.push_one_extra(return_type.to_index_or_u_none());
-        self.push_one_extra(params.len().uindex());
-        self.push_extra(params.uindex_slice());
+        self.push_one_extra(params.len());
+        self.push_extra(params);
 
         self.push_node(
             NodeTag::AnonymousFuncDecl,
@@ -1535,10 +1553,8 @@ impl<'a> Parser<'a> {
     }
 
     fn must_consume(&mut self, token_kind: TokenKind) -> Option<TokenIndex> {
-        match self.must_check(token_kind, ParseErrorKind::ExpectedToken(token_kind)) {
-            Some(_) => Some(self.advance()),
-            None => None,
-        }
+        self.must_check(token_kind, ParseErrorKind::ExpectedToken(token_kind))
+            .map(|_| self.advance())
     }
 
     /**
@@ -1674,14 +1690,11 @@ impl<'a> Parser<'a> {
         Some((operator, index))
     }
 
-    fn parse_comma_seperated_expressions(
-        &mut self,
-        closing_delimiter: TokenKind,
-    ) -> Vec<NodeIndex> {
-        let mut expressions = Vec::new();
+    fn parse_comma_seperated_expressions(&mut self, closing_delimiter: TokenKind) -> ScratchSlice {
+        let start = self.scratch.len();
         while !self.is_at_end() && !self.check_bool(closing_delimiter) {
             if let Some(expression) = self.parse_expression() {
-                expressions.push(expression);
+                self.scratch.push(expression.0);
             };
 
             if !self.if_matches_then_consume_bool(TokenKind::Comma) {
@@ -1689,18 +1702,20 @@ impl<'a> Parser<'a> {
             };
         }
 
-        expressions
+        let end = self.scratch.len();
+
+        ScratchSlice { start, end }
     }
 
     fn parse_comma_seperated_nodes(
         &mut self,
         closing_delimiter: TokenKind,
         callback: impl Fn(&mut Parser) -> Option<NodeIndex>,
-    ) -> Vec<NodeIndex> {
-        let mut nodes = Vec::new();
+    ) -> ScratchSlice {
+        let start = self.scratch.len();
         while !self.is_at_end() && !self.check_bool(closing_delimiter) {
             if let Some(node) = callback(self) {
-                nodes.push(node);
+                self.scratch.push(node.0);
             };
 
             if !self.if_matches_then_consume_bool(TokenKind::Comma) {
@@ -1708,7 +1723,9 @@ impl<'a> Parser<'a> {
             };
         }
 
-        nodes
+        let end = self.scratch.len();
+
+        ScratchSlice { start, end }
     }
 
     fn is_anonymous_struct_instantiation(&self) -> bool {
@@ -1795,4 +1812,16 @@ impl<'a> Parser<'a> {
     // }
     // self.advance();
     // Expression::ArrayLit(items)
+}
+
+#[derive(Clone, Copy)]
+struct ScratchSlice {
+    start: usize,
+    end: usize,
+}
+
+impl ScratchSlice {
+    fn len(&self) -> UIndex {
+        (self.end - self.start).uindex()
+    }
 }

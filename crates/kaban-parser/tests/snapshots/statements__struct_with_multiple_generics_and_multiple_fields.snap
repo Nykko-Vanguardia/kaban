@@ -1,0 +1,41 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: struct Pair<T, U> { first: T, second: U, tag: i32, }
+
+Block [
+    StructDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("Pair"),
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("first"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("second"),
+                type: NamedType(
+                    Identifier("U"),
+                ),
+            },
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("tag"),
+                type: Type(I32),
+            },
+        ],
+    },
+]

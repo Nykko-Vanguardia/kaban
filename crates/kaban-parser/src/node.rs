@@ -479,6 +479,7 @@ pub enum NodeTag {
     /// # right: ExtraIndex -> \[param_count, args...\]
     /// - extra\[right\]: UIndex = param_count
     /// - extra\[right + 1 .. right + 1 + N\]: NodeIndex = parameters
+    ///
     /// NOTE: PARAM LEFT IS ALWAYS AN IDENTIFIER BINDING, NEVER DESTRUCTURS, ALWAYS IN THE FORM OF
     /// MUT OR NOT MUT THEN IDENTIFIER
     FuncType,
