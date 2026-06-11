@@ -1,0 +1,18 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: arr[0].method();
+
+Block [
+    MethodCall {
+        callee: Index {
+            callee: Identifier("arr"),
+            index: IntLit("0"),
+            is_safe: true,
+        },
+        method name: Identifier("method"),
+        is mutable: false,
+        args: [],
+    },
+]

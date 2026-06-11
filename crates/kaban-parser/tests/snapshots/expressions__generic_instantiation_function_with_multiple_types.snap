@@ -1,0 +1,20 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo@<i32, f64,>(10);
+
+Block [
+    FuncCall {
+        callee: GenericInstantiation {
+            callee: Identifier("foo"),
+            args: [
+                Type(I32),
+                Type(F64),
+            ],
+        },
+        args: [
+            IntLit("10"),
+        ],
+    },
+]

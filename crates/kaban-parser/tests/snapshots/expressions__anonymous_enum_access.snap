@@ -1,0 +1,14 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: return enum.Day;
+
+Block [
+    Return(
+        MemberAccess {
+            left: AnonymousEnumlit,
+            right: Identifier("Day"),
+        },
+    ),
+]

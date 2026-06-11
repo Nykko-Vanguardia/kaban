@@ -1,0 +1,30 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: struct Foo { x: i32*, y: String&, }
+
+Block [
+    StructDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Foo"),
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("x"),
+                type: Pointer(
+                    Type(I32),
+                ),
+            },
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("y"),
+                type: Borrow(
+                    NamedType(
+                        Identifier("String"),
+                    ),
+                ),
+            },
+        ],
+    },
+]

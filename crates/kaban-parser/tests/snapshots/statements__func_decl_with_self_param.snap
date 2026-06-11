@@ -1,0 +1,35 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo(self, x: i32) -> i32 { let z = x; return z; }
+
+Block [
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            SelfParam,
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                type: Type(I32),
+            },
+        ],
+        return_type: Type(I32),
+        body: Block [
+            Let {
+                name: IdentifierBinding {
+                    name: Identifier("z"),
+                    mutable: false,
+                },
+                assignment: Identifier("x"),
+            },
+            Return(
+                Identifier("z"),
+            ),
+        ],
+    },
+]

@@ -1,0 +1,79 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: 
+        match (day_enum) {
+            is Day.Monday => 20,
+            to time is Day.Tuesday => buzz(),
+            to {time, mut wednesday_event} is Day.Wednesday => buzz(),
+        }
+    
+
+Block [
+    Match {
+        target: Identifier("day_enum"),
+        arms: [
+            Arm {
+                left: ToIs {
+                    original: Identifier("day_enum"),
+                    binding: IdentifierBinding {
+                        name: Identifier("day_enum"),
+                        mutable: false,
+                    },
+                    is target: MemberAccess {
+                        left: Identifier("Day"),
+                        right: Identifier("Monday"),
+                    },
+                },
+                right: IntLit("20"),
+            },
+            Arm {
+                left: ToIs {
+                    original: Identifier("day_enum"),
+                    binding: IdentifierBinding {
+                        name: Identifier("time"),
+                        mutable: false,
+                    },
+                    is target: MemberAccess {
+                        left: Identifier("Day"),
+                        right: Identifier("Tuesday"),
+                    },
+                },
+                right: FuncCall {
+                    callee: Identifier("buzz"),
+                    args: [],
+                },
+            },
+            Arm {
+                left: ToIs {
+                    original: Identifier("day_enum"),
+                    binding: StructDestructure [
+                        StructDestructureBinding {
+                            field_name: Identifier("time"),
+                            binding: IdentifierBinding {
+                                name: Identifier("time"),
+                                mutable: false,
+                            },
+                        },
+                        StructDestructureBinding {
+                            field_name: Identifier("wednesday_event"),
+                            binding: IdentifierBinding {
+                                name: Identifier("wednesday_event"),
+                                mutable: true,
+                            },
+                        },
+                    ],
+                    is target: MemberAccess {
+                        left: Identifier("Day"),
+                        right: Identifier("Wednesday"),
+                    },
+                },
+                right: FuncCall {
+                    callee: Identifier("buzz"),
+                    args: [],
+                },
+            },
+        ],
+    },
+]

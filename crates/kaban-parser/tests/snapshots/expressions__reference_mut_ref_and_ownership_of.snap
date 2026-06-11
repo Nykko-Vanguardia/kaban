@@ -1,0 +1,35 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: let x = &y; let z = &mut w; let u = *v;
+
+Block [
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("x"),
+            mutable: false,
+        },
+        assignment: ReferenceOf(
+            Identifier("y"),
+        ),
+    },
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("z"),
+            mutable: false,
+        },
+        assignment: MutReferenceOf(
+            Identifier("w"),
+        ),
+    },
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("u"),
+            mutable: false,
+        },
+        assignment: OwnershipOf(
+            Identifier("v"),
+        ),
+    },
+]

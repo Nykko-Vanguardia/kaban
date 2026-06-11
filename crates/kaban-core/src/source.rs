@@ -1,22 +1,24 @@
-use crate::{UIndex, SourceSpan, ToUIndex, ToUsize};
+use crate::{ToUIndex, ToUsize, UIndex};
 
 #[derive(Clone, Copy)]
 pub struct Source<'a> {
-    source: &'a [u8]
+    source: &'a [u8],
 }
 
 impl<'a> Source<'a> {
     pub fn new(source: &'a str) -> Source<'a> {
-        Source { source: source.as_bytes() }
+        Source {
+            source: source.as_bytes(),
+        }
     }
 
-    #[inline(always)]
-    pub fn get(&self, span: SourceSpan) -> &'a [u8] {
-        &self.source[span.start.usize()..span.end.usize()]
-    }
+    // #[inline(always)]
+    // pub fn get(&self, span: SourceSpan) -> &'a [u8] {
+    //     &self.source[span.start.usize()..span.end.usize()]
+    // }
 
     #[inline(always)]
-    pub fn get_start_end(&self, start: UIndex, end: UIndex) -> &'a[u8] {
+    pub fn get(&self, start: UIndex, end: UIndex) -> &'a [u8] {
         &self.source[start.usize()..end.usize()]
     }
 
@@ -31,26 +33,36 @@ impl<'a> Source<'a> {
     }
 
     #[inline(always)]
-    pub fn matches(&self, span: SourceSpan, matches: &str) -> bool {
-        self.get(span) == matches.as_bytes()
+    pub fn is_empty(&self) -> bool {
+        self.source.is_empty()
     }
 
     #[inline(always)]
-    pub fn as_str(&self, span: SourceSpan) -> &str {
-        unsafe {
-            str::from_utf8_unchecked(self.get(span))
-        }
+    pub fn matches(&self, start: UIndex, end: UIndex, matches: &str) -> bool {
+        self.get(start, end) == matches.as_bytes()
+    }
+
+    #[inline(always)]
+    pub fn as_str(&self, start: UIndex, end: UIndex) -> &str {
+        unsafe { str::from_utf8_unchecked(self.get(start, end)) }
     }
 
     #[inline(always)]
     pub fn as_str_start_end(&self, start: UIndex, end: UIndex) -> &str {
-        self.as_str(SourceSpan { start, end })
+        self.as_str(start, end)
+    }
+
+    #[inline(always)]
+    pub fn get_source_as_str(&self) -> &str {
+        self.as_str_start_end(0, self.source.len().uindex())
     }
 }
 
 impl<'a> IsSource<'a> for &str {
     fn to_source(&'a self) -> Source<'a> {
-        Source { source: self.as_bytes() }
+        Source {
+            source: self.as_bytes(),
+        }
     }
 }
 

@@ -1,0 +1,163 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    pub interface Transformer<T, U> {
+        requires struct { capacity: i32, size: i32 }
+        func transform<V>(self&, input: T, mapper: func(x: U) -> V) -> V;
+        func batch_transform<V, W>(self&, inputs: T[], f: func(x: U) -> V, g: func(x: V) -> W) -> W[];
+    }
+    
+
+Block [
+    InterfaceDeclWithGeneric {
+        is_pub: true,
+        interface_name: Identifier("Transformer"),
+        shape: AnonymousStructType [
+            AnonymousStructFieldDecl {
+                field_name: Identifier("capacity"),
+                type: Type(I32),
+            },
+            AnonymousStructFieldDecl {
+                field_name: Identifier("size"),
+                type: Type(I32),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("transform"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("input"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("T"),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("mapper"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("U"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("V"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("V"),
+                    },
+                ],
+                return_type: NamedType(
+                    Identifier("V"),
+                ),
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("batch_transform"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("inputs"),
+                            mutable: false,
+                        },
+                        type: DynArrayType(
+                            NamedType(
+                                Identifier("T"),
+                            ),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("U"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("V"),
+                            ),
+                        },
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("g"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("V"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("W"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("V"),
+                    },
+                    GenericParam {
+                        name: Identifier("W"),
+                    },
+                ],
+                return_type: DynArrayType(
+                    NamedType(
+                        Identifier("W"),
+                    ),
+                ),
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+    },
+]

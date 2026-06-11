@@ -1,0 +1,25 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo(if (x > 0) pass x else pass y);
+
+Block [
+    FuncCall {
+        callee: Identifier("foo"),
+        args: [
+            IfExpression {
+                condition: Greater {
+                    left: Identifier("x"),
+                    right: IntLit("0"),
+                },
+                then: Pass(
+                    Identifier("x"),
+                ),
+                else: Pass(
+                    Identifier("y"),
+                ),
+            },
+        ],
+    },
+]

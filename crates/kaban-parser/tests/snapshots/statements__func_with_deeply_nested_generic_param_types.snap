@@ -1,0 +1,63 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo<T, U>(x: Result<HashMap<String, T>, U>) -> T { x += 10; return x; }
+
+Block [
+    FuncDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Result"),
+                    ),
+                    generic_args: [
+                        TypeWithGenerics {
+                            type: NamedType(
+                                Identifier("HashMap"),
+                            ),
+                            generic_args: [
+                                NamedType(
+                                    Identifier("String"),
+                                ),
+                                NamedType(
+                                    Identifier("T"),
+                                ),
+                            ],
+                        },
+                        NamedType(
+                            Identifier("U"),
+                        ),
+                    ],
+                },
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        return_type: NamedType(
+            Identifier("T"),
+        ),
+        body: Block [
+            PlusAssignment {
+                left: Identifier("x"),
+                right: IntLit("10"),
+            },
+            Return(
+                Identifier("x"),
+            ),
+        ],
+    },
+]

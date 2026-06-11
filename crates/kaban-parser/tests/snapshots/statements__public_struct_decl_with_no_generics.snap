@@ -1,0 +1,24 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: pub struct Point {x: i32, y: i32}
+
+Block [
+    StructDeclWithNoGeneric {
+        is_pub: true,
+        name: Identifier("Point"),
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("x"),
+                type: Type(I32),
+            },
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("y"),
+                type: Type(I32),
+            },
+        ],
+    },
+]

@@ -1,0 +1,15 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: let x = true;
+
+Block [
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("x"),
+            mutable: false,
+        },
+        assignment: TrueLit("true"),
+    },
+]

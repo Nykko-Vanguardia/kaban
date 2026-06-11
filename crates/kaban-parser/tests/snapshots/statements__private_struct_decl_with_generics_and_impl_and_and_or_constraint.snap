@@ -1,0 +1,46 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: struct Point<T: impl Serializable & impl Debug | impl DebugSerializable> {pub x: T, pub y: T,}
+
+Block [
+    StructDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("Point"),
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+                constraint: OrGenericConstaint {
+                    left: AndGenericConstaint {
+                        left: InterfaceConstraint(
+                            Identifier("Serializable"),
+                        ),
+                        right: InterfaceConstraint(
+                            Identifier("Debug"),
+                        ),
+                    },
+                    right: InterfaceConstraint(
+                        Identifier("DebugSerializable"),
+                    ),
+                },
+            },
+        ],
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: true,
+                field_name: Identifier("x"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            StructFieldDecleration {
+                is_pub: true,
+                field_name: Identifier("y"),
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+        ],
+    },
+]

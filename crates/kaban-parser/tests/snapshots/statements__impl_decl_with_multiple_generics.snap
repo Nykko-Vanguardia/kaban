@@ -1,0 +1,80 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Pair<T, U>::Core<T, U> {
+        func first(self&) -> T { return self.first; }
+        func second(self&) -> U { return self.second; }
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Pair"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+                NamedType(
+                    Identifier("U"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("first"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: NamedType(
+                    Identifier("T"),
+                ),
+                body: Block [
+                    Return(
+                        MemberAccess {
+                            left: Self_,
+                            right: Identifier("first"),
+                        },
+                    ),
+                ],
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("second"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: NamedType(
+                    Identifier("U"),
+                ),
+                body: Block [
+                    Return(
+                        MemberAccess {
+                            left: Self_,
+                            right: Identifier("second"),
+                        },
+                    ),
+                ],
+            },
+        ],
+    },
+]

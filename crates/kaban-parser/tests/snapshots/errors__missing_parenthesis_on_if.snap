@@ -1,0 +1,11 @@
+---
+source: crates/kaban-parser/tests/errors.rs
+expression: print
+---
+input: if x == 10 {}
+
+Block []
+
+errors!: [
+    ParseError at 3: LeftParen expected! found Identifier instead,
+]

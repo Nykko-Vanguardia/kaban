@@ -1,0 +1,53 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+        struct Point { x: i32, y: i32 }
+        impl Point::Core {
+            func distance(self&) -> f64 { return 0.0; }
+        }
+    
+
+Block [
+    StructDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Point"),
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("x"),
+                type: Type(I32),
+            },
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("y"),
+                type: Type(I32),
+            },
+        ],
+    },
+    ImplDeclWithNoGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: NamedType(
+            Identifier("Point"),
+        ),
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("distance"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: Type(F64),
+                body: Block [
+                    Return(
+                        FloatLit("0.0"),
+                    ),
+                ],
+            },
+        ],
+    },
+]

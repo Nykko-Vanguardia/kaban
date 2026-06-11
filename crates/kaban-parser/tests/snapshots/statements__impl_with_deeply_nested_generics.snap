@@ -1,0 +1,441 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: impl Registry<K, V>::Core<K, V> {
+        func transform<A, B, C>(
+            self&,
+            f: func(
+                x: Result<
+                    HashMap<K, Vec<V>>,
+                    Option<A>
+                >
+            ) -> HashMap<
+                Result<B, K>,
+                Vec<C>
+            >,
+            g: func(
+                y: HashMap<
+                    Option<K>,
+                    Result<V, A>
+                >
+            ) -> Result<
+                Vec<B>,
+                Option<C>
+            >
+        ) -> Registry<
+            Result<K, B>,
+            HashMap<V, C>
+        >;
+
+        func fold<X, Y>(
+            self&,
+            reducer: func(
+                x: Result<
+                    HashMap<
+                        K,
+                        Result<V, X>
+                    >,
+                    Vec<Y>
+                >
+            ) -> Option<
+                HashMap<X, Y>
+            >
+        ) -> Result<
+            Registry<X, Y>,
+            Option<K>
+        >;
+
+        func identity(self&) -> Registry<K, V> {
+            return self;
+        }
+    }
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Registry"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("K"),
+                ),
+                NamedType(
+                    Identifier("V"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("K"),
+            },
+            GenericParam {
+                name: Identifier("V"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("transform"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Result"),
+                                        ),
+                                        generic_args: [
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("HashMap"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("K"),
+                                                    ),
+                                                    TypeWithGenerics {
+                                                        type: NamedType(
+                                                            Identifier("Vec"),
+                                                        ),
+                                                        generic_args: [
+                                                            NamedType(
+                                                                Identifier("V"),
+                                                            ),
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("Option"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("A"),
+                                                    ),
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                            return type: TypeWithGenerics {
+                                type: NamedType(
+                                    Identifier("HashMap"),
+                                ),
+                                generic_args: [
+                                    TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Result"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("B"),
+                                            ),
+                                            NamedType(
+                                                Identifier("K"),
+                                            ),
+                                        ],
+                                    },
+                                    TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Vec"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("C"),
+                                            ),
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("g"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("y"),
+                                        mutable: false,
+                                    },
+                                    type: TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("HashMap"),
+                                        ),
+                                        generic_args: [
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("Option"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("K"),
+                                                    ),
+                                                ],
+                                            },
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("Result"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("V"),
+                                                    ),
+                                                    NamedType(
+                                                        Identifier("A"),
+                                                    ),
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                            return type: TypeWithGenerics {
+                                type: NamedType(
+                                    Identifier("Result"),
+                                ),
+                                generic_args: [
+                                    TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Vec"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("B"),
+                                            ),
+                                        ],
+                                    },
+                                    TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Option"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("C"),
+                                            ),
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("A"),
+                    },
+                    GenericParam {
+                        name: Identifier("B"),
+                    },
+                    GenericParam {
+                        name: Identifier("C"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Registry"),
+                    ),
+                    generic_args: [
+                        TypeWithGenerics {
+                            type: NamedType(
+                                Identifier("Result"),
+                            ),
+                            generic_args: [
+                                NamedType(
+                                    Identifier("K"),
+                                ),
+                                NamedType(
+                                    Identifier("B"),
+                                ),
+                            ],
+                        },
+                        TypeWithGenerics {
+                            type: NamedType(
+                                Identifier("HashMap"),
+                            ),
+                            generic_args: [
+                                NamedType(
+                                    Identifier("V"),
+                                ),
+                                NamedType(
+                                    Identifier("C"),
+                                ),
+                            ],
+                        },
+                    ],
+                },
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("fold"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("reducer"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Result"),
+                                        ),
+                                        generic_args: [
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("HashMap"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("K"),
+                                                    ),
+                                                    TypeWithGenerics {
+                                                        type: NamedType(
+                                                            Identifier("Result"),
+                                                        ),
+                                                        generic_args: [
+                                                            NamedType(
+                                                                Identifier("V"),
+                                                            ),
+                                                            NamedType(
+                                                                Identifier("X"),
+                                                            ),
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            TypeWithGenerics {
+                                                type: NamedType(
+                                                    Identifier("Vec"),
+                                                ),
+                                                generic_args: [
+                                                    NamedType(
+                                                        Identifier("Y"),
+                                                    ),
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                            return type: TypeWithGenerics {
+                                type: NamedType(
+                                    Identifier("Option"),
+                                ),
+                                generic_args: [
+                                    TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("HashMap"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("X"),
+                                            ),
+                                            NamedType(
+                                                Identifier("Y"),
+                                            ),
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("X"),
+                    },
+                    GenericParam {
+                        name: Identifier("Y"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Result"),
+                    ),
+                    generic_args: [
+                        TypeWithGenerics {
+                            type: NamedType(
+                                Identifier("Registry"),
+                            ),
+                            generic_args: [
+                                NamedType(
+                                    Identifier("X"),
+                                ),
+                                NamedType(
+                                    Identifier("Y"),
+                                ),
+                            ],
+                        },
+                        TypeWithGenerics {
+                            type: NamedType(
+                                Identifier("Option"),
+                            ),
+                            generic_args: [
+                                NamedType(
+                                    Identifier("K"),
+                                ),
+                            ],
+                        },
+                    ],
+                },
+            },
+            FuncDeclWithNoGeneric {
+                is_pub: false,
+                name: Identifier("identity"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Registry"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("K"),
+                        ),
+                        NamedType(
+                            Identifier("V"),
+                        ),
+                    ],
+                },
+                body: Block [
+                    Return(
+                        Self_,
+                    ),
+                ],
+            },
+        ],
+    },
+]

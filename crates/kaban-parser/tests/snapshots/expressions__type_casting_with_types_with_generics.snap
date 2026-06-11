@@ -1,0 +1,22 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: x as HashMap<String, i32>;
+
+Block [
+    As {
+        left: Identifier("x"),
+        right: TypeWithGenerics {
+            type: NamedType(
+                Identifier("HashMap"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("String"),
+                ),
+                Type(I32),
+            ],
+        },
+    },
+]

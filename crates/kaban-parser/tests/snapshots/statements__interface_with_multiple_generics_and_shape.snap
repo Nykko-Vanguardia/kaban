@@ -1,0 +1,80 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    pub interface Mapper<T, U> {
+        requires struct { size: i32 }
+        func map(self&, value: T) -> U;
+        func map_all(self&, values: T[]) -> U[];
+    }
+    
+
+Block [
+    InterfaceDeclWithGeneric {
+        is_pub: true,
+        interface_name: Identifier("Mapper"),
+        shape: AnonymousStructType [
+            AnonymousStructFieldDecl {
+                field_name: Identifier("size"),
+                type: Type(I32),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("map"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("value"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("T"),
+                        ),
+                    },
+                ],
+                return_type: NamedType(
+                    Identifier("U"),
+                ),
+            },
+            FuncNoBodyWithNoGeneric {
+                is_pub: false,
+                name: Identifier("map_all"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("values"),
+                            mutable: false,
+                        },
+                        type: DynArrayType(
+                            NamedType(
+                                Identifier("T"),
+                            ),
+                        ),
+                    },
+                ],
+                return_type: DynArrayType(
+                    NamedType(
+                        Identifier("U"),
+                    ),
+                ),
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+    },
+]

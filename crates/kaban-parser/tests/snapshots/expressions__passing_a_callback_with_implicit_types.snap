@@ -1,0 +1,39 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo(func(a, b) pass a + b, 20);
+
+Block [
+    FuncCall {
+        callee: Identifier("foo"),
+        args: [
+            AnonymousFuncDecl {
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("a"),
+                            mutable: false,
+                        },
+                        type: "NONE",
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("b"),
+                            mutable: false,
+                        },
+                        type: "NONE",
+                    },
+                ],
+                return type: "NONE",
+                block: Pass(
+                    Add {
+                        left: Identifier("a"),
+                        right: Identifier("b"),
+                    },
+                ),
+            },
+            IntLit("20"),
+        ],
+    },
+]

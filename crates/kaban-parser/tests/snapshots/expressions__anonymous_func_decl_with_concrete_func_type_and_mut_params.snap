@@ -1,0 +1,58 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: let x: func(mut x: i32, y: i32) -> i32 = func(mut x, y) pass x + y;
+
+Block [
+    Let {
+        name: IdentifierBinding {
+            name: Identifier("x"),
+            mutable: false,
+        },
+        type: FuncType {
+            params: [
+                Param {
+                    binding: IdentifierBinding {
+                        name: Identifier("x"),
+                        mutable: true,
+                    },
+                    type: Type(I32),
+                },
+                Param {
+                    binding: IdentifierBinding {
+                        name: Identifier("y"),
+                        mutable: false,
+                    },
+                    type: Type(I32),
+                },
+            ],
+            return type: Type(I32),
+        },
+        assignment: AnonymousFuncDecl {
+            params: [
+                Param {
+                    binding: IdentifierBinding {
+                        name: Identifier("x"),
+                        mutable: true,
+                    },
+                    type: "NONE",
+                },
+                Param {
+                    binding: IdentifierBinding {
+                        name: Identifier("y"),
+                        mutable: false,
+                    },
+                    type: "NONE",
+                },
+            ],
+            return type: "NONE",
+            block: Pass(
+                Add {
+                    left: Identifier("x"),
+                    right: Identifier("y"),
+                },
+            ),
+        },
+    },
+]

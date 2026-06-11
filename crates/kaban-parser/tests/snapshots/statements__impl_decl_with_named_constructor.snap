@@ -1,0 +1,36 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: impl Person::Factory { pub func from_str(s: String&) -> self { } }
+
+Block [
+    ImplDeclWithNoGeneric {
+        is_pub: false,
+        impl_name: Identifier("Factory"),
+        self_type: NamedType(
+            Identifier("Person"),
+        ),
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: true,
+                name: Identifier("from_str"),
+                params: [
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("s"),
+                            mutable: false,
+                        },
+                        type: Borrow(
+                            NamedType(
+                                Identifier("String"),
+                            ),
+                        ),
+                    },
+                ],
+                return_type: Self_,
+                body: Block [],
+            },
+        ],
+    },
+]

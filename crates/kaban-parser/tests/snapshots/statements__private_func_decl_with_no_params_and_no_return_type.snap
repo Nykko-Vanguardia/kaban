@@ -1,0 +1,15 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo() { }
+
+Block [
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [],
+        return_type: "NONE",
+        body: Block [],
+    },
+]

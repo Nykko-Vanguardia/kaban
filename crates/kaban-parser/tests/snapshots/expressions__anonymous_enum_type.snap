@@ -1,0 +1,25 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: x as enum { Default, Fast, Clean: i32, };
+
+Block [
+    As {
+        left: Identifier("x"),
+        right: AnonymousEnumType [
+            EnumVariantDecl {
+                variant_name: Identifier("Default"),
+                type: "NONE",
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Fast"),
+                type: "NONE",
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Clean"),
+                type: Type(I32),
+            },
+        ],
+    },
+]

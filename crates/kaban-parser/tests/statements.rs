@@ -1,18 +1,8 @@
-use kaban_core::source::{IsSource};
-use kaban_lexer::Lexer;
+use kaban_core::source::IsSource;
+use kaban_lexer::{Lexer, lexer::LexResult};
 use kaban_parser::Parser;
-
-macro_rules! test_snapshot {
-    ($input:expr) => {
-        let input = $input;
-        let source = input.to_source();
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize(); 
-        let ast = Parser::new(&tokens, source).parse_program();
-        
-        insta::assert_snapshot!(format!("input: {}\n\n{:#?}", input, ast.to_debugger()));
-    };
-}
+// use kaban_parser::AST;
+mod test_macro;
 
 #[test]
 fn let_statement_with_no_type() {
@@ -67,4 +57,665 @@ fn let_with_struct_destructure_with_mutable_and_bindings() {
 #[test]
 fn let_with_nested_struct_destructure_with_mutable_and_bindings() {
     test_snapshot!("let {a: {ax: mut foo, mut ay}, b: buzz,} = foo();");
+}
+
+#[test]
+fn let_statement_with_if_expression() {
+    test_snapshot!("let x = if (x == 10) pass 20;");
+}
+
+#[test]
+fn private_const_statement() {
+    test_snapshot!("const MY_NUMBER: i32 = 10;");
+}
+
+#[test]
+fn public_const_statement() {
+    test_snapshot!("pub const MY_NUMBER: i32 = 10;");
+}
+
+#[test]
+fn private_struct_decl_with_no_generics() {
+    test_snapshot!("struct Point {x: i32, y: i32}");
+}
+
+#[test]
+fn private_struct_decl_with_no_generics_and_public_fields() {
+    test_snapshot!("struct Point {pub x: i32, pub y: i32,}");
+}
+
+#[test]
+fn public_struct_decl_with_no_generics() {
+    test_snapshot!("pub struct Point {x: i32, y: i32}");
+}
+
+#[test]
+fn public_struct_decl_with_no_generics_and_public_fields() {
+    test_snapshot!("struct Point {x: i32, pub y: i32,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_no_constraints() {
+    test_snapshot!("struct Point<T> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_one_i32_constraint() {
+    test_snapshot!("struct Point<T: i32> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_one_i32_or_f64_constraint() {
+    test_snapshot!("struct Point<T: i32 | f64> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_or_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable | impl Debug> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_and_constraint() {
+    test_snapshot!("struct Point<T: impl Serializable & impl Debug> {pub x: T, pub y: T,}");
+}
+
+#[test]
+fn private_struct_decl_with_generics_and_impl_and_and_or_constraint() {
+    test_snapshot!(
+        "struct Point<T: impl Serializable & impl Debug | impl DebugSerializable> {pub x: T, pub y: T,}"
+    );
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_generics_and_parenthesis_constraint() {
+    test_snapshot!(
+        "struct Point<T: impl Serializable & (impl Debug | impl DebugSerializable)> {pub x: T, pub y: T,}"
+    );
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_multiple_generics() {
+    test_snapshot!("struct Point<T, U,> {pub x: T, pub y: U,}");
+}
+
+//NOTE: FOR NOW ITS ALWAYS LEFT PRECEDENCE, I do not know if i want to add precedence of and over
+//or
+#[test]
+fn private_struct_decl_with_multiple_generics_and_interface_constraints() {
+    test_snapshot!("struct Point<T: impl Serializable, U: impl Debug,> {pub x: T, pub y: U,}");
+}
+
+#[test]
+fn private_enum_decl_with_tags_only() {
+    test_snapshot!("enum Day {Sunday, Monday, Tuesday}");
+}
+
+#[test]
+fn public_enum_decl_with_tags_only() {
+    test_snapshot!("pub enum Day {Sunday, Monday, Tuesday}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments() {
+    test_snapshot!("enum Day {Sunday: i32, Monday: f64, Tuesday,}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments_and_generics() {
+    test_snapshot!("enum Day<T> {Sunday: i32, Monday: f64, Tuesday: T,}");
+}
+
+#[test]
+fn private_enum_decl_with_type_assignments_and_struct_and_tuple_decl() {
+    test_snapshot!(
+        "enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}"
+    );
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_no_return_type() {
+    test_snapshot!("func foo(x: i32, y: f64) { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_with_return_type() {
+    test_snapshot!("func foo(x: i32, y: f64) -> f64 { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_no_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo(mut x: i32, y: f64,) -> f64 { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo<T,>(mut x: T, y: f64,) -> T { let z = x + y; return z; }");
+}
+
+#[test]
+fn private_func_decl_with_multiple_generics_and_with_return_type_and_mut_values() {
+    test_snapshot!("func foo<T, U>(mut x: T, y: U,) -> T { let z = x + y; return z; }");
+}
+
+#[test]
+fn public_func_decl_with_generic_constaint_interface_sugar() {
+    test_snapshot!(
+        "pub func foo(mut x: impl Serializable, y: impl Debug & impl Clone) -> T { let z = x + y; return z; }"
+    );
+}
+
+// REMOVED
+// #[test]
+// fn func_decl_with_self_param() {
+//     test_snapshot!("func foo(self, x: i32) -> i32 { let z = x; return z; }");
+// }
+//
+// #[test]
+// fn func_decl_with_self_param_only() {
+//     test_snapshot!("func foo(self) -> i32 { let z = self.y; return z; }");
+// }
+
+#[test]
+fn func_decl_with_self_read_reference() {
+    test_snapshot!("func foo(self&) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_mut_reference() {
+    test_snapshot!("func foo(self&mut,) -> i32 { let z = self.y; return z; }");
+}
+
+#[test]
+fn func_decl_with_self_pointer() {
+    test_snapshot!("func foo(self*, x: i32) -> i32 { let z = self.y; return z; }");
+}
+
+// REMOVED
+// #[test]
+// fn func_decl_with_mut_self() {
+//     test_snapshot!("func foo(mut self, x: i32) -> i32 { let z = self.y; return z; }");
+// }
+
+// #[test]
+// fn func_decl_with_self_param_only_and_generics() {
+//     test_snapshot!("func foo<T>(self, y: T) -> i32 { let z = self.y; return z; }");
+// }
+
+#[test]
+fn impl_decl_with_no_generics() {
+    test_snapshot!(
+        "
+    impl Person::Core {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_decl_with_generics() {
+    test_snapshot!(
+        "
+    impl Person<T>::Core<T> {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_decl_with_generics_and_constaint() {
+    test_snapshot!(
+        "
+    impl Talks for Person<T>::Core<T> {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_decl_with_no_generics_and_constaint() {
+    test_snapshot!(
+        "
+    impl Talks for Person::Core {
+        pub const NUMBER: u8 = 10;
+
+        pub func walk(self&, steps: i32) {
+            self.step(steps);
+        }
+
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_decl_with_no_shape_no_generics() {
+    test_snapshot!(
+        "
+    pub interface Talks {
+        func step(step: i32) -> i32 {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_decl_with_shape_no_generics() {
+    test_snapshot!(
+        "
+    pub interface Talks {
+        requires struct { x: i32, y: i32 }
+        func step(step: i32) -> i32 {
+            return self.x;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_decl_with_no_shape_generics() {
+    test_snapshot!(
+        "
+    pub interface Talks<T> {
+        func step(step: T) -> T {
+            return step;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_decl_with_shape_generics() {
+    test_snapshot!(
+        "
+    pub interface Talks<T> {
+        requires struct { x: i32, y: i32 }
+
+        func step(step: T) -> T {
+            return self.x;
+        }
+
+        func default_talk(self&, message: c8);
+    }
+    "
+    );
+}
+
+#[test]
+fn func_decl_with_no_params() {
+    test_snapshot!("func foo() -> i32 { return 5; }");
+}
+
+#[test]
+fn pub_func_decl_with_no_params() {
+    test_snapshot!("pub func foo() -> i32 { return 5; }");
+}
+
+#[test]
+fn func_decl_with_self_and_multiple_params() {
+    test_snapshot!("func foo(self&, x: i32, y: f64) -> i32 { return x; }");
+}
+
+#[test]
+fn func_decl_with_self_mut_and_multiple_params() {
+    test_snapshot!("func foo(self&mut, x: i32) -> i32 { return x; }");
+}
+
+#[test]
+fn func_decl_with_generic_and_self_param() {
+    test_snapshot!("func foo<T>(self&, x: T) -> T { return x; }");
+}
+
+#[test]
+fn let_with_true_literal() {
+    test_snapshot!("let x = true;");
+}
+
+#[test]
+fn let_with_string_literal() {
+    test_snapshot!(r#"let x = "hello";"#);
+}
+
+#[test]
+fn struct_decl_single_field() {
+    test_snapshot!("struct Foo { x: i32 }");
+}
+
+#[test]
+fn struct_field_with_generic_type() {
+    test_snapshot!("struct Foo { x: HashMap<String, i32>, }");
+}
+
+#[test]
+fn struct_field_with_pointer_type() {
+    test_snapshot!("struct Foo { x: i32*, y: String&, }");
+}
+
+#[test]
+fn impl_decl_with_anonymous_constructor_only() {
+    test_snapshot!("impl Person::Core { pub func new() -> self { } }");
+}
+
+#[test]
+fn impl_decl_with_named_constructor() {
+    test_snapshot!("impl Person::Factory { pub func from_str(s: String&) -> self { } }");
+}
+
+#[test]
+fn impl_decl_with_constructor_and_methods() {
+    test_snapshot!(
+        "
+        impl Person::Core {
+            pub func new(name: String*, age: i32) -> self { }
+            func get_name(self&) -> String& { return self.name; }
+        }
+    "
+    );
+}
+
+#[test]
+fn multiple_sequential_func_decls() {
+    test_snapshot!(
+        "
+        func foo() -> i32 { return 1; }
+        func bar() -> i32 { return 2; }
+        func baz() -> i32 { return 3; }
+    "
+    );
+}
+
+#[test]
+fn pub_const_with_binary_expression() {
+    test_snapshot!("pub const FOO: i32 = 10 + 5 * 2;");
+}
+
+#[test]
+fn enum_decl_with_no_variants() {
+    test_snapshot!("enum Empty {}");
+}
+
+#[test]
+fn private_func_decl_with_no_params_and_no_return_type() {
+    test_snapshot!("func foo() { }");
+}
+
+#[test]
+fn struct_and_impl_sequential() {
+    test_snapshot!(
+        "
+        struct Point { x: i32, y: i32 }
+        impl Point::Core {
+            func distance(self&) -> f64 { return 0.0; }
+        }
+    "
+    );
+}
+
+//TEST SCRATCH RECURSSION
+#[test]
+fn func_decl_with_multiple_generics_and_multiple_params() {
+    test_snapshot!("func foo<T, U, V>(x: T, y: U, z: V) -> V { return z; }");
+}
+
+#[test]
+fn func_decl_with_multiple_generics_self_and_params() {
+    test_snapshot!("func foo<T, U>(self&, x: T, y: U) -> T { return x; }");
+}
+
+#[test]
+fn func_decl_with_generic_param_of_generic_type() {
+    test_snapshot!("func foo<T>(x: HashMap<String, T>, y: T) -> HashMap<String, T> { return x; }");
+}
+
+#[test]
+fn func_decl_with_multiple_constrained_generics() {
+    test_snapshot!("func foo<T: impl Serializable, U: impl Debug>(x: T, y: U) -> T { return x; }");
+}
+
+#[test]
+fn struct_with_multiple_generics_and_multiple_fields() {
+    test_snapshot!("struct Pair<T, U> { first: T, second: U, tag: i32, }");
+}
+
+#[test]
+fn struct_with_nested_generic_field() {
+    test_snapshot!("struct Cache<T> { items: HashMap<String, T>, size: i32, }");
+}
+
+#[test]
+fn enum_with_multiple_generics() {
+    test_snapshot!("enum Result<T, E> { Ok: T, Err: E, }");
+}
+
+#[test]
+fn impl_decl_with_multiple_generics() {
+    test_snapshot!(
+        "
+    impl Pair<T, U>::Core<T, U> {
+        func first(self&) -> T { return self.first; }
+        func second(self&) -> U { return self.second; }
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_multiple_generics_and_shape() {
+    test_snapshot!(
+        "
+    pub interface Mapper<T, U> {
+        requires struct { size: i32 }
+        func map(self&, value: T) -> U;
+        func map_all(self&, values: T[]) -> U[];
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_struct_generics_and_generic_method_inside() {
+    test_snapshot!(
+        "
+    impl Container<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Container<U> { return Container::Core.new(f(self.value)); }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_multiple_generic_methods() {
+    test_snapshot!(
+        "
+    impl Pair<T, U>::Core<T, U> {
+        func map_first<V>(self&, f: func(x: T) -> V) -> Pair<V, U>;
+        func map_second<V>(self&, f: func(x: U) -> V) -> Pair<T, V>;
+        func map_both<V, W>(self&, f: func(x: T) -> V, g: func(x: U) -> W) -> Pair<V, W>;
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_generics_and_generic_methods_inside() {
+    test_snapshot!(
+        "
+    pub interface Functor<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Functor<U>;
+        func flat_map<U>(self&, f: func(x: T) -> Functor<U>) -> Functor<U>;
+    }
+    "
+    );
+}
+
+#[test]
+fn interface_with_multiple_generics_shape_and_generic_methods() {
+    test_snapshot!(
+        "
+    pub interface Transformer<T, U> {
+        requires struct { capacity: i32, size: i32 }
+        func transform<V>(self&, input: T, mapper: func(x: U) -> V) -> V;
+        func batch_transform<V, W>(self&, inputs: T[], f: func(x: U) -> V, g: func(x: V) -> W) -> W[];
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_generics_mixed_generic_and_non_generic_methods() {
+    test_snapshot!(
+        "
+    impl Cache<K, V>::Core<K, V> {
+        func get(self&, key: K&) -> V?;
+        func insert<E>(self&mut, key: K, value: V) -> Result<i32, E>;
+        func transform_values<W>(self&, f: func(x: V) -> W) -> Cache<K, W>;
+        func size(self&) -> i32 { return self.size; }
+    }
+    "
+    );
+}
+
+#[test]
+fn generic_method_with_deeply_nested_generic_param_types_inside_generic_impl() {
+    test_snapshot!(
+        "
+    impl Graph<T>::Core<T> {
+        func shortest_path<W>(self&, from: T, to_: T, weight: func(x: Edge<T, W>) -> W) -> Result<W[], PathError>;
+    }
+    "
+    );
+}
+
+#[test]
+fn multiple_generic_impl_blocks_with_generic_methods() {
+    test_snapshot!(
+        "
+    impl Pipeline<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Pipeline<U>;
+        func filter(self&, f: func(x: T) -> bool) -> Pipeline<T>;
+    }
+    impl Pipeline<T>::Builder<T> {
+        func from<U>(source: U, converter: func(x: U) -> T) -> Pipeline<T>;
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_generics_implementing_generic_interface() {
+    test_snapshot!(
+        "
+    impl Functor<T> for Container<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Container<U> {
+            return Container::Core.new(f(self.value));
+        }
+    }
+    "
+    );
+}
+
+#[test]
+fn impl_with_deeply_nested_generics() {
+    test_snapshot!(
+        "impl Registry<K, V>::Core<K, V> {
+        func transform<A, B, C>(
+            self&,
+            f: func(
+                x: Result<
+                    HashMap<K, Vec<V>>,
+                    Option<A>
+                >
+            ) -> HashMap<
+                Result<B, K>,
+                Vec<C>
+            >,
+            g: func(
+                y: HashMap<
+                    Option<K>,
+                    Result<V, A>
+                >
+            ) -> Result<
+                Vec<B>,
+                Option<C>
+            >
+        ) -> Registry<
+            Result<K, B>,
+            HashMap<V, C>
+        >;
+
+        func fold<X, Y>(
+            self&,
+            reducer: func(
+                x: Result<
+                    HashMap<
+                        K,
+                        Result<V, X>
+                    >,
+                    Vec<Y>
+                >
+            ) -> Option<
+                HashMap<X, Y>
+            >
+        ) -> Result<
+            Registry<X, Y>,
+            Option<K>
+        >;
+
+        func identity(self&) -> Registry<K, V> {
+            return self;
+        }
+    }"
+    );
+}
+
+#[test]
+fn func_with_deeply_nested_generic_param_types() {
+    test_snapshot!("func foo<T, U>(x: Result<HashMap<String, T>, U>) -> T { x += 10; return x; }");
 }

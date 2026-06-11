@@ -1,0 +1,12 @@
+---
+source: crates/kaban-parser/tests/errors.rs
+expression: print
+---
+input: { let x = 10
+
+Block []
+
+errors!: [
+    ParseError at 12: Semicolon expected! found EOF instead,
+    ParseError at 12: RightBrace expected! found EOF instead,
+]

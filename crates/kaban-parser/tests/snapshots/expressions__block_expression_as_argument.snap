@@ -1,0 +1,28 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo({ let x = 10; pass x + 1; });
+
+Block [
+    FuncCall {
+        callee: Identifier("foo"),
+        args: [
+            Block [
+                Let {
+                    name: IdentifierBinding {
+                        name: Identifier("x"),
+                        mutable: false,
+                    },
+                    assignment: IntLit("10"),
+                },
+                Pass(
+                    Add {
+                        left: Identifier("x"),
+                        right: IntLit("1"),
+                    },
+                ),
+            ],
+        ],
+    },
+]

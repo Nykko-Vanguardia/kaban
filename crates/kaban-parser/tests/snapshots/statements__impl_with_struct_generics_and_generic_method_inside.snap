@@ -1,0 +1,102 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Container<T>::Core<T> {
+        func map<U>(self&, f: func(x: T) -> U) -> Container<U> { return Container::Core.new(f(self.value)); }
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Container"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        statements: [
+            FuncDeclWithGeneric {
+                is_pub: false,
+                name: Identifier("map"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("T"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("U"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("U"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Container"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("U"),
+                        ),
+                    ],
+                },
+                body: Block [
+                    Return(
+                        MethodCall {
+                            callee: ImplAccess {
+                                left: Identifier("Container"),
+                                right: Identifier("Core"),
+                            },
+                            method name: Identifier("new"),
+                            is mutable: false,
+                            args: [
+                                FuncCall {
+                                    callee: Identifier("f"),
+                                    args: [
+                                        MemberAccess {
+                                            left: Self_,
+                                            right: Identifier("value"),
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ),
+                ],
+            },
+        ],
+    },
+]

@@ -1,3 +1,4 @@
+pub mod compiler_error;
 pub mod source;
 pub type UIndex = u32;
 
@@ -17,12 +18,12 @@ impl ToUIndex for usize {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 /// Represents a byte range in the source text.
-/// 
+///
 /// `start` is inclusive, `end` is exclusive.
 /// To extract the text: `&source[span.start as usize..span.end as usize]`
-/// 
+///
 /// # Example
-/// ```
+/// ```example
 /// // source: "if x"
 /// //          01234
 /// // Token "if" → SourceSpan { start: 0, end: 2 }
@@ -42,27 +43,23 @@ pub trait ToUIndex {
 }
 
 impl ToUIndex for bool {
+    ///RETURNS 1 IF TRUE, 0 IF FALSE
     #[inline(always)]
     fn uindex(self) -> UIndex {
-        if self == true {
-            1
-        } else {
-            0
-        }
+        if self { 1 } else { 0 }
     }
 }
 
 impl ToBool for UIndex {
-    ///Converts 1 if its true
+    ///Converts 1 to true
     ///Converts 0 to false
     #[inline(always)]
     fn bool(self) -> bool {
-        debug_assert!(self == 1 || self == 0, "tried to convert a non 0 or 1 uindex to a bool");
-        if self == 1 {
-            true
-        } else {
-            false
-        }
+        debug_assert!(
+            self == 1 || self == 0,
+            "tried to convert a non 0 or 1 uindex to a bool"
+        );
+        self == 1
     }
 }
 

@@ -1,0 +1,19 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo() -> i32 { return 5; }
+
+Block [
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [],
+        return_type: Type(I32),
+        body: Block [
+            Return(
+                IntLit("5"),
+            ),
+        ],
+    },
+]

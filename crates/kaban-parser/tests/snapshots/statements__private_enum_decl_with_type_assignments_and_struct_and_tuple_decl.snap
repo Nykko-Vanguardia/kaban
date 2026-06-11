@@ -1,0 +1,38 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: enum Day {Sunday: i32, Monday: struct {hour: u8, money: f64,}, Tuesday: (i32, f64),}
+
+Block [
+    EnumDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Day"),
+        variant_decls: [
+            EnumVariantDecl {
+                variant_name: Identifier("Sunday"),
+                type: Type(I32),
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Monday"),
+                type: AnonymousStructType [
+                    AnonymousStructFieldDecl {
+                        field_name: Identifier("hour"),
+                        type: Type(U8),
+                    },
+                    AnonymousStructFieldDecl {
+                        field_name: Identifier("money"),
+                        type: Type(F64),
+                    },
+                ],
+            },
+            EnumVariantDecl {
+                variant_name: Identifier("Tuesday"),
+                type: TupleType [
+                    Type(I32),
+                    Type(F64),
+                ],
+            },
+        ],
+    },
+]

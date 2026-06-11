@@ -1,0 +1,24 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foos[0]:bazz@<i32, f64,>(10);
+
+Block [
+    MethodWithGenericInstantiation {
+        callee: Index {
+            callee: Identifier("foos"),
+            index: IntLit("0"),
+            is_safe: true,
+        },
+        method name: Identifier("bazz"),
+        is mutable: true,
+        generic_args: [
+            Type(I32),
+            Type(F64),
+        ],
+        args: [
+            IntLit("10"),
+        ],
+    },
+]

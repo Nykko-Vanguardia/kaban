@@ -1,0 +1,21 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: {x, y: y,};
+
+Block [
+    StructInstantiation {
+        name: "NONE",
+        fields: [
+            Struct Field {
+                name: Identifier("x"),
+                assignment: Identifier("x"),
+            },
+            Struct Field {
+                name: Identifier("y"),
+                assignment: Identifier("y"),
+            },
+        ],
+    },
+]

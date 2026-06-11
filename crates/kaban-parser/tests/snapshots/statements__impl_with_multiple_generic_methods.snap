@@ -1,0 +1,213 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Pair<T, U>::Core<T, U> {
+        func map_first<V>(self&, f: func(x: T) -> V) -> Pair<V, U>;
+        func map_second<V>(self&, f: func(x: U) -> V) -> Pair<T, V>;
+        func map_both<V, W>(self&, f: func(x: T) -> V, g: func(x: U) -> W) -> Pair<V, W>;
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Pair"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+                NamedType(
+                    Identifier("U"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("map_first"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("T"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("V"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("V"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pair"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("V"),
+                        ),
+                        NamedType(
+                            Identifier("U"),
+                        ),
+                    ],
+                },
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("map_second"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("U"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("V"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("V"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pair"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("T"),
+                        ),
+                        NamedType(
+                            Identifier("V"),
+                        ),
+                    ],
+                },
+            },
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("map_both"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("f"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("T"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("V"),
+                            ),
+                        },
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("g"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: NamedType(
+                                        Identifier("U"),
+                                    ),
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("W"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("V"),
+                    },
+                    GenericParam {
+                        name: Identifier("W"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Pair"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("V"),
+                        ),
+                        NamedType(
+                            Identifier("W"),
+                        ),
+                    ],
+                },
+            },
+        ],
+    },
+]

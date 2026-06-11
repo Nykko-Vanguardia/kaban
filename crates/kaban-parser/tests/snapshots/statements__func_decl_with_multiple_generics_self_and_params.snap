@@ -1,0 +1,51 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: func foo<T, U>(self&, x: T, y: U) -> T { return x; }
+
+Block [
+    FuncDeclWithGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [
+            SelfParam(
+                Ampersand("&"),
+            ),
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("x"),
+                    mutable: false,
+                },
+                type: NamedType(
+                    Identifier("T"),
+                ),
+            },
+            Param {
+                binding: IdentifierBinding {
+                    name: Identifier("y"),
+                    mutable: false,
+                },
+                type: NamedType(
+                    Identifier("U"),
+                ),
+            },
+        ],
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+            GenericParam {
+                name: Identifier("U"),
+            },
+        ],
+        return_type: NamedType(
+            Identifier("T"),
+        ),
+        body: Block [
+            Return(
+                Identifier("x"),
+            ),
+        ],
+    },
+]

@@ -1,32 +1,54 @@
 use kaban_core::{ToBool, ToUsize, UIndex, source::Source};
-use kaban_lexer::{Token};
+use kaban_lexer::{Token, lexer::TokenizedSource};
 
-use crate::node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToWrapper, TokenIndex, UOption};
+use crate::{
+    errors::{ParseError, ParseWarning},
+    node::{NodeData, NodeIndex, NodeIndexVec, NodeTag, ToOption, ToWrapper, TokenIndex},
+};
 
 pub struct AST<'a> {
-    tokens: &'a [Token],
-    node_tags: Vec<NodeTag>,
-    node_data: Vec<NodeData>,
-    extra: Vec<UIndex>,
+    tokenized_source: &'a TokenizedSource,
+    pub node_tags: Vec<NodeTag>,
+    pub node_data: Vec<NodeData>,
+    pub main_token: Vec<TokenIndex>,
+    pub extra: Vec<UIndex>,
     source: Source<'a>,
     pub root: NodeIndex,
+    pub errors: Vec<ParseError>,
+    pub warnings: Vec<ParseWarning>,
 }
 
 impl<'a> AST<'a> {
     pub fn new(
-        tokens: &'a [Token], 
-        node_tags: Vec<NodeTag>, 
+        tokenized_source: &'a TokenizedSource,
+        node_tags: Vec<NodeTag>,
         node_data: Vec<NodeData>,
+        main_token: Vec<TokenIndex>,
         extra: Vec<UIndex>,
         source: Source<'a>,
         root: NodeIndex,
+        errors: Vec<ParseError>,
+        warnings: Vec<ParseWarning>,
     ) -> Self {
-        Self { tokens, node_tags, node_data, extra, source, root }
+        Self {
+            tokenized_source,
+            node_tags,
+            node_data,
+            main_token,
+            extra,
+            source,
+            root,
+            errors,
+            warnings,
+        }
     }
 
     #[inline(always)]
-    pub fn get_token(&self, index: TokenIndex) -> &'a Token {
-        &self.tokens[index.0.usize()]
+    pub fn get_token_from_lexer(&self, index: TokenIndex) -> Token {
+        let kind = self.tokenized_source.kind[index.0.usize()];
+        let start = self.tokenized_source.start[index.0.usize()];
+        let end = self.tokenized_source.end[index.0.usize()];
+        Token::new(kind, start, end)
     }
 
     #[inline(always)]
@@ -38,7 +60,6 @@ impl<'a> AST<'a> {
     pub fn get_data(&self, index: NodeIndex) -> NodeData {
         self.node_data[index.0.usize()]
     }
-
 
     #[inline(always)]
     pub fn get_left_right(&self, index: NodeIndex) -> (UIndex, UIndex) {
@@ -64,8 +85,21 @@ impl<'a> AST<'a> {
     pub fn get_source(&self) -> Source<'a> {
         self.source
     }
-}
 
+    #[inline(always)]
+    pub fn get_main_token_index(&self, index: NodeIndex) -> TokenIndex {
+        self.main_token[index.0.usize()]
+    }
+
+    #[inline(always)]
+    pub fn get_token(&self, index: NodeIndex) -> Token {
+        let index = self.get_main_token_index(index);
+        let kind = self.tokenized_source.kind[index.0.usize()];
+        let start = self.tokenized_source.start[index.0.usize()];
+        let end = self.tokenized_source.end[index.0.usize()];
+        Token::new(kind, start, end)
+    }
+}
 
 ///VIEWS
 impl<'a> AST<'a> {
@@ -76,32 +110,68 @@ impl<'a> AST<'a> {
         let args_start = extra + 1;
         FuncCall {
             callee: callee.node_index(),
-            args: self.get_extra_from_count(arg_count, args_start).node_index_slice(),
+            args: self
+                .get_extra_from_count(arg_count, args_start)
+                .node_index_slice(),
         }
     }
 
     pub fn view_method_call(&'a self, index: NodeIndex) -> MethodCall<'a> {
         debug_assert!(NodeTag::MethodCall == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
         let (callee, extra) = self.get_left_right(index);
-        let method_name = extra;
-        let is_self_mut = extra + 1;
-        let arg_count = extra + 2;
-        let args = extra + 3;
+        let is_self_mut = self.get_one_extra(extra);
+        let arg_count = self.get_one_extra(extra + 1);
+        let args = self.get_extra_from_count(arg_count, extra + 2);
 
-        let arg_count = self.get_one_extra(arg_count);
         MethodCall {
             callee: callee.node_index(),
-            method_name: self.get_one_extra(method_name).node_index(),
-            args: self.get_extra_from_count(arg_count, args).node_index_slice(),
-            is_self_mut: self.get_one_extra(is_self_mut).bool(),
+            method_name: main_token + 1,
+            args: args.node_index_slice(),
+            is_self_mut: is_self_mut.bool(),
         }
     }
 
+    pub fn view_method_call_with_generic_instantiation(
+        &'a self,
+        index: NodeIndex,
+    ) -> MethodCallWithGenericInstantiation<'a> {
+        debug_assert!(NodeTag::MethodWithGenericInstantiation == self.get_tag(index));
+        let (callee, extra) = self.get_left_right(index);
+        let main_token = self.get_main_token_index(index);
+        let is_self_mut = self.get_one_extra(extra);
+        let arg_count = self.get_one_extra(extra + 1);
+        let generic_arg_count = self.get_one_extra(extra + 2);
+        let args = self.get_extra_from_count(arg_count, extra + 3);
+        let generic_args = self.get_extra_from_count(generic_arg_count, extra + 3 + arg_count);
+
+        MethodCallWithGenericInstantiation {
+            callee: callee.node_index(),
+            method_name: main_token + 1,
+            args: args.node_index_slice(),
+            generic_args: generic_args.node_index_slice(),
+            is_self_mut: is_self_mut.bool(),
+        }
+    }
+
+    pub fn view_generic_instantiation(&'a self, index: NodeIndex) -> GenericInstantiation<'a> {
+        debug_assert!(NodeTag::GenericInstantiation == self.get_tag(index));
+        let (callee, extra) = self.get_left_right(index);
+        let arg_count = self.get_one_extra(extra);
+        let args_start = extra + 1;
+
+        GenericInstantiation {
+            callee: callee.node_index(),
+            args: self
+                .get_extra_from_count(arg_count, args_start)
+                .node_index_slice(),
+        }
+    }
     pub fn view_index(&'a self, index: NodeIndex) -> Index {
         debug_assert!(NodeTag::Index == self.get_tag(index));
         let (callee, extra) = self.get_left_right(index);
         let is_safe_index = extra;
-        let index_by= extra + 1;
+        let index_by = extra + 1;
         Index {
             callee: callee.node_index(),
             is_safe_index: self.get_one_extra(is_safe_index).bool(),
@@ -109,7 +179,6 @@ impl<'a> AST<'a> {
         }
     }
 
-        
     pub fn view_array_lit(&'a self, index: NodeIndex) -> ArrayLit<'a> {
         debug_assert!(NodeTag::ArrayLit == self.get_tag(index));
         let general_list = self.view_general_list(index);
@@ -125,6 +194,29 @@ impl<'a> AST<'a> {
         Union {
             len: general_list.len,
             types: general_list.indices.node_index_slice(),
+        }
+    }
+
+    pub fn view_func_type(&'a self, index: NodeIndex) -> FuncType<'a> {
+        debug_assert!(NodeTag::FuncType == self.get_tag(index));
+        let (return_type, extra_pointer) = self.get_left_right(index);
+        let param_count = self.get_one_extra(extra_pointer);
+        let params = self.get_extra_from_count(param_count, extra_pointer + 1);
+
+        FuncType {
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+        }
+    }
+
+    pub fn view_type_with_generics(&'a self, index: NodeIndex) -> TypeWithGenerics<'a> {
+        debug_assert!(NodeTag::TypeWithGenerics == self.get_tag(index));
+        let (type_, extra) = self.get_left_right(index);
+        let generic_arg_count = self.get_one_extra(extra);
+        let generics_args = self.get_extra_from_count(generic_arg_count, extra + 1);
+        TypeWithGenerics {
+            type_: type_.node_index(),
+            generic_args: generics_args.node_index_slice(),
         }
     }
 
@@ -167,23 +259,37 @@ impl<'a> AST<'a> {
         let (condition, extra_pointer) = self.get_left_right(index);
         let then_pointer = extra_pointer;
         let else_pointer = extra_pointer + 1;
-        let else_ = self.get_one_extra(else_pointer).node_index(); 
+        let else_ = self.get_one_extra(else_pointer).node_index();
         If {
             condition: condition.node_index(),
             then: self.get_one_extra(then_pointer).node_index(),
-            else_: else_.uoption(),
+            else_: else_.to_option(),
         }
     }
-    
+
     pub fn view_let_statement(&'a self, index: NodeIndex) -> Let {
         debug_assert!(NodeTag::Let == self.get_tag(index));
         let (name, extra_pointer) = self.get_left_right(index);
         let type_ = extra_pointer;
-        let assignment = extra_pointer + 1; 
+        let assignment = extra_pointer + 1;
         Let {
             name: name.node_index(),
-            type_: self.get_one_extra(type_).uoption(),
+            type_: self.get_one_extra(type_).node_index().to_option(),
             assignment: self.get_one_extra(assignment).node_index(),
+        }
+    }
+
+    pub fn view_const_statement(&'a self, index: NodeIndex) -> Const {
+        debug_assert!(NodeTag::Const == self.get_tag(index));
+        let (identifier, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let type_ = self.get_one_extra(extra_pointer + 1);
+        let assignment = self.get_one_extra(extra_pointer + 2);
+        Const {
+            is_pub: is_pub.bool(),
+            identifier: identifier.token_index(),
+            type_: type_.node_index(),
+            assignment: assignment.node_index(),
         }
     }
 
@@ -191,7 +297,7 @@ impl<'a> AST<'a> {
         debug_assert!(NodeTag::Match == self.get_tag(index));
         let (target, extra_pointer) = self.get_left_right(index);
         let arm_count = self.get_one_extra(extra_pointer);
-        let arm_list_start = extra_pointer + 1; 
+        let arm_list_start = extra_pointer + 1;
         let arms = self.get_extra_from_count(arm_count, arm_list_start);
         Match {
             target: target.node_index(),
@@ -199,18 +305,342 @@ impl<'a> AST<'a> {
         }
     }
 
-    //This was changed because it could be binded to not an identifier binding (eg. another struct
-    //binding like let {x: {a, b}}). Just call left and right
-    // pub fn view_struct_destructure_binding(&'a self, index: NodeIndex) -> StructDestructureBinding {
-    //     debug_assert!(NodeTag::StructDestructureBinding == self.get_tag(index));
-    //     let (field_name, identifier_binding) = self.get_left_right(index);
-    //     let (new_name, is_mutable) = self.get_left_right(identifier_binding.node_index());
-    //     StructDestructureBinding {
-    //         field_name: field_name.token_index(),
-    //         new_name: new_name.token_index(),
-    //         is_mutable: is_mutable.bool(),
-    //     }
-    // }
+    pub fn view_struct_instantiation(&'a self, index: NodeIndex) -> StructInstantiation<'a> {
+        debug_assert!(NodeTag::StructInstantiation == self.get_tag(index));
+        let (struct_name, extra_pointer) = self.get_left_right(index);
+        let field_count = self.get_one_extra(extra_pointer);
+        let field_start = extra_pointer + 1;
+        let field_instantiation = self.get_extra_from_count(field_count, field_start);
+        StructInstantiation {
+            struct_name: struct_name.node_index().to_option(),
+            field_instantiation: field_instantiation.node_index_slice(),
+        }
+    }
+
+    pub fn view_anonymous_func_decl(&'a self, index: NodeIndex) -> AnonymousFuncDecl<'a> {
+        debug_assert!(NodeTag::AnonymousFuncDecl == self.get_tag(index));
+        let (body, extra_pointer) = self.get_left_right(index);
+        let return_type = extra_pointer;
+        let param_count = extra_pointer + 1;
+        let param_start = extra_pointer + 2;
+
+        AnonymousFuncDecl {
+            params: self
+                .get_extra_from_count(self.get_one_extra(param_count), param_start)
+                .node_index_slice(),
+            return_type: self.get_one_extra(return_type).node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
+
+    pub fn view_func_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::FuncDeclWithNoGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let return_type = self.get_one_extra(extra_pointer);
+        let body = self.get_one_extra(extra_pointer + 1);
+        let param_count = self.get_one_extra(extra_pointer + 2);
+        let params = self.get_extra_from_count(param_count, extra_pointer + 3);
+
+        FuncDeclWithNoGenerics {
+            is_pub: is_pub.bool(),
+            name: main_token + 1,
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
+
+    pub fn view_func_decl_with_generics(&'a self, index: NodeIndex) -> FuncDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::FuncDeclWithGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let return_type = self.get_one_extra(extra_pointer);
+        let body = self.get_one_extra(extra_pointer + 1);
+        let generic_param_count = self.get_one_extra(extra_pointer + 2);
+        let param_count = self.get_one_extra(extra_pointer + 3);
+        let generic_params = self.get_extra_from_count(generic_param_count, extra_pointer + 4);
+        let params =
+            self.get_extra_from_count(param_count, extra_pointer + 4 + generic_param_count);
+
+        FuncDeclWithGenerics {
+            is_pub: is_pub.bool(),
+            name: main_token + 1,
+            generic_params: generic_params.node_index_slice(),
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+            block: body.node_index(),
+        }
+    }
+
+    pub fn view_func_no_body_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncNoBodyWithNoGenerics<'a> {
+        debug_assert!(NodeTag::FuncNoBodyWithNoGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let return_type = self.get_one_extra(extra_pointer);
+        let param_count = self.get_one_extra(extra_pointer + 1);
+        let params = self.get_extra_from_count(param_count, extra_pointer + 2);
+
+        FuncNoBodyWithNoGenerics {
+            is_pub: is_pub.bool(),
+            name: main_token + 1,
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+        }
+    }
+
+    pub fn view_func_no_body_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> FuncNoBodyWithGenerics<'a> {
+        debug_assert!(NodeTag::FuncNoBodyWithGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let return_type = self.get_one_extra(extra_pointer);
+        let generic_param_count = self.get_one_extra(extra_pointer + 1);
+        let param_count = self.get_one_extra(extra_pointer + 2);
+        let generic_params = self.get_extra_from_count(generic_param_count, extra_pointer + 3);
+        let params =
+            self.get_extra_from_count(param_count, extra_pointer + 3 + generic_param_count);
+
+        FuncNoBodyWithGenerics {
+            is_pub: is_pub.bool(),
+            name: main_token + 1,
+            generic_params: generic_params.node_index_slice(),
+            params: params.node_index_slice(),
+            return_type: return_type.node_index().to_option(),
+        }
+    }
+
+    pub fn view_struct_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> StructDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::StructDeclWithNoGeneric == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let field_count = self.get_one_extra(extra_pointer);
+        let field_decls = self.get_extra_from_count(field_count, extra_pointer + 1);
+
+        StructDeclWithNoGenerics {
+            struct_name: main_token + 1,
+            is_pub: is_pub.bool(),
+            field_decls: field_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_struct_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> StructDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::StructDeclWithGeneric == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let generic_count = self.get_one_extra(extra_pointer);
+        let field_count = self.get_one_extra(extra_pointer + 1);
+        let generic_params = self.get_extra_from_count(generic_count, extra_pointer + 2);
+        let field_decls = self.get_extra_from_count(field_count, extra_pointer + 2 + generic_count);
+
+        StructDeclWithGenerics {
+            struct_name: main_token + 1,
+            is_pub: is_pub.bool(),
+            generic_params: generic_params.node_index_slice(),
+            field_decls: field_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_struct_field_decl(&'a self, index: NodeIndex) -> StructFieldDecl {
+        debug_assert!(NodeTag::StructFieldDecleration == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, type_) = self.get_left_right(index);
+
+        StructFieldDecl {
+            is_pub: is_pub.bool(),
+            field_name: main_token,
+            type_: type_.node_index(),
+        }
+    }
+
+    pub fn view_enum_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> EnumDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::EnumDeclWithNoGeneric == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let variant_count = self.get_one_extra(extra_pointer);
+        let variant_decls = self.get_extra_from_count(variant_count, extra_pointer + 1);
+
+        EnumDeclWithNoGenerics {
+            name: main_token + 1,
+            is_pub: is_pub.bool(),
+            variant_decls: variant_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_enum_decl_with_generics(&'a self, index: NodeIndex) -> EnumDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::EnumDeclWithGeneric == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let generic_count = self.get_one_extra(extra_pointer);
+        let variant_count = self.get_one_extra(extra_pointer + 1);
+        let generic_params = self.get_extra_from_count(generic_count, extra_pointer + 2);
+        let variant_decls =
+            self.get_extra_from_count(variant_count, extra_pointer + 2 + generic_count);
+
+        EnumDeclWithGenerics {
+            name: main_token + 1,
+            is_pub: is_pub.bool(),
+            generic_params: generic_params.node_index_slice(),
+            variant_decls: variant_decls.node_index_slice(),
+        }
+    }
+
+    pub fn view_impl_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::ImplDeclWithNoGeneric == self.get_tag(index));
+        let (impl_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let self_type = self.get_one_extra(extra_pointer + 1);
+        let statement_count = self.get_one_extra(extra_pointer + 2);
+        let statements = self.get_extra_from_count(statement_count, extra_pointer + 3);
+
+        ImplDeclWithNoGenerics {
+            impl_name: impl_name.token_index(),
+            is_pub: is_pub.bool(),
+            self_type: self_type.node_index(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_impl_decl_with_generics(&'a self, index: NodeIndex) -> ImplDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::ImplDeclWithGeneric == self.get_tag(index));
+        let (impl_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let self_type = self.get_one_extra(extra_pointer + 1);
+        let generic_count = self.get_one_extra(extra_pointer + 2);
+        let statement_count = self.get_one_extra(extra_pointer + 3);
+        let generics = self.get_extra_from_count(generic_count, extra_pointer + 4);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 4 + generic_count);
+
+        ImplDeclWithGenerics {
+            impl_name: impl_name.token_index(),
+            is_pub: is_pub.bool(),
+            self_type: self_type.node_index(),
+            generic_params: generics.node_index_slice(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_impl_for_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplForDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::ImplForDeclWithNoGeneric == self.get_tag(index));
+        let (impl_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let self_type = self.get_one_extra(extra_pointer + 1);
+        let interface = self.get_one_extra(extra_pointer + 2);
+        let statement_count = self.get_one_extra(extra_pointer + 3);
+        let statements = self.get_extra_from_count(statement_count, extra_pointer + 4);
+
+        ImplForDeclWithNoGenerics {
+            impl_name: impl_name.token_index(),
+            is_pub: is_pub.bool(),
+            self_type: self_type.node_index(),
+            interface: interface.node_index(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_impl_for_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> ImplForDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::ImplForDeclWithGeneric == self.get_tag(index));
+        let (impl_name, extra_pointer) = self.get_left_right(index);
+        let is_pub = self.get_one_extra(extra_pointer);
+        let self_type = self.get_one_extra(extra_pointer + 1);
+        let interface = self.get_one_extra(extra_pointer + 2);
+        let generic_count = self.get_one_extra(extra_pointer + 3);
+        let statement_count = self.get_one_extra(extra_pointer + 4);
+        let generics = self.get_extra_from_count(generic_count, extra_pointer + 5);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 5 + generic_count);
+
+        ImplForDeclWithGenerics {
+            impl_name: impl_name.token_index(),
+            is_pub: is_pub.bool(),
+            self_type: self_type.node_index(),
+            interface: interface.node_index(),
+            generic_params: generics.node_index_slice(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_interface_decl_with_no_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> InterfaceDeclWithNoGenerics<'a> {
+        debug_assert!(NodeTag::InterfaceDeclWithNoGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let shape = self.get_one_extra(extra_pointer);
+        let statement_count = self.get_one_extra(extra_pointer + 1);
+        let statements = self.get_extra_from_count(statement_count, extra_pointer + 2);
+
+        InterfaceDeclWithNoGenerics {
+            name: main_token + 1,
+            is_pub: is_pub.bool(),
+            shape: shape.node_index().to_option(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_interface_decl_with_generics(
+        &'a self,
+        index: NodeIndex,
+    ) -> InterfaceDeclWithGenerics<'a> {
+        debug_assert!(NodeTag::InterfaceDeclWithGenerics == self.get_tag(index));
+        let main_token = self.get_main_token_index(index);
+        let (is_pub, extra_pointer) = self.get_left_right(index);
+        let shape = self.get_one_extra(extra_pointer);
+        let generic_count = self.get_one_extra(extra_pointer + 1);
+        let statement_count = self.get_one_extra(extra_pointer + 2);
+        let generics = self.get_extra_from_count(generic_count, extra_pointer + 3);
+        let statements =
+            self.get_extra_from_count(statement_count, extra_pointer + 3 + generic_count);
+
+        InterfaceDeclWithGenerics {
+            name: main_token + 1,
+            is_pub: is_pub.bool(),
+            shape: shape.node_index().to_option(),
+            generic_params: generics.node_index_slice(),
+            statements: statements.node_index_slice(),
+        }
+    }
+
+    pub fn view_to_is(&'a self, index: NodeIndex) -> ToIs {
+        debug_assert!(NodeTag::ToIs == self.get_tag(index));
+        let (original, extra_pointer) = self.get_left_right(index);
+        let binding = self.get_one_extra(extra_pointer);
+        let is_target = self.get_one_extra(extra_pointer + 1);
+
+        ToIs {
+            original: original.node_index(),
+            binding: binding.node_index(),
+            is_target: is_target.node_index(),
+        }
+    }
 }
 
 //These structs are temporary data holders meant to construct nodes on demand for quick viewing.
@@ -219,14 +649,27 @@ impl<'a> AST<'a> {
 
 pub struct FuncCall<'a> {
     pub callee: NodeIndex,
-    pub args: &'a [NodeIndex]
+    pub args: &'a [NodeIndex],
 }
 
 pub struct MethodCall<'a> {
     pub callee: NodeIndex,
-    pub method_name: NodeIndex,
+    pub method_name: TokenIndex,
     pub args: &'a [NodeIndex],
     pub is_self_mut: bool,
+}
+
+pub struct MethodCallWithGenericInstantiation<'a> {
+    pub callee: NodeIndex,
+    pub method_name: TokenIndex,
+    pub args: &'a [NodeIndex],
+    pub generic_args: &'a [NodeIndex],
+    pub is_self_mut: bool,
+}
+
+pub struct GenericInstantiation<'a> {
+    pub callee: NodeIndex,
+    pub args: &'a [NodeIndex],
 }
 
 pub struct Index {
@@ -243,6 +686,16 @@ pub struct ArrayLit<'a> {
 pub struct Union<'a> {
     pub len: UIndex,
     pub types: &'a [NodeIndex],
+}
+
+pub struct FuncType<'a> {
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+}
+
+pub struct TypeWithGenerics<'a> {
+    pub type_: NodeIndex,
+    pub generic_args: &'a [NodeIndex],
 }
 
 pub struct Block<'a> {
@@ -264,22 +717,151 @@ pub struct For {
 pub struct If {
     pub condition: NodeIndex,
     pub then: NodeIndex,
-    pub else_: UOption,
+    pub else_: Option<NodeIndex>,
 }
 
 pub struct Let {
     pub name: NodeIndex,
-    pub type_: UOption,
+    pub type_: Option<NodeIndex>,
+    pub assignment: NodeIndex,
+}
+
+pub struct Const {
+    pub is_pub: bool,
+    pub identifier: TokenIndex,
+    pub type_: NodeIndex,
     pub assignment: NodeIndex,
 }
 
 pub struct Match<'a> {
     pub target: NodeIndex,
-    pub arms: &'a[NodeIndex],
+    pub arms: &'a [NodeIndex],
 }
 
-// pub struct StructDestructureBinding {
-//     pub field_name: TokenIndex,
-//     pub new_name: TokenIndex,
-//     pub is_mutable: bool,
-// }
+pub struct StructInstantiation<'a> {
+    pub struct_name: Option<NodeIndex>,
+    pub field_instantiation: &'a [NodeIndex],
+}
+
+pub struct AnonymousFuncDecl<'a> {
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
+}
+
+pub struct FuncDeclWithNoGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
+}
+
+pub struct FuncDeclWithGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub generic_params: &'a [NodeIndex],
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+    pub block: NodeIndex,
+}
+
+pub struct FuncNoBodyWithNoGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+}
+
+pub struct FuncNoBodyWithGenerics<'a> {
+    pub is_pub: bool,
+    pub name: TokenIndex,
+    pub generic_params: &'a [NodeIndex],
+    pub params: &'a [NodeIndex],
+    pub return_type: Option<NodeIndex>,
+}
+
+pub struct StructDeclWithNoGenerics<'a> {
+    pub struct_name: TokenIndex,
+    pub is_pub: bool,
+    pub field_decls: &'a [NodeIndex],
+}
+
+pub struct StructDeclWithGenerics<'a> {
+    pub struct_name: TokenIndex,
+    pub is_pub: bool,
+    pub generic_params: &'a [NodeIndex],
+    pub field_decls: &'a [NodeIndex],
+}
+
+pub struct StructFieldDecl {
+    pub is_pub: bool,
+    pub field_name: TokenIndex,
+    pub type_: NodeIndex,
+}
+
+pub struct EnumDeclWithNoGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub variant_decls: &'a [NodeIndex],
+}
+
+pub struct EnumDeclWithGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub generic_params: &'a [NodeIndex],
+    pub variant_decls: &'a [NodeIndex],
+}
+
+pub struct ImplDeclWithNoGenerics<'a> {
+    pub impl_name: TokenIndex,
+    pub is_pub: bool,
+    pub self_type: NodeIndex,
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct ImplDeclWithGenerics<'a> {
+    pub impl_name: TokenIndex,
+    pub is_pub: bool,
+    pub self_type: NodeIndex,
+    pub generic_params: &'a [NodeIndex],
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct ImplForDeclWithNoGenerics<'a> {
+    pub impl_name: TokenIndex,
+    pub is_pub: bool,
+    pub self_type: NodeIndex,
+    pub interface: NodeIndex,
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct ImplForDeclWithGenerics<'a> {
+    pub impl_name: TokenIndex,
+    pub is_pub: bool,
+    pub self_type: NodeIndex,
+    pub interface: NodeIndex,
+    pub generic_params: &'a [NodeIndex],
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct InterfaceDeclWithNoGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub shape: Option<NodeIndex>,
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct InterfaceDeclWithGenerics<'a> {
+    pub name: TokenIndex,
+    pub is_pub: bool,
+    pub shape: Option<NodeIndex>,
+    pub generic_params: &'a [NodeIndex],
+    pub statements: &'a [NodeIndex],
+}
+
+pub struct ToIs {
+    pub original: NodeIndex,
+    pub binding: NodeIndex,
+    pub is_target: NodeIndex,
+}

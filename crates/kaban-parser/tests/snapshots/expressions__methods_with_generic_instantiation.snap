@@ -1,0 +1,19 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: foo.buzz@<i32,>(10);
+
+Block [
+    MethodWithGenericInstantiation {
+        callee: Identifier("foo"),
+        method name: Identifier("buzz"),
+        is mutable: false,
+        generic_args: [
+            Type(I32),
+        ],
+        args: [
+            IntLit("10"),
+        ],
+    },
+]

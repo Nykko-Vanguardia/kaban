@@ -1,0 +1,12 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: x b>> y;
+
+Block [
+    RightShift {
+        left: Identifier("x"),
+        right: Identifier("y"),
+    },
+]

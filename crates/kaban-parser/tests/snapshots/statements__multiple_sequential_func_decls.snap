@@ -1,0 +1,45 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+        func foo() -> i32 { return 1; }
+        func bar() -> i32 { return 2; }
+        func baz() -> i32 { return 3; }
+    
+
+Block [
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("foo"),
+        params: [],
+        return_type: Type(I32),
+        body: Block [
+            Return(
+                IntLit("1"),
+            ),
+        ],
+    },
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("bar"),
+        params: [],
+        return_type: Type(I32),
+        body: Block [
+            Return(
+                IntLit("2"),
+            ),
+        ],
+    },
+    FuncDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("baz"),
+        params: [],
+        return_type: Type(I32),
+        body: Block [
+            Return(
+                IntLit("3"),
+            ),
+        ],
+    },
+]

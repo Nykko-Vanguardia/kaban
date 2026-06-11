@@ -1,0 +1,58 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: if (x to mut time is Day.Monday) { foo(); } else if (x to {mut y, z,} is Day.Tuesday) { buzz(); }
+
+Block [
+    IfExpression {
+        condition: ToIs {
+            original: Identifier("x"),
+            binding: IdentifierBinding {
+                name: Identifier("time"),
+                mutable: true,
+            },
+            is target: MemberAccess {
+                left: Identifier("Day"),
+                right: Identifier("Monday"),
+            },
+        },
+        then: Block [
+            FuncCall {
+                callee: Identifier("foo"),
+                args: [],
+            },
+        ],
+        else: IfExpression {
+            condition: ToIs {
+                original: Identifier("x"),
+                binding: StructDestructure [
+                    StructDestructureBinding {
+                        field_name: Identifier("y"),
+                        binding: IdentifierBinding {
+                            name: Identifier("y"),
+                            mutable: true,
+                        },
+                    },
+                    StructDestructureBinding {
+                        field_name: Identifier("z"),
+                        binding: IdentifierBinding {
+                            name: Identifier("z"),
+                            mutable: false,
+                        },
+                    },
+                ],
+                is target: MemberAccess {
+                    left: Identifier("Day"),
+                    right: Identifier("Tuesday"),
+                },
+            },
+            then: Block [
+                FuncCall {
+                    callee: Identifier("buzz"),
+                    args: [],
+                },
+            ],
+        },
+    },
+]

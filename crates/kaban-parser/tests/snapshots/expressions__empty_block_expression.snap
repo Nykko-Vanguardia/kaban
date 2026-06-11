@@ -1,0 +1,9 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: {}
+
+Block [
+    Block [],
+]

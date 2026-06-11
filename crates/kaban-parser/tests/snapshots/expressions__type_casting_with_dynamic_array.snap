@@ -1,0 +1,14 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: x as i32[];
+
+Block [
+    As {
+        left: Identifier("x"),
+        right: DynArrayType(
+            Type(I32),
+        ),
+    },
+]

@@ -1,0 +1,14 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: "format! (\"input: {}\\n\\n{:#?}\", input, ast.to_debugger())"
+---
+input: pub const MY_NUMBER: i32 = 10;
+
+Block [
+    Const {
+        is_pub: true,
+        name: Identifier("MY_NUMBER"),
+        type: Type(I32),
+        assignment: IntLit("10"),
+    },
+]

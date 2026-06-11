@@ -1,0 +1,24 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: impl Person::Core { pub func new() -> self { } }
+
+Block [
+    ImplDeclWithNoGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: NamedType(
+            Identifier("Person"),
+        ),
+        statements: [
+            FuncDeclWithNoGeneric {
+                is_pub: true,
+                name: Identifier("new"),
+                params: [],
+                return_type: Self_,
+                body: Block [],
+            },
+        ],
+    },
+]

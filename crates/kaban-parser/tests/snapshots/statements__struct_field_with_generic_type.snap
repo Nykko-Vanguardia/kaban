@@ -1,0 +1,29 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: struct Foo { x: HashMap<String, i32>, }
+
+Block [
+    StructDeclWithNoGeneric {
+        is_pub: false,
+        name: Identifier("Foo"),
+        field_decls: [
+            StructFieldDecleration {
+                is_pub: false,
+                field_name: Identifier("x"),
+                type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("HashMap"),
+                    ),
+                    generic_args: [
+                        NamedType(
+                            Identifier("String"),
+                        ),
+                        Type(I32),
+                    ],
+                },
+            },
+        ],
+    },
+]

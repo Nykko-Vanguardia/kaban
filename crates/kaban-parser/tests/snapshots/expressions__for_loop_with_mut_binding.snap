@@ -1,0 +1,24 @@
+---
+source: crates/kaban-parser/tests/expressions.rs
+expression: print
+---
+input: for (mut i in 1..10) { x += i; }
+
+Block [
+    For {
+        binding: IdentifierBinding {
+            name: Identifier("i"),
+            mutable: true,
+        },
+        iterator: ExclusiveRange {
+            left: IntLit("1"),
+            right: IntLit("10"),
+        },
+        block: Block [
+            PlusAssignment {
+                left: Identifier("x"),
+                right: Identifier("i"),
+            },
+        ],
+    },
+]

@@ -1,0 +1,112 @@
+---
+source: crates/kaban-parser/tests/statements.rs
+expression: print
+---
+input: 
+    impl Graph<T>::Core<T> {
+        func shortest_path<W>(self&, from: T, to_: T, weight: func(x: Edge<T, W>) -> W) -> Result<W[], PathError>;
+    }
+    
+
+Block [
+    ImplDeclWithGeneric {
+        is_pub: false,
+        impl_name: Identifier("Core"),
+        self_type: TypeWithGenerics {
+            type: NamedType(
+                Identifier("Graph"),
+            ),
+            generic_args: [
+                NamedType(
+                    Identifier("T"),
+                ),
+            ],
+        },
+        generic_params: [
+            GenericParam {
+                name: Identifier("T"),
+            },
+        ],
+        statements: [
+            FuncNoBodyWithGeneric {
+                is_pub: false,
+                name: Identifier("shortest_path"),
+                params: [
+                    SelfParam(
+                        Ampersand("&"),
+                    ),
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("from"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("T"),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("to_"),
+                            mutable: false,
+                        },
+                        type: NamedType(
+                            Identifier("T"),
+                        ),
+                    },
+                    Param {
+                        binding: IdentifierBinding {
+                            name: Identifier("weight"),
+                            mutable: false,
+                        },
+                        type: FuncType {
+                            params: [
+                                Param {
+                                    binding: IdentifierBinding {
+                                        name: Identifier("x"),
+                                        mutable: false,
+                                    },
+                                    type: TypeWithGenerics {
+                                        type: NamedType(
+                                            Identifier("Edge"),
+                                        ),
+                                        generic_args: [
+                                            NamedType(
+                                                Identifier("T"),
+                                            ),
+                                            NamedType(
+                                                Identifier("W"),
+                                            ),
+                                        ],
+                                    },
+                                },
+                            ],
+                            return type: NamedType(
+                                Identifier("W"),
+                            ),
+                        },
+                    },
+                ],
+                generic_params: [
+                    GenericParam {
+                        name: Identifier("W"),
+                    },
+                ],
+                return_type: TypeWithGenerics {
+                    type: NamedType(
+                        Identifier("Result"),
+                    ),
+                    generic_args: [
+                        DynArrayType(
+                            NamedType(
+                                Identifier("W"),
+                            ),
+                        ),
+                        NamedType(
+                            Identifier("PathError"),
+                        ),
+                    ],
+                },
+            },
+        ],
+    },
+]
