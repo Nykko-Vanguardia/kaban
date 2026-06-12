@@ -7,42 +7,18 @@ use crate::{
 };
 
 pub struct AST<'a> {
-    tokenized_source: &'a TokenizedSource,
+    pub tokenized_source: &'a TokenizedSource,
     pub node_tags: Vec<NodeTag>,
     pub node_data: Vec<NodeData>,
     pub main_token: Vec<TokenIndex>,
     pub extra: Vec<UIndex>,
-    source: Source<'a>,
+    pub source: Source<'a>,
     pub root: NodeIndex,
     pub errors: Vec<ParseError>,
     pub warnings: Vec<ParseWarning>,
 }
 
 impl<'a> AST<'a> {
-    pub fn new(
-        tokenized_source: &'a TokenizedSource,
-        node_tags: Vec<NodeTag>,
-        node_data: Vec<NodeData>,
-        main_token: Vec<TokenIndex>,
-        extra: Vec<UIndex>,
-        source: Source<'a>,
-        root: NodeIndex,
-        errors: Vec<ParseError>,
-        warnings: Vec<ParseWarning>,
-    ) -> Self {
-        Self {
-            tokenized_source,
-            node_tags,
-            node_data,
-            main_token,
-            extra,
-            source,
-            root,
-            errors,
-            warnings,
-        }
-    }
-
     #[inline(always)]
     pub fn get_token_from_lexer(&self, index: TokenIndex) -> Token {
         let kind = self.tokenized_source.kind[index.0.usize()];

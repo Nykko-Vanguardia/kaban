@@ -54,17 +54,17 @@ impl<'a> Parser<'a> {
         let top_level_statements = ScratchSlice { start, end };
 
         let root = self.push_block(top_level_statements, TokenIndex(U_NONE));
-        AST::new(
-            self.tokenized_source,
-            std::mem::take(&mut self.node_tags),
-            std::mem::take(&mut self.node_data),
-            std::mem::take(&mut self.main_token),
-            std::mem::take(&mut self.extra),
-            self.source,
+        AST {
+            tokenized_source: self.tokenized_source,
+            node_tags: std::mem::take(&mut self.node_tags),
+            node_data: std::mem::take(&mut self.node_data),
+            main_token: std::mem::take(&mut self.main_token),
+            extra: std::mem::take(&mut self.extra),
+            source: self.source,
             root,
-            std::mem::take(&mut self.errors),
-            std::mem::take(&mut self.warnings),
-        )
+            errors: std::mem::take(&mut self.errors),
+            warnings: std::mem::take(&mut self.warnings),
+        }
     }
 
     pub fn reset(&mut self, tokenized_source: &'a TokenizedSource, source: Source<'a>) {
@@ -139,12 +139,74 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
+    /// Move a scratch slice into `extra` and truncate the scratch buffer back to the original point
+    /// from when the scratch slice was created
+    ///
+    /// # WARNING
+    /// If multiple sibling lists are alive at once (e.g. generics and params)
+    /// use `push_extra_no_truncate` instead.
+    ///
+    /// Truncating is necessary for recursive calls, to perserve the stack order
+    ///
+    /// Example:
+    ///
+    /// ```kaban
+    /// (w, (x, y), z)
+    ///
+    /// [] = scratch
+    /// [w]              // Start parsing outer tuple, store w in scratch
+    /// [w, x, y]        // Parse inner tuple, store x and y in scratch
+    /// [w]              // Move x and y into inner tuple extra, truncate back to w
+    /// [w, (x, y)]      // Store the node index for the inner tuple
+    /// [w, (x, y), z]   // Store z in scratch
+    /// []               // Move everything into outer tuple extra
+    /// ```
+    ///
+    /// Without truncating:
+    ///
+    /// ```kaban
+    /// [w, x, y]
+    /// [w, x, y, (x, y)]
+    /// [w, x, y, (x, y), z]
+    /// ```
+    ///
+    /// x and y would remain in scratch and be copied into the outer tuple's
+    /// extra data, corrupting the AST.
     fn push_extra(&mut self, ScratchSlice { start, end }: ScratchSlice) -> ExtraIndex {
         let extra = self.push_extra_no_truncate(ScratchSlice { start, end });
         self.scratch.truncate(start);
         extra
     }
 
+    /// Move a scratch slice into `extra` without truncating.
+    ///
+    /// Needed when multiple sibling lists are alive at the same time.
+    ///
+    /// # WARNING
+    /// Every call to this function should eventually be followed by a manual truncate.
+    /// Prefer `push_extra` whenever possible.
+    ///
+    /// Example:
+    ///
+    /// ```kaban
+    /// func foo<T, U>(x: T, y: U)
+    ///
+    /// [T, U]          // Parse generics
+    /// [T, U, x, y]    // Parse params
+    ///
+    /// // CANNOT TRUNCATE VIA self.push_extra(generics):
+    /// [x, y]          // Params are lost
+    /// ```
+    ///
+    /// Instead you must manually truncate back to the start of generics:
+    ///
+    /// ```kaban
+    /// [T, U, x, y]
+    ///
+    /// self.push_extra_no_truncate(generics)
+    /// self.push_extra_no_truncate(params)
+    /// self.scratch.truncate(generics.start);
+    /// ```
     fn push_extra_no_truncate(&mut self, ScratchSlice { start, end }: ScratchSlice) -> ExtraIndex {
         let starting_index = self.extra.len().uindex();
         for i in start..end {
@@ -1735,8 +1797,8 @@ impl<'a> Parser<'a> {
 
         next == TokenKind::Identifier
             && (third == TokenKind::Colon ||
-             // third == TokenKind::RightBrace || //decided to remove this, do {x,} for one field
-             third == TokenKind::Comma)
+        // third == TokenKind::RightBrace || //decided to remove this, do {x,} for one field
+        third == TokenKind::Comma)
     }
 
     // fn if_identifier_says_shape_consume_bool(&mut self) -> bool {
